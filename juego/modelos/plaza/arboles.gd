@@ -38,6 +38,8 @@ var mat_solido: StandardMaterial3D
 var mat_datiles: ShaderMaterial
 var cache = {}
 var radios = {}  # especie/variante -> radio del tronco a 1 m (colisión)
+var sombras = {}  # especie/variante -> la malla de la sombra
+const SOMBRA_K := {"frondoso": 2, "podado": 2, "arbusto": 2, "cedro": 2, "araucaria": 3}  # una tarjeta de cada k
 
 
 func _init() -> void:
@@ -102,7 +104,19 @@ func malla(especie: String, variante: int) -> ArrayMesh:
 	extra.malla(mat_datiles if especie == "palmera" else mat_solido, m)
 	cache[clave] = m
 	radios[clave] = r
+	# la sombra: la corteza y una tarjeta de cada racimo (las tres cruzadas de un racimo dan casi la misma sombra)
+	var s = ArrayMesh.new()
+	tr.malla(mat_corteza[especie], s)
+	if especie in mat_follaje:
+		fo.cada(SOMBRA_K.get(especie, 1)).malla(mat_follaje[especie], s)
+	sombras[clave] = s
 	return m
+
+
+# la malla que proyecta la sombra de una variante (instancia solo de sombra)
+func sombra(especie: String, variante: int) -> ArrayMesh:
+	malla(especie, variante)
+	return sombras["%s/%d" % [especie, variante % VARIANTES]]
 
 
 func radio(especie: String, variante: int) -> float:
@@ -169,7 +183,7 @@ func palmera(rng: RandomNumberGenerator, tr, fo, datiles) -> float:
 		var p0 = c + horiz * 0.3 + Vector3.UP * lerp(0.3, -0.6, f)
 		var caida = L * lerp(0.25, 0.55, f)
 		var lado = horiz.cross(Vector3.UP).normalized()
-		var pasos = 8
+		var pasos = 6
 		var tinte = col * lerp(1.05, 0.85, f)
 		if f > 0.85 and rng.randf() < 0.5:
 			tinte = Color(0.55, 0.5, 0.28)  # alguna fronda vieja amarillenta
@@ -325,16 +339,16 @@ func frondoso(rng: RandomNumberGenerator, tr, fo) -> float:
 		var d = Vector3(cos(az) * cos(el), sin(el), sin(az) * cos(el))
 		ramas(rng, tr, tope, d, R * 0.55, r0 * 0.55, 3, puntas, c, R, ry)
 	for p in puntas:
-		racimo(fo, rng, p, rng.randf_range(2.2, 3.0), c, col)
+		racimo(fo, rng, p, rng.randf_range(2.3, 3.1), c, col, 2)
 	# relleno de la copa: racimos sobre una cáscara del elipsoide, para que se lea llena
-	var n = int(R * R * 3.2)
+	var n = int(R * R * 1.7)
 	for i in n:
 		var d = Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.75, 1), rng.randf_range(-1, 1))
 		if d.length() > 1 or d.length() < 0.2:
 			continue
 		d = d.normalized() * rng.randf_range(0.45, 1.0)
 		var p = c + Vector3(d.x * R, d.y * ry, d.z * R)
-		racimo(fo, rng, p, rng.randf_range(1.8, 2.5), c, col)
+		racimo(fo, rng, p, rng.randf_range(2.3, 3.1), c, col, 2)
 	return r0
 
 

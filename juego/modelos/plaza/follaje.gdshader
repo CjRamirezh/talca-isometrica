@@ -1,9 +1,9 @@
 // Follaje en tarjetas: una textura con transparencia (hojas, agujas, frondas: texturas.gd) multiplicada por el color
-// del vértice, recortada por su alfa (con alpha to coverage, el MSAA del proyecto suaviza el borde), translúcida a
+// del vértice, recortada por su alfa (sin alpha to coverage: costaba ~1,3 ms por cuadro en la plaza), translúcida a
 // contraluz y movida por el viento según la altura sobre el suelo del árbol. Las normales de las tarjetas vienen del
 // constructor (salen del centro de la copa): así la copa se ilumina como un volumen y no como planos sueltos.
 shader_type spatial;
-render_mode cull_disabled, alpha_to_coverage;
+render_mode cull_disabled;
 
 uniform sampler2D tex : source_color, filter_linear_mipmap, repeat_disable;
 uniform float viento = 1.0;
@@ -26,7 +26,7 @@ void fragment() {
 	ALBEDO = c.rgb * COLOR.rgb;
 	ALPHA = c.a;
 	ALPHA_SCISSOR_THRESHOLD = corte;
-	ALPHA_ANTIALIASING_EDGE = 0.25;
+
 	ALPHA_TEXTURE_COORDINATE = UV * vec2(textureSize(tex, 0));
 	ROUGHNESS = 0.75;
 	SPECULAR = brillo;

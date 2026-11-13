@@ -194,6 +194,18 @@ static func pol(a: Array) -> PackedVector2Array:
 	return out
 
 
+# una copia con uno de cada k cuadriláteros (6 vértices cada uno): para mallas hechas solo de tarjetas
+func cada(k: int) -> RefCounted:
+	var o = get_script().new()
+	if k <= 1:
+		o.v = v; o.n = n; o.c = c; o.uv = uv
+		return o
+	for q in range(0, v.size() / 6, k):
+		for j in range(q * 6, q * 6 + 6):
+			o.v.append(v[j]); o.n.append(n[j]); o.c.append(c[j]); o.uv.append(uv[j])
+	return o
+
+
 func malla(mat: Material = null, previa: ArrayMesh = null) -> ArrayMesh:
 	var m = previa if previa else ArrayMesh.new()
 	if v.is_empty():

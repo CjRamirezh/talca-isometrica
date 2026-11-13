@@ -11,7 +11,7 @@ var p  # plaza.gd
 var rng = RandomNumberGenerator.new()
 var m_hierro: StandardMaterial3D
 var m_pintura: StandardMaterial3D
-var m_vidrio: StandardMaterial3D
+var m_vidrio: ShaderMaterial
 var faroles: Array[Vector2] = []
 
 const HIERRO := Color(0.10, 0.12, 0.11)        # el fierro fundido del quiosco (casi negro, verdoso)
@@ -31,12 +31,8 @@ func _init(plaza) -> void:
 	m_pintura = StandardMaterial3D.new()
 	m_pintura.vertex_color_use_as_albedo = true
 	m_pintura.roughness = 0.7
-	m_vidrio = StandardMaterial3D.new()
-	m_vidrio.albedo_color = Color(0.95, 0.92, 0.82)
-	m_vidrio.emission_enabled = true
-	m_vidrio.emission = Color(1.0, 0.86, 0.6)
-	m_vidrio.emission_energy_multiplier = 0.15
-	m_vidrio.roughness = 0.15
+	m_vidrio = ShaderMaterial.new()
+	m_vidrio.shader = load("res://modelos/plaza/farol.gdshader")  # se enciende de noche (el global `noche` de ambiente.gd)
 
 
 func construir() -> void:
@@ -522,7 +518,7 @@ func poner_faroles() -> void:
 		if p.en_prado(q, 0.4) >= 0 or not p.libre(q, 0.8):
 			continue
 		var t = atan2(q.y + 1.2, q.x - 0.2)
-		p.instancia(mesh, Transform3D(Basis(Vector3.UP, -t), G(q.x, q.y, p.PAV)))
+		p.lote(mesh, Transform3D(Basis(Vector3.UP, -t), G(q.x, q.y, p.PAV)))
 		var cil = CylinderShape3D.new()
 		cil.radius = 0.2
 		cil.height = 4.4
@@ -595,7 +591,7 @@ func poner_escanos() -> void:
 					continue
 				var t = atan2(afuera.x, -afuera.y)  # +Z local (el frente del escaño) hacia afuera del prado
 				var bs = Basis(Vector3.UP, t)
-				p.instancia(esc, Transform3D(bs, G(c.x, c.y, p.PAV)))
+				p.lote(esc, Transform3D(bs, G(c.x, c.y, p.PAV)), true, 80.0)
 				var caja = BoxShape3D.new()
 				caja.size = Vector3(1.85, 0.5, 0.5)
 				p.formas.append([caja, Transform3D(bs, G(c.x, c.y, p.PAV + 0.25))])
@@ -607,7 +603,7 @@ func poner_escanos() -> void:
 				if n % 3 == 1:
 					var cb = c + d * 1.4
 					if p.libre(cb, 0.4) and p.en_prado(cb, 0.25) < 0:
-						p.instancia(bas, Transform3D(bs, G(cb.x, cb.y, p.PAV)))
+						p.lote(bas, Transform3D(bs, G(cb.x, cb.y, p.PAV)), true, 80.0)
 						var bx = BoxShape3D.new()
 						bx.size = Vector3(0.45, 1.0, 0.45)
 						p.formas.append([bx, Transform3D(bs, G(cb.x, cb.y, p.PAV + 0.5))])

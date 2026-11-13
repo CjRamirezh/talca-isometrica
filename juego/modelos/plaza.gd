@@ -98,10 +98,15 @@ func _ready() -> void:
 	prados_y_soleras()
 	var pz_ = Piezas.new(self)
 	pz_.construir()
-	arboles()
+	var sin_ = OS.get_environment("PLAZA_SIN").split(",")  # para medir: arboles, pasto
+	if not "arboles" in sin_:
+		arboles()
 	pz_.poner_escanos()
-	pasto_de_cerca()
+	if not "pasto" in sin_:
+		pasto_de_cerca()
 	cuerpo()
+	luces_de_noche(pz_.faroles)
+	cerrar_lotes()
 	print("plaza.gd: %d ms, %s" % [Time.get_ticks_msec() - t0, str(stats)])
 
 
@@ -124,6 +129,43 @@ func instancia(mesh: Mesh, xf := Transform3D.IDENTITY, sombra := true) -> MeshIn
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if sombra else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	return mi
+
+
+# Lo que se repite (árboles, matas, faroles, escaños, basureros) va en lotes: un MultiMesh por malla, que se dibuja de
+# una vez en cada pasada (color, profundidad y las cuatro cascadas de sombra de ambiente.gd). Con un MeshInstance por
+# árbol eran ~860 dibujos por cuadro y la plaza bajaba a ~62 cuadros por segundo con el resto del juego.
+var lotes := {}
+
+
+# sombra: true, false o "solo" (una malla que solo proyecta sombra: la de los árboles, más liviana)
+func lote(mesh: Mesh, xf: Transform3D, sombra: Variant = true, alcance := 0.0) -> void:
+	var k = "%d/%s/%d" % [mesh.get_instance_id(), sombra, int(alcance)]
+	if not k in lotes:
+		lotes[k] = [mesh, sombra, alcance, []]
+	lotes[k][3].append(xf)
+
+
+func cerrar_lotes() -> void:
+	for k in lotes:
+		var l = lotes[k]
+		var mm = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = l[0]
+		mm.instance_count = l[3].size()
+		for i in l[3].size():
+			mm.set_instance_transform(i, l[3][i])
+		var mmi = MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		if l[1] is String:
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		else:
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if l[1] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if l[2] > 0:
+			mmi.visibility_range_end = l[2]
+			mmi.visibility_range_end_margin = 5.0
+			mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		add_child(mmi)
+	stats["lotes"] = lotes.size()
 
 
 func en_prado(p: Vector2, margen := 0.0) -> int:
@@ -247,7 +289,7 @@ func prados_y_soleras() -> void:
 				if Geometry2D.is_point_in_polygon(p, qi):
 					var esp = "agapanto" if rng.randf() < 0.65 else "arbusto"
 					var mesh: ArrayMesh = arb.malla(esp, rng.randi())
-					instancia(mesh, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.8, 1.2)), G(p.x, p.y, HP)), esp == "arbusto")
+					lote(mesh, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.8, 1.2)), G(p.x, p.y, HP)), esp == "arbusto", 70.0)
 				s += rng.randf_range(0.9, 1.6)
 	instancia(sol.malla(shader("piedra.gdshader", {"rugoso": 0.85})))
 	instancia(pasto.malla(shader("pasto.gdshader")), Transform3D.IDENTITY, false)
@@ -275,6 +317,8 @@ func prados_y_soleras() -> void:
 		mm.set_instance_transform(i, piedras[i])
 	var mmi = MultiMeshInstance3D.new()
 	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.visibility_range_end = 60.0
 	add_child(mmi)
 	stats["piedras"] = piedras.size()
 
@@ -285,7 +329,8 @@ func arbol(especie: String, p: Vector2, h: float, escala := 1.0, var_ := -1, sep
 	var v = var_ if var_ >= 0 else rng.randi()
 	var mesh: ArrayMesh = arb.malla(especie, v)
 	var xf = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * escala), G(p.x, p.y, h))
-	instancia(mesh, xf)
+	lote(mesh, xf, false)
+	lote(arb.sombra(especie, v), xf, "solo")
 	var r: float = arb.radio(especie, v) * escala
 	if r > 0.05:
 		var cil = CylinderShape3D.new()
@@ -393,13 +438,13 @@ func arboles() -> void:
 
 # ---- el pasto de cerca ----
 
-# Matas de hojas de pasto sobre los prados (MultiMesh por prado, sin sombra): ~14 por m², visibles hasta 40 m. Más
+# Matas de hojas de pasto sobre los prados (MultiMesh por prado, sin sombra): 14 por m², visibles hasta 26 m. Más
 # lejos queda el pasto plano con su ruido de color.
 func pasto_de_cerca() -> void:
 	var mata = Malla.new()
 	var r = RandomNumberGenerator.new()
 	r.seed = 77
-	for b in 7:
+	for b in 5:
 		var az = r.randf() * TAU
 		var p = Vector3(cos(az), 0, sin(az)) * r.randf_range(0.0, 0.08)
 		var h = r.randf_range(0.06, 0.13)
@@ -422,7 +467,7 @@ func pasto_de_cerca() -> void:
 		for t in range(0, tri.size(), 3):
 			var a = q[tri[t]]; var b = q[tri[t + 1]]; var c = q[tri[t + 2]]
 			var area: float = abs((b - a).cross(c - a)) / 2.0
-			for k in int(area * 26.0):
+			for k in int(area * 14.0):
 				var u = r.randf(); var v = r.randf()
 				if u + v > 1:
 					u = 1 - u; v = 1 - v
@@ -443,8 +488,8 @@ func pasto_de_cerca() -> void:
 		var mmi = MultiMeshInstance3D.new()
 		mmi.multimesh = mm
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mmi.visibility_range_end = 40.0
-		mmi.visibility_range_end_margin = 6.0
+		mmi.visibility_range_end = 26.0
+		mmi.visibility_range_end_margin = 5.0
 		mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		add_child(mmi)
 		total += xfs.size()
@@ -471,6 +516,53 @@ func medir_fps() -> void:
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
 	get_tree().quit()
+
+
+# ---- de noche ----
+
+# Una luz en cada farol y una bajo el cielo del quiosco. ambiente.gd prende las suyas de noche (las busca en la capa
+# «hitos» del glb, que aquí se recorta); estas se agregan a su lista para que las prenda y apague igual. Sin ambiente
+# (o con otro que no tenga `faroles`), quedan apagadas.
+func luces_de_noche(postes: Array) -> void:
+	var amb: Node = null
+	for n in get_parent().get_children():
+		if n != self and n.has_method("poner_hora") and "faroles" in n:
+			amb = n
+	if amb == null:
+		return
+	# ambiente busca los faroles por el color en los vértices de «hitos», y el recorte de main.gd deja los vértices de
+	# los triángulos quitados (solo cambia los índices): encuentra los del hito de la página dentro de la plaza y les
+	# pone un foco y una luz flotando donde ya no hay poste. Se sacan aquí.
+	var quedan: Array[OmniLight3D] = []
+	for f in amb.faroles:
+		if Geometry2D.is_point_in_polygon(Vector2(f.position.x, -f.position.z), Malla.adentro(pz, -1.0)):
+			f.queue_free()
+		else:
+			quedan.append(f)
+	amb.faroles = quedan
+	if amb.get("focos") is MultiMeshInstance3D:
+		var mm: MultiMesh = amb.focos.multimesh
+		for i in mm.instance_count:
+			var o = mm.get_instance_transform(i).origin
+			if Geometry2D.is_point_in_polygon(Vector2(o.x, -o.z), Malla.adentro(pz, -1.0)):
+				mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ZERO), o))
+	var puntos: Array[Vector3] = []
+	for q in postes:
+		puntos.append(G(q.x, q.y, PAV + 4.15))
+	puntos.append(G(QUIOSCO.x, QUIOSCO.y, PAV + 1.35 + 2.7))
+	for p in puntos:
+		var f = OmniLight3D.new()
+		f.position = p
+		f.light_color = Color(1.0, 0.78, 0.5)
+		f.omni_range = 13.0
+		f.omni_attenuation = 1.4
+		f.shadow_enabled = false
+		f.light_energy = 0.0
+		f.visible = false
+		add_child(f)
+		amb.faroles.append(f)
+	amb.poner_hora(amb.hora)  # para que tomen la hora de partida (--hora)
+	stats["luces"] = puntos.size()
 
 
 # ---- colisión ----
