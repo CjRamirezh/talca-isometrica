@@ -55,7 +55,7 @@ func _init() -> void:
 		var mc = ShaderMaterial.new()
 		mc.shader = sh_c
 		mc.set_shader_parameter("tipo", ESPECIES[e]["tipo"])
-		mc.set_shader_parameter("vueltas", 3.0 if e == "palmera" else 6.0)
+		mc.set_shader_parameter("vueltas", 5.0 if e == "palmera" else 6.0)
 		mat_corteza[e] = mc
 		if e in tex:
 			var mf = ShaderMaterial.new()

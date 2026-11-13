@@ -18,7 +18,7 @@ const HIERRO := Color(0.10, 0.12, 0.11)        # el fierro fundido del quiosco (
 const VERDE_FAROL := Color(0.16, 0.22, 0.20)   # faroles y basureros (fotos de 2018 y 2024)
 const VERDE_PILETA := Color(0.16, 0.36, 0.30)  # la fuente de fierro de la pileta central (foto de 2018)
 const AZUL := Color(0.22, 0.52, 0.86)          # el interior pintado de las piletas
-const PIEDRA := Color(0.66, 0.65, 0.61)
+const PIEDRA := Color(0.56, 0.56, 0.53)
 
 
 func _init(plaza) -> void:
@@ -249,7 +249,7 @@ func losa_escudo(c2: Vector2) -> void:
 
 # La pileta central (OSM n3428801388; foto de 2018 «Talca Plaza (5)»): un tazón redondo de piedra gris de ~6,4 m con
 # borde moldurado a 0,75 m, el interior pintado de azul, un pedestal en cruz al medio y la fuente de fierro verde de dos
-# platos con remate. El agua (la foto la muestra casi vacía) y las cortinas que caen de los platos son una licencia.
+# platos con remate. El agua es una licencia: la foto la muestra casi vacía.
 func pileta_central(c2: Vector2) -> void:
 	var PAV: float = p.PAV
 	var Rb = 3.2
@@ -271,10 +271,6 @@ func pileta_central(c2: Vector2) -> void:
 	cil.radius = 0.5
 	cil.height = 1.0
 	p.formas.append([cil, Transform3D(Basis(), b + Vector3.UP * 0.5)])
-	var agua = Malla.new()
-	agua.torno(b + Vector3.UP * 1.62, [Vector2(1.0, 0.0), Vector2(1.04, -0.5), Vector2(1.12, -1.25)], 28, Color.WHITE)
-	agua.torno(b + Vector3.UP * 2.64, [Vector2(0.55, 0.0), Vector2(0.58, -0.4), Vector2(0.63, -1.05)], 20, Color.WHITE)
-	p.instancia(agua.malla(p.shader("agua.gdshader", {"cae": 1.0})), Transform3D.IDENTITY, false)
 	var plato = Malla.new()
 	var d1 = PackedVector2Array(); var d2 = PackedVector2Array()
 	for k in 24:
@@ -315,9 +311,7 @@ func pileta_chica(c2: Vector2) -> void:
 	m.torno(C + Vector3.UP * 0.2, [Vector2(0.35, 0), Vector2(0.35, 0.5), Vector2(0.25, 0.6), Vector2(0.15, 1.4), Vector2(0.3, 1.5),
 		Vector2(0.3, 1.6), Vector2(0.1, 1.65), Vector2(0.06, 1.9), Vector2(0.0, 1.95)], 12, PIEDRA * 1.05)
 	p.instancia(m.malla(p.shader("piedra.gdshader")))
-	var w = Malla.new()
-	w.torno(C + Vector3.UP * 1.62, [Vector2(0.3, 0.0), Vector2(0.34, -0.5), Vector2(0.42, -1.05)], 14, Color.WHITE)
-	p.instancia(w.malla(p.shader("agua.gdshader", {"cae": 1.0})), Transform3D.IDENTITY, false)
+
 
 
 # ---- memoriales ----
@@ -416,7 +410,7 @@ func spano(c2: Vector2) -> void:
 # mira hacia el centro de la plaza (la foto no dice hacia dónde).
 func larrain(c2: Vector2) -> void:
 	var PAV: float = p.PAV
-	var gris = Color(0.74, 0.73, 0.7)
+	var gris = Color(0.64, 0.63, 0.6)
 	var m = Malla.new()
 	var C = G(c2.x, c2.y, PAV)
 	var ang = atan2(-c2.x, c2.y)  # el frente (+Z local) hacia el centro

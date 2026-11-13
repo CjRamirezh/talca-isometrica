@@ -25,12 +25,14 @@ void fragment() {
 	vec3 col = COLOR.rgb;
 	float h = 0.0;
 	if (tipo == 1) {
-		vec2 q = vec2(p.x * 1.6, p.y / 0.16);
+		// cicatrices de las frondas cortadas: escamas anchas, irregulares, en hileras que se traslapan
+		vec2 q = vec2(p.x * 1.4 + ruido(p * vec2(1.0, 4.0)) * 0.4, p.y / 0.11);
 		q.x += floor(q.y) * 0.5;
 		vec2 f = fract(q) - 0.5;
-		float rombo = abs(f.x) + abs(f.y);
-		h = 1.0 - smoothstep(0.32, 0.5, rombo);
-		col *= 0.55 + 0.55 * h + 0.15 * hash(floor(q));
+		float rombo = abs(f.x) * 1.2 + abs(f.y + 0.15) * 0.9;
+		h = 1.0 - smoothstep(0.3, 0.5, rombo);
+		col *= 0.68 + 0.32 * h + 0.18 * (hash(floor(q)) - 0.5);
+		col *= 0.9 + 0.2 * ruido(p * vec2(3.0, 0.7));
 	} else if (tipo == 2) {
 		float anillo = smoothstep(0.85, 1.0, fract(p.y / 0.35 + ruido(p * 3.0) * 0.2));
 		h = 1.0 - anillo;

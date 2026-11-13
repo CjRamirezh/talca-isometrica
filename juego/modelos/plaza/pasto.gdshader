@@ -32,7 +32,7 @@ void fragment() {
 	col = mix(col, seco, smoothstep(0.62, 0.9, ruido(p * 0.13 + 7.0)) * 0.35);
 	float fw = length(fwidth(p * 40.0));
 	float grano = mix(hash(floor(p * 40.0)), 0.5, smoothstep(0.3, 1.5, fw));
-	col *= 0.85 + 0.3 * grano;
+	col *= 0.94 + 0.12 * grano;
 	ALBEDO = col * COLOR.rgb;
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;

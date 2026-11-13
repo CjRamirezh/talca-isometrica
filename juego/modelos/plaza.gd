@@ -7,7 +7,7 @@
 # n11021258973 en un macizo de flores al sur), la pileta central n3428801388 y la estatua de Monseñor Larraín
 # n11021259030. Lo que está sobre el suelo sale de las fotos de Wikimedia Commons (las de la categoría de la plaza y
 # las que da `python pipeline/landmark.py photos plaza-de-armas`; en docs/FUENTES.md):
-#   2013-04  «Quiosco de la plaza de armas», «Plaza de armas de Talca2» (Ciudadano Talquino, CC BY-SA 3.0)
+#   2013-04  «Quiosco de la plaza de armas», «Plaza de armas de Talca2» (CC BY-SA 3.0)
 #   2014-08/10  «Talca, plaza (15020251291)», «(14836795037)», «(15020260081)», «(15711413856)» (Flickr, CC BY-SA 2.0)
 #   2005  «Talca plaza armas larrain» (dominio público)
 #   2018  «Talca Plaza (5)» (JordiCuber, CC BY-SA 4.0): la pileta central
@@ -81,10 +81,16 @@ func _init() -> void:
 
 # lo que se quita del glb dentro del contorno: el hito, sus árboles y el suelo de la manzana que queda debajo
 func recortes() -> Array:
+	if OS.has_environment("PLAZA_ANTES"):
+		return []
 	return [{"poligono": Malla.pol(PZ), "capas": ["hitos", "arboles", "suelo", "patios", "usos"]}]
 
 
 func _ready() -> void:
+	if OS.has_environment("PLAZA_FPS"):
+		medir_fps.call_deferred()
+	if OS.has_environment("PLAZA_ANTES"):  # para medir el juego sin este modelo
+		return
 	var t0 = Time.get_ticks_msec()
 	rng.seed = 1541  # el año de la fundación... de Santiago; cualquier semilla fija sirve
 	arb = Arboles.new()
@@ -288,8 +294,6 @@ func arbol(especie: String, p: Vector2, h: float, escala := 1.0, var_ := -1, sep
 		formas.append([cil, Transform3D(Basis(), G(p.x, p.y, h + 2.0))])
 	ocupar(p, max(r, 0.5), sep)
 	stats[especie] = stats.get(especie, 0) + 1
-	if OS.has_environment("PLAZA_DEPURAR"):
-		print("arbol ", especie, " ", p)
 
 
 # el alcorque de un árbol en el pavimento: un cuadro de tierra de 1,4 m con un borde de hormigón
@@ -445,6 +449,28 @@ func pasto_de_cerca() -> void:
 		add_child(mmi)
 		total += xfs.size()
 	stats["matas"] = total
+
+
+# PLAZA_FPS=1 en el entorno: sin vsync, espera 4 s y mide 6 s de cuadros (con las opciones de cámara de main.gd);
+# imprime los cuadros por segundo medios y el peor cuadro, y sale. PLAZA_ANTES=1 además deja el glb sin este modelo.
+func medir_fps() -> void:
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	await get_tree().create_timer(4.0).timeout
+	var n = 0
+	var peor = 0.0
+	var t0 = Time.get_ticks_usec()
+	var t = t0
+	while Time.get_ticks_usec() - t0 < 6000000:
+		await get_tree().process_frame
+		var ahora = Time.get_ticks_usec()
+		peor = max(peor, (ahora - t) / 1000.0)
+		t = ahora
+		n += 1
+	var ms = (Time.get_ticks_usec() - t0) / 1000.0 / n
+	print("plaza.gd fps: %.0f (%.2f ms por cuadro, peor %.1f ms; %d dibujos, %d primitivas)" % [1000.0 / ms, ms, peor,
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
+	get_tree().quit()
 
 
 # ---- colisión ----

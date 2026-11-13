@@ -147,8 +147,11 @@ func tubo(a: Vector3, b: Vector3, ra: float, rb: float, k: int, col_a: Color, co
 	if eje.length() < 1e-4:
 		return
 	var w = eje.normalized()
-	var u = w.cross(Vector3.UP if abs(w.y) < 0.95 else Vector3.RIGHT).normalized()
+	# un marco que cambia poco entre tramos casi paralelos (troncos curvos sin grietas en las uniones)
+	var ref = Vector3.FORWARD if abs(w.z) < 0.9 else Vector3.RIGHT
+	var u = (ref - w * ref.dot(w)).normalized()
 	var q = w.cross(u)
+	b = b + w * min(rb, 0.05) * 0.5  # se monta un poco en el tramo siguiente
 	var pend = (ra - rb) / eje.length()
 	for j in k:
 		var t0 = TAU * j / k; var t1 = TAU * (j + 1) / k

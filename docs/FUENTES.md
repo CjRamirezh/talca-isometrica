@@ -148,6 +148,14 @@ Los modelos de Godot del entorno de la plaza (`catedral.gd`, `fachadas.gd`, `cal
 - Gobierno Regional: [«Talca, reflecc (15550291390).jpg»](https://commons.wikimedia.org/wiki/File:Talca,_reflecc_(15550291390).jpg) (2014-10-31, CC BY-SA 2.0).
 - Edificio O'Higgins y BCI: [«Edificio ohiggins2.jpg»](https://commons.wikimedia.org/wiki/File:Edificio_ohiggins2.jpg) (2025-10-10, CC BY 4.0, ElPabloRN) y [«Banco de Crédito e Inversiones Talca.jpg»](https://commons.wikimedia.org/wiki/File:Banco_de_Cr%C3%A9dito_e_Inversiones_Talca.jpg) (2024-03-15, CC BY 4.0, ElPabloRN).
 - Los alrededores desde la plaza: [«Plaza de Armas de Talca en 2024 01.jpg»](https://commons.wikimedia.org/wiki/File:Plaza_de_Armas_de_Talca_en_2024_01.jpg) a «… 04.jpg» (2024-10-18, CC0, TomasVial).
+- **Plaza de Armas, en el juego** (`juego/modelos/plaza.gd`). La planta, de OSM (ODbL), como el hito de la página. Fotos de Wikimedia Commons, solo como referencia (nada de ellas va en el juego):
+  - [«Plaza de Armas de Talca en 2024 01–04»](https://commons.wikimedia.org/wiki/File:Plaza_de_Armas_de_Talca_en_2024_01.jpg) (18 de octubre de 2024, CC0, TomasVial): paseos, prados con solera y reja de aros, especies (palmeras canarias, cedros, araucarias, copas podadas), faroles con maceteros, el memorial de Spano;
+  - [«Talca Plaza (5)»](https://commons.wikimedia.org/wiki/File:Talca_Plaza_(5).jpg) (2018, CC BY-SA 4.0, JordiCuber): la pileta central y los faroles;
+  - [«Talca, plaza (15020251291)»](https://commons.wikimedia.org/wiki/File:Talca,_plaza_(15020251291).jpg), [«(15711413856)»](https://commons.wikimedia.org/wiki/File:Talca,_plaza_(15711413856).jpg), [«(14836795037)»](https://commons.wikimedia.org/wiki/File:Talca,_plaza_(14836795037).jpg) y [«(15020260081)»](https://commons.wikimedia.org/wiki/File:Talca,_plaza_(15020260081).jpg) (2014, Flickr, CC BY-SA 2.0): el quiosco, la losa del escudo de 2007, las baldosas, las cordylines, el magnolio;
+  - [«Quiosco de la plaza de armas»](https://commons.wikimedia.org/wiki/File:Quiosco_de_la_plaza_de_armas.jpg) y [«Plaza de armas de Talca2»](https://commons.wikimedia.org/wiki/File:Plaza_de_armas_de_Talca2.jpg) (2013, CC BY-SA 3.0): el quiosco, escaños y basureros;
+  - [«Monumento Carlos Spano Talca»](https://commons.wikimedia.org/wiki/File:Monumento_Carlos_Spano_Talca.jpg) (2017, CC BY-SA 4.0) y [«Talca plaza armas larrain»](https://commons.wikimedia.org/wiki/File:Talca_plaza_armas_larrain.jpg) (2005, dominio público).
+
+  Las inscripciones del memorial de Spano y de la estatua de Monseñor Larraín, de las etiquetas `inscription` de OSM. La hilera de árboles del borde, de la imagen de Esri (z19, 2015). Las texturas (hojas, agujas, frondas, rejas, filigrana) se dibujan en código; no hay recursos externos.
 
 ## Fotos de lugares sin hito
 
