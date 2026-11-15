@@ -20,8 +20,12 @@
 # «Calibrar» (cuenta 3 s y promedia medio segundo). Así se sabe dónde está la pantalla en el espacio de ARCore: su
 # centro queda --lente m (el alto del lente sobre el borde de la imagen: el marco más la distancia del borde del
 # teléfono a su cámara) más medio alto de la imagen bajo el lente, y su normal es hacia donde mira la cámara, en
-# horizontal (ARCore da la vertical). Se guarda en user://vp.json: no hay que repetirlo si la tele no se mueve. Si ARCore
-# se pierde (tapar la cámara, moverse muy rápido) el origen salta: recalibre.
+# horizontal (ARCore da la vertical). Se guarda el punto del lente y la normal, no el centro: --tele y --lente se pueden
+# corregir después sin recalibrar. La calibración vale para una sesión de WebXR: el espacio «local» tiene su origen
+# donde estaba el teléfono al tocar «Empezar», y cada sesión (Terminar y Empezar, recargar la página, bloquear el
+# teléfono) tiene otro. Cada pose lleva el id de su sesión; una de otra sesión deja la tele sin calibrar hasta que se
+# repita. Lo guardado en user://vp.json sirve para reiniciar Godot (otra --ancla, otra --escala) con la misma sesión
+# del teléfono abierta. Si ARCore se pierde (tapar la cámara, moverse muy rápido) el origen salta: recalibre.
 #
 #   --tele P        la diagonal de la imagen en pulgadas (55); el alto sale de la diagonal y la proporción de la ventana
 #   --pantalla N    pantalla completa en el monitor N (la tele, si está como segundo monitor)
@@ -38,7 +42,9 @@
 # Teclas: flechas, mover la ventana por la plaza; Q/E, girarla; RePág/AvPág, subirla o bajarla; +/−, la escala;
 # R, un túnel cuadriculado detrás de la pantalla para comprobar la calibración (con la calibración bien hecha, sus
 # líneas siguen rectas y fijas a la tele al mover el teléfono); M, el ojo con el mouse (sin teléfono: mueve el mouse,
-# la rueda acerca); H, ocultar el texto; T, la hora (ambiente.gd); Esc, salir.
+# la rueda acerca); H, ocultar el texto (también la hora de ambiente.gd, que si no saldría en lo filmado); T, la hora
+# (ambiente.gd); Esc, salir. +/− van por el carácter, no por la posición de la tecla (en un teclado español no están
+# donde en uno de EE. UU.).
 extends Node3D
 
 const PUERTO_HTTP := 8770
@@ -59,9 +65,10 @@ var tunel := MeshInstance3D.new()
 var texto := Label.new()
 var suelo_y := 0.0
 
-# la pantalla en el espacio de ARCore
+# la pantalla en el espacio de ARCore de una sesión de WebXR (sesion: su id)
 var cal := false
-var c := Vector3.ZERO
+var sesion := ""
+var lp := Vector3.ZERO  # el lente del teléfono al calibrar; el centro de la pantalla es centro()
 var r := Vector3.RIGHT
 var u := Vector3.UP
 var n := Vector3.BACK
@@ -183,13 +190,17 @@ func teclas(dt: float) -> void:
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
-		match e.physical_keycode:
-			KEY_R: tunel.visible = not tunel.visible
-			KEY_M: con_mouse = not con_mouse
-			KEY_H: texto.visible = not texto.visible
-			KEY_EQUAL, KEY_KP_ADD: escala *= 1.25; tunel_mesh()
-			KEY_MINUS, KEY_KP_SUBTRACT: escala /= 1.25; tunel_mesh()
-			KEY_ESCAPE: get_tree().quit()
+		var ch := String.chr(e.unicode) if e.unicode > 0 else ""
+		if ch == "+" or e.keycode == KEY_KP_ADD:
+			escala *= 1.25; tunel_mesh()
+		elif ch == "-" or e.keycode == KEY_KP_SUBTRACT:
+			escala /= 1.25; tunel_mesh()
+		else:
+			match e.physical_keycode:
+				KEY_R: tunel.visible = not tunel.visible
+				KEY_M: con_mouse = not con_mouse
+				KEY_H: ocultar_texto(texto.visible)
+				KEY_ESCAPE: get_tree().quit()
 	elif e is InputEventMouseButton and e.pressed and con_mouse:
 		if e.button_index == MOUSE_BUTTON_WHEEL_UP: ojo.z = max(0.1, ojo.z * 0.9)
 		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN: ojo.z *= 1.1
@@ -250,14 +261,19 @@ func mensaje(m: Dictionary) -> void:
 		return
 	var p := Vector3(m.p[0], m.p[1], m.p[2])
 	var q := Quaternion(m.q[0], m.q[1], m.q[2], m.q[3])
+	var s := str(m.get("s", ""))
 	if m.get("t") == "cal":
-		calibrar(p, q)
+		calibrar(p, q, s)
 		return
 	ultima_pose = m
 	n_poses += 1
+	if cal and s != sesion:  # otra sesión de WebXR: otro origen (ver «Calibrar»)
+		cal = false
+		enviar({"aviso": "Sesión nueva de ARCore: vuelva a calibrar."})
+		print("vp.gd: la sesión de WebXR cambió (%s -> %s): sin calibrar" % [sesion, s])
 	if not cal or fijo or con_mouse:
 		return
-	var d := p - c
+	var d := p - centro()
 	var e := Vector3(d.dot(r), d.dot(u), d.dot(n))
 	var ms: float = m.get("ms", -1.0)
 	if t_tel > 0.0 and ms > t_tel:
@@ -269,7 +285,7 @@ func mensaje(m: Dictionary) -> void:
 
 
 # el teléfono parado sobre el borde de arriba de la tele, al centro, con la cámara mirando a la pieza
-func calibrar(p: Vector3, q: Quaternion) -> void:
+func calibrar(p: Vector3, q: Quaternion, s: String) -> void:
 	var f := q * Vector3.FORWARD  # hacia donde mira la cámara: hacia la pieza
 	f.y = 0.0
 	if f.length() < 0.2:
@@ -278,26 +294,42 @@ func calibrar(p: Vector3, q: Quaternion) -> void:
 	n = f.normalized()
 	u = Vector3.UP
 	r = u.cross(n)
-	c = p - u * (lente + pantalla().y / 2.0)
+	lp = p
+	sesion = s
 	cal = true
 	vel = Vector3.ZERO
 	t_tel = -1.0
 	var fa := FileAccess.open(CAL, FileAccess.WRITE)
-	fa.store_string(JSON.stringify({"c": [c.x, c.y, c.z], "n": [n.x, n.y, n.z]}))
+	fa.store_string(JSON.stringify({"lente": [lp.x, lp.y, lp.z], "n": [n.x, n.y, n.z], "sesion": sesion}))
 	enviar({"aviso": "Calibrado."})
-	print("vp.gd: calibrado, centro %s, normal %s" % [c, n])
+	print("vp.gd: calibrado, centro %s, normal %s, sesión %s" % [centro(), n, sesion])
+
+
+# el centro de la imagen en el espacio de ARCore: --lente más medio alto de la imagen bajo el lente (con el alto de
+# ahora, que sale de --tele y de la ventana en pantalla completa)
+func centro() -> Vector3:
+	return lp - u * (lente + pantalla().y / 2.0)
 
 
 func leer_cal() -> void:
 	if not FileAccess.file_exists(CAL):
 		return
 	var d = JSON.parse_string(FileAccess.get_file_as_string(CAL))
-	if d is Dictionary and d.has("c") and d.has("n"):
-		c = Vector3(d.c[0], d.c[1], d.c[2])
+	if d is Dictionary and d.has("lente") and d.has("n") and d.has("sesion"):
+		lp = Vector3(d.lente[0], d.lente[1], d.lente[2])
 		n = Vector3(d.n[0], d.n[1], d.n[2])
 		u = Vector3.UP
 		r = u.cross(n)
+		sesion = str(d.sesion)
 		cal = true
+
+
+# H: el texto de vp.gd y la hora de ambiente.gd (un hermano con la propiedad «reloj»)
+func ocultar_texto(ocultar: bool) -> void:
+	texto.visible = not ocultar
+	for h in get_parent().get_children():
+		if h != self and "reloj" in h and h.reloj is Label:
+			h.reloj.visible = not ocultar
 
 
 func enviar(d: Dictionary) -> void:

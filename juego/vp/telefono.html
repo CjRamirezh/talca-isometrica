@@ -29,6 +29,7 @@
     <b>Cámara para la tele de fondo</b><br>
     Toque «Empezar» y mueva el teléfono hasta que ARCore lo ubique. Luego párelo sobre el borde de arriba de la tele,
     al centro, con la cámara mirando a la pieza, y toque «Calibrar»: tiene 3 segundos para dejarlo quieto ahí.
+    Cada vez que toque «Empezar» (o recargue la página) hay que calibrar de nuevo.
     Para grabar, use la grabación de pantalla del teléfono y toque «Ocultar».
   </div>
   <div class="caja" id="estado">Conectando…</div>
@@ -46,6 +47,7 @@ const $ = (id) => document.getElementById(id);
 const host = location.hostname || "localhost";
 let ws = null, wsOk = false, godot = null, aviso = "", sesion = null, ref = null, gl = null;
 let ultima = null, juntando = null, perdida = 0;
+let sid = "";  // el id de la sesión de WebXR: cada una tiene su propio origen, y la calibración de vp.gd vale solo para ella
 
 function conectar() {
   ws = new WebSocket(`ws://${host}:8771`);
@@ -88,6 +90,7 @@ async function empezar() {
   gl = canvas.getContext("webgl", { xrCompatible: true, alpha: true });
   sesion.updateRenderState({ baseLayer: new XRWebGLLayer(sesion, gl) });
   ref = await sesion.requestReferenceSpace("local");
+  sid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   sesion.addEventListener("end", () => { sesion = null; ultima = null; $("empezar").textContent = "Empezar"; botones(); pintar(); });
   $("empezar").textContent = "Terminar";
   $("intro").style.display = "none";
@@ -118,12 +121,12 @@ function cuadro(t, frame) {
     juntando.p.push(p); juntando.q = q;
     if (juntando.p.length >= 30) {
       const m = [0, 1, 2].map((i) => juntando.p.reduce((s, v) => s + v[i], 0) / juntando.p.length);
-      enviar({ t: "cal", p: m, q: juntando.q });
+      enviar({ t: "cal", p: m, q: juntando.q, s: sid });
       juntando = null;
       if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
     }
   }
-  enviar({ p, q, ms: t });
+  enviar({ p, q, ms: t, s: sid });
 }
 
 function enviar(m) { if (wsOk && ws.bufferedAmount < 4096) ws.send(JSON.stringify(m)); }
