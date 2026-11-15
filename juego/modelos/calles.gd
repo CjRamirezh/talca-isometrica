@@ -41,7 +41,9 @@ var choques := Malla.new()  # la colisión de los autos: una caja cada uno
 
 
 func recortes() -> Array:
-	var capas := ["suelo", "veredas", "autos", "arboles", "usos", "patios"]
+	# «hitos»: los faroles y semáforos que la página dibuja para estas calles (src/js/hitos/calles-plaza.js), del
+	# tamaño de un píxel de arte; este modelo pone los suyos
+	var capas := ["suelo", "veredas", "autos", "arboles", "usos", "patios", "hitos"]
 	var out := []
 	for p in zona():
 		out.append({"poligono": p, "capas": capas})
