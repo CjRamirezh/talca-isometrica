@@ -8,7 +8,7 @@ function walkBase(G,D,L){const t0=performance.now(),B=draped(G,L&&L.walk),nv=G.n
       for(const p of s.pts){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}return boxIn(x0-m,y0-m,x1+m,y1+m);});
     sis=a;L.walkSts=b;occ.keep(true);}
   walkRuns(sis);const t1=performance.now();walkRibbons(B,WALKS);
-  B.band=streets.length+1;STREET.zebras=crossings(B);Object.assign(STREET,{walks:WALKS.length,walkVerts:G.nv-nv,walkMs:Math.round(performance.now()-t0),runMs:Math.round(t1-t0)});}
+  B.band=streets.length+1;STREET.zebras=crossings(B);B.band=streets.length+2;STREET.lanes=laneLines(B);Object.assign(STREET,{walks:WALKS.length,walkVerts:G.nv-nv,walkMs:Math.round(performance.now()-t0),runMs:Math.round(t1-t0)});}
 // the sidewalks and curbs of the runs ws, each street in its band of keys (draped)
 const WALK_K=hex('#C3C1BA'),CURB_K=hex('#E8E5DC');
 function walkRibbons(B,ws){for(const w of ws){B.band=w.si+1;sideRibbon(B,w.pts,w.side,w.hw-w.iw+CURB,w.iw+WALK_OUT-CURB,WALK_Y,WALK_K);sideRibbon(B,w.pts,w.side,w.hw-w.iw,CURB,CURB_Y,CURB_K);}}
@@ -54,7 +54,7 @@ function buildBase(L){
   // streets
   const order=[7,6,5,4,3,2,1,0];
   // (a street a landmark draws as a bridge, s.bridge, stays off the ground: the Ruta K-60-J over the Río Claro)
-  for(const c of order)streets.forEach(s=>{if(s.c===c&&!s.bridge&&!s.paseo)ribbon(B,s.pts,swOf(s),0.12+(7-c)*0.004,c<=2?PAL.asphalt2:PAL.asphalt,c<=5);});
+  for(const c of order)streets.forEach(s=>{if(s.c===c&&!s.bridge&&!s.paseo)(s.paint?paintRibbon:ribbon)(B,s.paint?s:s.pts,swOf(s),0.12+(7-c)*0.004,c<=2?PAL.asphalt2:PAL.asphalt,c<=5);});
   railBase(B);   // over the streets
   if(L)L.flat=B;return drape(B,L&&L.base);
 }

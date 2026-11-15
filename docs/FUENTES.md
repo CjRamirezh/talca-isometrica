@@ -149,6 +149,8 @@ Los modelos de Godot del entorno de la plaza (`catedral.gd`, `fachadas.gd`, `cal
 - Edificio O'Higgins y BCI: [«Edificio ohiggins2.jpg»](https://commons.wikimedia.org/wiki/File:Edificio_ohiggins2.jpg) (2025-10-10, CC BY 4.0, ElPabloRN) y [«Banco de Crédito e Inversiones Talca.jpg»](https://commons.wikimedia.org/wiki/File:Banco_de_Cr%C3%A9dito_e_Inversiones_Talca.jpg) (2024-03-15, CC BY 4.0, ElPabloRN).
 - Los alrededores desde la plaza: [«Plaza de Armas de Talca en 2024 01.jpg»](https://commons.wikimedia.org/wiki/File:Plaza_de_Armas_de_Talca_en_2024_01.jpg) a «… 04.jpg» (2024-10-18, CC0, TomasVial).
 
+La página toma de estos modelos lo que se ve en píxeles de 0,5 m: las alturas, los colores, los zócalos y los techos de `config/fachadas.json` (los edificios de OSM de la plaza), los colores de la Catedral, y en `src/js/hitos/calles-plaza.js` la calzada de hormigón y el asfalto de 1 Oriente, los faroles verdes y los semáforos y árboles de vereda de OSM (ODbL, `juego/modelos/entorno/osm.json`), con las mismas fotos como fuente.
+
 ## Fotos de lugares sin hito
 
 Solo para revisar la ficha; no se usan en la maqueta.
