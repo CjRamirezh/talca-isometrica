@@ -157,6 +157,8 @@ Los modelos de Godot del entorno de la plaza (`catedral.gd`, `fachadas.gd`, `cal
 
   Las inscripciones del memorial de Spano y de la estatua de Monseñor Larraín, de las etiquetas `inscription` de OSM. La hilera de árboles del borde, de la imagen de Esri (z19, 2015). Las texturas (hojas, agujas, frondas, rejas, filigrana) se dibujan en código; no hay recursos externos.
 
+La página toma de estos modelos lo que se ve en píxeles de 0,5 m: las alturas, los colores, los zócalos y los techos de `config/fachadas.json` (los edificios de OSM de la plaza), los colores de la Catedral, y en `src/js/hitos/calles-plaza.js` la calzada de hormigón y el asfalto de 1 Oriente, los faroles verdes y los semáforos y árboles de vereda de OSM (ODbL, `juego/modelos/entorno/osm.json`), con las mismas fotos como fuente.
+
 ## Fotos de lugares sin hito
 
 Solo para revisar la ficha; no se usan en la maqueta.

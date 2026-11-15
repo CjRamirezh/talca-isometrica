@@ -81,6 +81,29 @@ function crossings(B){const seen=new Set(),zeb=hex('#E4E0D6');let n=0;
             B.quadXY([P(s0,v-0.3),P(s0+3,v-0.3),P(s0+3,v+0.3),P(s0,v+0.3)],CURB_Y,zeb);}
           n++;}}}}
   return n;}
+// A street a landmark paints by zones (s.paint: [[x0, y0, x1, y1, colour or null], ...], the first box that holds a
+// point wins; null or no box, the street's own colour): ribbon() with each segment cut at the boxes' edges. The
+// concrete slabs of the streets around the plaza (hitos/calles-plaza.js)
+function paintRibbon(B,s,w,y,col,joins=true){const pts=s.pts,Z=s.paint,colAt=(x,y)=>{for(const b of Z)if(x>=b[0]&&x<=b[2]&&y>=b[1]&&y<=b[3])return b[4]||col;return col;};
+  for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);if(L<0.01)continue;const nx=-dy/L*w/2,ny=dx/L*w/2,ts=[0,1];
+    for(const z of Z){if(Math.abs(dx)>1e-9)for(const X of [z[0],z[2]]){const u=(X-a[0])/dx;if(u>0&&u<1)ts.push(u);}if(Math.abs(dy)>1e-9)for(const Y of [z[1],z[3]]){const u=(Y-a[1])/dy;if(u>0&&u<1)ts.push(u);}}
+    ts.sort((p,q)=>p-q);
+    for(let k=0;k+1<ts.length;k++){const t0=ts[k],t1=ts[k+1];if(t1-t0<1e-6)continue;const p=[a[0]+dx*t0,a[1]+dy*t0],q=[a[0]+dx*t1,a[1]+dy*t1],m=(t0+t1)/2;
+      B.quadXY([[p[0]+nx,p[1]+ny],[q[0]+nx,q[1]+ny],[q[0]-nx,q[1]-ny],[p[0]-nx,p[1]-ny]],y,colAt(a[0]+dx*m,a[1]+dy*m));}}
+  if(joins)for(let i=1;i<pts.length-1;i++)B.flat(ngon(pts[i][0],pts[i][1],w/2,8),y,colAt(pts[i][0],pts[i][1]));}
+// Lane lines on the streets a landmark marks (s.lanes: the box they are drawn in): the dashed line between the two
+// lanes of a one-way street, on its axis, 0.4 m wide (the real ones are 0.12: thinner, the pixel art loses them),
+// 3 m of line every 8 m, not within 9 m of a junction (three street ends or more) nor 5 m of a crosswalk
+function laneLines(B){const sts=streets.filter(s=>s.lanes&&!s.bridge);if(!sts.length)return 0;const col=hex('#E4E0D6');let n=0;
+  const ends=new Map();for(const s of streets){if(s.c>5)continue;for(const p of [s.pts[0],s.pts[s.pts.length-1]]){const k=Math.round(p[0])+','+Math.round(p[1]);ends.set(k,(ends.get(k)||0)+1);}}
+  const J=[...ends].filter(([,c])=>c>=3).map(([k])=>k.split(',').map(Number));
+  for(const s of sts){const [x0,y0,x1,y1]=s.lanes;let acc=0;
+    for(let i=0;i+1<s.pts.length;i++){const a=s.pts[i],b=s.pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<0.01)continue;const tx=(b[0]-a[0])/L,ty=(b[1]-a[1])/L,nx=-ty*.2,ny=tx*.2;
+      for(let u=(8-acc%8)%8;u+3<=L;u+=8){const p=[a[0]+tx*u,a[1]+ty*u],q=[a[0]+tx*(u+3),a[1]+ty*(u+3)],cx=(p[0]+q[0])/2,cy=(p[1]+q[1])/2;
+        if(cx<x0||cx>x1||cy<y0||cy>y1||J.some(j=>Math.hypot(j[0]-cx,j[1]-cy)<9)||ZEB.some(z=>Math.hypot(z[0]-cx,z[1]-cy)<5))continue;
+        B.quadXY([[p[0]+nx,p[1]+ny],[q[0]+nx,q[1]+ny],[q[0]-nx,q[1]-ny],[p[0]-nx,p[1]-ny]],CURB_Y,col);n++;}
+      acc+=L;}}
+  return n;}
 // Street trees on the sidewalks, as Talca has them (pipeline/satellite.py on a few streets): rows along most avenues,
 // irregular ones on the residential streets (a tree every 9-13 m, with gaps, on one side or both), few in the commercial
 // centre and the industrial blocks. A run of sidewalk gets trees or not as a whole, all of one kind (one shade), with
@@ -90,6 +113,9 @@ function crossings(B){const seen=new Set(),zeb=hex('#E4E0D6');let n=0;
 // buildModels (the carritos of 5 Oriente). Tested after a tree's or a car's numbers are drawn, so the rest of its run
 // stays as it was
 const CLEAR=[],inClear=(x,y)=>CLEAR.length>0&&CLEAR.some(q=>pipXY(x,y,q));
+// where a landmark plants the street trees itself (the OpenStreetMap trees around the plaza): [polygon, street-name
+// regex]; only the street trees of the streets it names, and parked cars stay
+const CLEAR_T=[],inClearT=(x,y,s)=>CLEAR_T.length>0&&CLEAR_T.some(([q,re])=>re.test(s.name||'')&&pipXY(x,y,q));
 function streetTrees(ws){const out=[]; // the trees along the sidewalks of ws (a part of WALKS: boot splits them by STAGE)
   for(const w of ws){const bi=w.bi;if(bi<0||!blocks[bi].built||bi===PLAZA_BI||ALAM.has(bi))continue;
     const s=streets[w.si],st=styleFor(bi),ave=s.c<=2||/^Avenida/.test(s.name||'');
@@ -104,7 +130,7 @@ function streetTrees(ws){const out=[]; // the trees along the sidewalks of ws (a
       const a=P[i],b=P[i+1],l=Math.hypot(b[0]-a[0],b[1]-a[1])||1,tx=(b[0]-a[0])/l,ty=(b[1]-a[1])/l,nx=-ty*w.side,ny=tx*w.side,v=u-acc+(r()-.5)*1.2;
       const x=a[0]+tx*v+nx*off,y=a[1]+ty*v+ny*off;
       if(occAt(x,y)===1||occAt(x+nx*2.5,y+ny*2.5)===1||occAt(x-nx*2,y-ny*2)===1||inMedian(x,y))continue;
-      const t=[x,y,size*(0.9+r()*.2),(kind+r()*.12)%1];if(!inClear(x,y))out.push(t);}}
+      const t=[x,y,size*(0.9+r()*.2),(kind+r()*.12)%1];if(!inClear(x,y)&&!inClearT(x,y,s))out.push(t);}}
   STREET.trees=(STREET.trees||0)+out.length;return out;}
 // Parked cars along the curbs, as the satellite shows them (pipeline/satellite.py at zoom 19 on the plaza, 3 Sur with
 // 3 Oriente, a neighbourhood at (1300,-700) and the Diagonal): nearly unbroken rows on both sides of the streets around
