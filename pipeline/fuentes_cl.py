@@ -25,8 +25,9 @@ comuna. Lo bajado son datos no confiables: los scripts que los leen van con `pyt
 Las demás herramientas leen estas fuentes con polys() (polígonos en metros de grilla) y con las rutas de FILES:
 usos.py importar ciren|ciren-vinas|censo2024|areasverdes, usos.py escuelas|salud y cobertura.py.
 """
-import json, os, sqlite3, struct, sys, time, urllib.parse, urllib.request, zipfile
+import json, os, sqlite3, struct, sys, urllib.error, urllib.parse, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cli, net
 from common import RAW, loc
 
 CL = RAW / 'cl'
@@ -75,14 +76,8 @@ def table(path):
 
 # ---------------------------------------------------------------- descarga
 def _get(url, params):
-    q = urllib.parse.urlencode(params).encode()
-    for i in range(4):
-        try:
-            req = urllib.request.Request(url + '/query', data=q, headers={'User-Agent': 'talca-isometrica/1.0'})
-            with urllib.request.urlopen(req, timeout=180) as r: return json.loads(r.read().decode('utf-8'))
-        except Exception as e:
-            print('reintento', i + 1, e, file=sys.stderr); time.sleep(3)
-    raise SystemExit(f'no responde: {url}')
+    try: return net.get_json(url + '/query', data=urllib.parse.urlencode(params).encode(), wait=3, timeout=180)
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as e: raise SystemExit(f'no responde: {url} ({e})')
 
 def arcgis(url, where, bbox):
     """All the features of an ArcGIS layer (where, and the commune's box if bbox), paged: a GeoJSON dict, or a list of
@@ -154,7 +149,7 @@ def cmd_fetch(name, folder=None):
         z = out.parent / 'Cartografia_censo2024_R07.zip'
         if not z.exists():
             z.parent.mkdir(parents=True, exist_ok=True)
-            urllib.request.urlretrieve(CENSO_ZIP, z); print('->', z)
+            z.write_bytes(net.get(CENSO_ZIP, timeout=900)); print('->', z)
         with zipfile.ZipFile(z) as zf:
             g = [n for n in zf.namelist() if n.endswith('.gpkg')][0]
             dst = out.parent / os.path.basename(g)
@@ -172,8 +167,8 @@ def tono(name, p, rings):
         return ((255, 40, 40) if 'Asilv' in (p.get('estructura') or '') else (255, 0, 255) if su == 'Plantación' else (255, 240, 0) if su.startswith('Bosque')
                 else (255, 255, 255) if su.startswith('Matorral') else None)
     if name == 'censo2024':
-        from usos import area
-        viv = p.get('n_vp') or 0; d = viv / (area(rings[0]) / 1e4)
+        from geom import area
+        viv = p.get('n_vp') or 0; d = viv / (abs(area(rings[0])) / 1e4)
         return None if viv <= 0 else (255, 40, 40) if d >= 8 else (255, 240, 0) if d >= 2 else (60, 120, 255)
     return (0, 230, 255) if name == 'ciren' else (40, 220, 90)
 
@@ -197,7 +192,7 @@ def cmd_panel(name, x, y, side='1200', z='16'):
 
 def cmd_info():
     from common import comuna
-    from usos import pip
+    from geom import pip
     lim = comuna()
     for name, f in FILES.items():
         if not f.exists(): print(f'{name:12} (falta {f.relative_to(RAW.parent) if f.is_relative_to(RAW.parent) else f})'); continue
@@ -207,6 +202,4 @@ def cmd_info():
         else: print(f'{name:12} {f.stat().st_size//1024:6} KB  {f.name}')
 
 if __name__ == '__main__':
-    cmds = {'fetch': cmd_fetch, 'info': cmd_info, 'panel': cmd_panel}
-    if len(sys.argv) < 2 or sys.argv[1] not in cmds: raise SystemExit(__doc__)
-    cmds[sys.argv[1]](*sys.argv[2:])
+    cli.run({'fetch': cmd_fetch, 'info': cmd_info, 'panel': cmd_panel}, __doc__)

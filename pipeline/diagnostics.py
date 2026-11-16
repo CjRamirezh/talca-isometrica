@@ -10,11 +10,12 @@ como un hueco continuo entre manzanas.
   python pipeline/diagnostics.py -71.70 -71.66 -35.445 -35.412   # caja libre (lon0 lon1 lat0 lat1)
 Requiere matplotlib y numpy.
 """
-import json, sys
+import json
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import PolyCollection, LineCollection
+import cli
 from common import ROOT, MANZANAS_DIR, NAV_GRAPH, CONFIG, require
 
 VIEWS = {  # lon0, lon1, lat0, lat1
@@ -56,8 +57,11 @@ def main(views):
         plt.xticks(rotation=90, fontsize=7); plt.yticks(fontsize=7)
         fn = out / f'panel_{name}.png'; plt.savefig(fn, bbox_inches='tight'); plt.close(); print(fn)
 
+def cmd(*a):
+    if len(a) == 4 and all(v.lstrip('-').replace('.', '', 1).isdigit() for v in a): return main({'caja': tuple(map(float, a))})
+    bad = [k for k in a if k not in VIEWS]
+    if bad: raise SystemExit(f"vistas desconocidas: {' '.join(bad)} (hay: {', '.join(VIEWS)})")
+    main({k: VIEWS[k] for k in a} if a else VIEWS)
+
 if __name__ == '__main__':
-    a = sys.argv[1:]
-    if len(a) == 4: main({'caja': tuple(map(float, a))})
-    elif a: main({k: VIEWS[k] for k in a})
-    else: main(VIEWS)
+    cli.run({}, __doc__, default=cmd)

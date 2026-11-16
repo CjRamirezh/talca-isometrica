@@ -20,24 +20,23 @@ Lee raw/osm/map-<nombre>.json (la API `map` por cajas: python traces.py tiles-co
 Todos los puntos se guardan como [lat, lon], como los demás trazados; process_geometry.py los pasa a la plantilla
 (DATA.rail, DATA.ramal, DATA.railx, DATA.rmast, DATA.rsig). Ver docs/METODOLOGIA.md §5 y docs/PLAN-TREN.md.
 """
-import contextlib, io, json, math, sys
-from common import CONFIG, DATA, RAW, loc, unloc, require
-import process_geometry as pg
+import contextlib, io, json, math
+import cli, osm
 import traces as tr
+from common import CONFIG, DATA, loc, unloc, require
+from geom import dec, crossings, polyline_dist as pld, seg_dist as segd
 
 R = lambda p: [round(c, 6) for c in unloc(*p)]
 
 def chain(name, usage):
     """The longest chain of railway=rail ways with this usage, as traces.py line prints it, in grid metres."""
     out = io.StringIO()
-    with contextlib.redirect_stdout(out): tr.cmd_line(name, 'railway=^rail$', f'usage=^{usage}$', '--eps', '1.5')
+    with contextlib.redirect_stdout(out): tr.cmd_line(name, 'railway=^rail$', f'usage=^{usage}$', eps=1.5)
     return [loc(lo, la) for la, lo in json.loads(out.getvalue())]
 
 def survey(name):
-    el = json.load(open(require(RAW / 'osm' / f'map-{name}.json', f'Ejecute: python traces.py tiles-comuna {name}')))['elements']
-    N = {e['id']: e for e in el if e['type'] == 'node'}
-    P = lambda w: [loc(N[n]['lon'], N[n]['lat']) for n in w['nodes'] if n in N]
-    ways = [e for e in el if e['type'] == 'way']
+    m = osm.load(name, f'Ejecute: python traces.py tiles-comuna {name}')
+    N, P, ways = m.nodes, m.pts, list(m.W.values())
     lines = {'principal': chain(name, 'main'), 'ramal': chain(name, 'branch')}
     for k, l in lines.items():
         print(f'{k}: {len(l)} puntos, {sum(math.dist(l[i], l[i+1]) for i in range(len(l)-1)):.0f} m, '
@@ -54,14 +53,14 @@ def survey(name):
     for k, l in lines.items():
         use = 'main' if k == 'principal' else 'branch'
         for s in g['streets']:
-            for p in tr.crossings(tr.dec(s[2]), l):
+            for p in crossings(dec(s[2]), l):
                 if not inm(p): continue
                 nm = g['names'][s[1]]
                 best = None                    # the OSM road crossing this line's OSM ways nearest to p
                 for w, wp in roads:
                     for rw, rp in rails:
                         if rw['tags']['usage'] != use: continue
-                        for q in tr.crossings(wp, rp):
+                        for q in crossings(wp, rp):
                             d = math.dist(p, q)
                             if d < 15 and (best is None or d < best[0]): best = (d, w, rw)
                 lc = min(((math.dist(p, q), n) for n, q in lcs), default=(1e9, None), key=lambda t: t[0])
@@ -88,7 +87,7 @@ def survey(name):
         t = w['tags']
         if t['highway'] in ('footway', 'path', 'steps', 'track', 'cycleway', 'service', 'platform'): continue
         for k, l in lines.items():
-            for q in tr.crossings(wp, l):
+            for q in crossings(wp, l):
                 if inm(q) and not any(math.dist(q, loc(e['punto'][1], e['punto'][0])) < 20 for e in pasos):
                     print(f"  {k:<9} w{w['id']} {t['highway']} {t.get('name', '')[:30]} ({q[0]:.0f}, {q[1]:.0f}) "
                           f"bridge={t.get('bridge', '')} tunnel={t.get('tunnel', '')} layer={t.get('layer', '')}")
@@ -98,19 +97,19 @@ def survey(name):
     for rw, rp in rails:
         if rw['tags'].get('bridge', 'no') == 'no' or not any(map(inm, rp)): continue
         what = sorted({(w['tags'].get('name') or w['tags'].get('highway') or w['tags'].get('waterway')) for w, wp in
-                       [(w, P(w)) for w in ways if 'highway' in (w.get('tags') or {}) or 'waterway' in (w.get('tags') or {})] if tr.crossings(wp, rp)})
-        ol = [w for w, wp in outl if any(tr.pld(q, wp + wp[:1]) < 3 for q in rp)]
+                       [(w, P(w)) for w in ways if 'highway' in (w.get('tags') or {}) or 'waterway' in (w.get('tags') or {})] if crossings(wp, rp)})
+        ol = [w for w, wp in outl if any(pld(q, wp + wp[:1]) < 3 for q in rp)]
         print(f"  {rw['tags']['usage']:<6} w{rw['id']} ({rp[0][0]:.1f}, {rp[0][1]:.1f}) -> ({rp[-1][0]:.1f}, {rp[-1][1]:.1f}) "
               f"{math.dist(rp[0], rp[-1]):.0f} m; contorno {', '.join(f'w{w["id"]} {w["tags"].get("name", "")}' for w in ol) or '-'}; cruza {', '.join(what) or '?'}")
     # catenary masts along the main line, signals along both
     main = lines['principal']
     masts = [loc(n['lon'], n['lat']) for n in N.values() if (n.get('tags') or {}).get('power') == 'catenary_mast']
-    masts = [q for q in masts if inm(q) and tr.pld(q, main) < 8]
-    sl = lambda q: min(range(len(main)-1), key=lambda i: tr.segd(q, main[i], main[i+1]))
+    masts = [q for q in masts if inm(q) and pld(q, main) < 8]
+    sl = lambda q: min(range(len(main)-1), key=lambda i: segd(q, main[i], main[i+1]))
     masts.sort(key=lambda q: (sl(q), math.dist(main[sl(q)], q)))
     sigs = [loc(n['lon'], n['lat']) for n in N.values() if (n.get('tags') or {}).get('railway') == 'signal'
             and any(k in n['tags'] for k in ('railway:signal:main', 'railway:signal:crossing'))]
-    sigs = [q for q in sigs if inm(q) and min(tr.pld(q, l) for l in lines.values()) < 8]
+    sigs = [q for q in sigs if inm(q) and min(pld(q, l) for l in lines.values()) < 8]
     print(f'\npostes de catenaria a menos de 8 m de la Línea Central: {len(masts)}; señales luminosas junto a la vía: {len(sigs)}')
     return lines, pasos, masts, sigs
 
@@ -156,6 +155,4 @@ def cmd_write(name):
     json.loads(t); f.write_text(t); print(f'-> {f.relative_to(CONFIG.parent)}')
 
 if __name__ == '__main__':
-    cmds = {'check': cmd_check, 'write': cmd_write}
-    if len(sys.argv) < 3 or sys.argv[1] not in cmds: raise SystemExit(__doc__)
-    cmds[sys.argv[1]](*sys.argv[2:])
+    cli.run({'check': cmd_check, 'write': cmd_write}, __doc__)

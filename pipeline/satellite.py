@@ -38,37 +38,25 @@ publicaciones de la imagen desde 2014, con los mismos términos que la actual: s
 
 El servicio rechaza el User-Agent de Python (403): las consultas llevan uno propio.
 """
-import functools, json, math, sys, time, urllib.parse, urllib.request
+import functools, json, math, time, urllib.parse
+import cli, net
+from cli import maybe
 from common import ROOT, DATA, RAW, unloc, require
+from geom import dec, pip, merc_px, tile_of
 
 URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 WB_CONFIG = 'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json'
 WB_TILE = 'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/{r}/{z}/{y}/{x}'
 WB_TILEMAP = 'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/{r}/{z}/{y}/{x}'
-UA = {'User-Agent': 'talca-isometrica'}
-
 def get(url):
-    return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60).read()
-
-def dec(a):
-    pts, x, y = [], 0, 0
-    for i in range(0, len(a), 2): x += a[i]; y += a[i+1]; pts.append((x, y))
-    return pts
-
-def tile_of(lat, lon, z):
-    """La tesela (columna, fila) de un punto a zoom z (Web Mercator)."""
-    n = 2 ** z; s = math.radians(lat)
-    return int((lon+180)/360*n), int((1-math.log(math.tan(s)+1/math.cos(s))/math.pi)/2*n)
+    return net.get(url, timeout=60)
 
 def mosaic(x0, x1, y0, y1, z=18, release=None):
     """The Esri tiles over the box x0..x1, y0..y1 (grid metres) at zoom z, as one image (cached in raw/satelite/),
     and P((x, y)): the pixel of a grid point in it. pipeline/edificios.py and golf.py use it too. release: a Wayback
     release id (cached in raw/satelite/wayback/<id>/); None is the current imagery."""
     from PIL import Image
-    n = 2 ** z
-    def px(x, y):                                  # metros de grilla -> píxel global de la tesela
-        la, lo = unloc(x, y); s = math.radians(la)
-        return (lo+180)/360*n*256, (1-math.log(math.tan(s)+1/math.cos(s))/math.pi)/2*n*256
+    px = lambda x, y: merc_px(*unloc(x, y), z)     # metros de grilla -> píxel global de la tesela
     cs = [px(x, y) for x in (x0, x1) for y in (y0, y1)]
     X0, X1 = min(c[0] for c in cs), max(c[0] for c in cs); Y0, Y1 = min(c[1] for c in cs), max(c[1] for c in cs)
     img = Image.new('RGB', (int(X1-X0), int(Y1-Y0)))
@@ -106,9 +94,8 @@ def pick_release(spec, rels=None):
     if not older: raise SystemExit(f'Wayback empieza el {rels[-1][1]}')
     return older[0]
 
-def release_of(flags):
+def release_of(spec):
     """--release=<id|AAAA-MM-DD|ultima> -> el id de la publicación, o None (la imagen actual)."""
-    spec = next((f.split('=', 1)[1] for f in flags if f.startswith('--release=')), None)
     return None if spec is None else pick_release(spec)[0]
 
 def layer(z):
@@ -124,11 +111,8 @@ def query(meta_url, z, **p):
             for f in json.loads(get(f'{meta_url}/{layer(z)}/query?' + urllib.parse.urlencode(p))).get('features', [])]
 
 def in_rings(lon, lat, rings):
-    inside = False
-    for r in rings:
-        for (ax, ay), (bx, by) in zip(r, r[1:] + r[:1]):
-            if (ay > lat) != (by > lat) and lon < ax + (bx - ax) * (lat - ay) / (by - ay): inside = not inside
-    return inside
+    """Even-odd over all the rings of a feature (its holes too)."""
+    return sum(pip((lon, lat), r) for r in rings) % 2 == 1
 
 def dates(x0, x1, y0, y1, z, release=None):
     """Las capturas del área x0..x1, y0..y1 (grilla) a zoom z en una publicación (None: la última), con la parte que
@@ -189,27 +173,24 @@ def capture_at(rel, x, y, z):
     fs = query(rel[2], z, geometry=f'{lo},{la}', geometryType='esriGeometryPoint', returnGeometry='false')
     return max(fs, key=lambda a: a['SRC_DATE']) if fs else None
 
-def historia(argv):
+def historia(x: float, y: float, z: int = 17):
     """historia X Y [z]: cada versión de la tesela bajo (x, y), con su captura."""
-    x, y = float(argv[0]), float(argv[1]); z = int(argv[2]) if len(argv) > 2 else 17
     vs = versions(x, y, z); col, row = tile_of(*unloc(x, y), z)
     print(f'({x:.0f}, {y:.0f}), z{z}, tesela {row}/{col}: {len(vs)} versiones')
     for r in vs:
         c = capture_at(r, x, y, z)
         print(f'  publicación {r[0]:>6} del {r[1]}: ' + (f'captura {fmt_cap(c)}' if c else 'sin metadatos'))
 
-def tiempo(argv, flags):
+def tiempo(x0: float, x1: float, y0: float, y1: float, z: int = 17, name='caja', *, todas=False, release=None):
     """tiempo x0 x1 y0 y1 [z] [nombre]: la caja en cada captura distinta bajo su centro, lado a lado."""
     from PIL import Image
-    x0, x1, y0, y1 = map(float, argv[:4]); z = int(argv[4]) if len(argv) > 4 else 17
-    name = argv[5] if len(argv) > 5 else 'caja'; cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    spec = next((f.split('=', 1)[1] for f in flags if f.startswith('--release=')), None); rels = releases()
-    if spec: vs = [pick_release(r, rels) for r in spec.split(',')]
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2; rels = releases()
+    if release: vs = [pick_release(r, rels) for r in release.split(',')]
     else:
         vs, seen = [], set()
         for r in versions(cx, cy, z, rels):
             c = capture_at(r, cx, cy, z); key = c and c['SRC_DATE']
-            if '--todas' in flags or key not in seen: vs.append(r); seen.add(key)
+            if todas or key not in seen: vs.append(r); seen.add(key)
     imgs = []
     caps = [(r, capture_at(r, cx, cy, z)) for r in vs]            # de la captura más vieja a la más nueva, de izquierda a derecha
     for r, c in sorted(caps, key=lambda rc: ((rc[1] or {}).get('SRC_DATE', 0), rc[0][1])):
@@ -221,17 +202,16 @@ def tiempo(argv, flags):
     for i in imgs: out.paste(i, (x, 0)); x += i.size[0] + 4
     f = ROOT / 'diagnostics' / f'tiempo-{name}.png'; f.parent.mkdir(exist_ok=True); out.save(f); print(f.relative_to(ROOT), out.size)
 
-def marco(argv, flags=()):
+def marco(X: float, Y: float, A: float, u0: float, u1: float, v0: float, v1: float, z: int = 19, name='caja', *, fecha=False, release=None):
     """satellite.py marco X Y A u0 u1 v0 v1 [z] [nombre]: la imagen en el marco local de un hito (landmark.py frame:
     origen (X, Y) de grilla, v hacia el ángulo A en grados desde +x, u a la derecha de v), girada para que v apunte
     hacia arriba, con una cruz cada 10 m rotulada cada 50 (u,v). Sirve para leer las medidas de un recinto tal como
     lo escribe el modelo (G(u,v) = [X+u·sinA+v·cosA, Y−u·cosA+v·sinA]). Salida: diagnostics/marco-<nombre>.png."""
     from PIL import Image, ImageDraw
-    X, Y, A = float(argv[0]), float(argv[1]), math.radians(float(argv[2])); u0, u1, v0, v1 = map(float, argv[3:7])
-    z = int(argv[7]) if len(argv) > 7 else 19; name = argv[8] if len(argv) > 8 else 'caja'; sa, ca = math.sin(A), math.cos(A)
+    A = math.radians(A); sa, ca = math.sin(A), math.cos(A)
     G = lambda u, v: (X + u*sa + v*ca, Y - u*ca + v*sa)
     cs = [G(u, v) for u in (u0, u1) for v in (v0, v1)]
-    box = (min(c[0] for c in cs), max(c[0] for c in cs), min(c[1] for c in cs), max(c[1] for c in cs)); rel = release_of(flags)
+    box = (min(c[0] for c in cs), max(c[0] for c in cs), min(c[1] for c in cs), max(c[1] for c in cs)); rel = release_of(release)
     img, P = mosaic(*box, z, rel)
     s = 4; W, H = int((u1-u0)*s), int((v1-v0)*s)              # 4 px per metre: P is affine to well under a pixel over a few hundred metres
     o, pu, pv = P(G(u0, v1)), P(G(u0+1, v1)), P(G(u0, v1-1))   # source pixel of the output's top-left, one metre along u, one metre down
@@ -242,14 +222,14 @@ def marco(argv, flags=()):
             x, y = (u-u0)*s, (v1-v)*s; big = u % 50 == 0 and v % 50 == 0
             dr.line([(x-2, y), (x+2, y)], fill=(255, 255, 0) if big else 'white'); dr.line([(x, y-2), (x, y+2)], fill=(255, 255, 0) if big else 'white')
             if big: dr.text((x+3, y+2), f'{u},{v}', fill=(255, 255, 0))
-    if '--fecha' in flags: stamp(out, print_dates(*box, z, rel))
+    if fecha: stamp(out, print_dates(*box, z, rel))
     f = ROOT / 'diagnostics' / f'marco-{name}.png'; f.parent.mkdir(exist_ok=True); out.save(f); print(f.relative_to(ROOT), out.size)
 
-def main(argv):
-    flags = [a for a in argv if a.startswith('--')]; argv = [a for a in argv if not a.startswith('--')]
-    if argv[0] == 'marco': return marco(argv[1:], flags)
-    if argv[0] == 'historia': return historia(argv[1:])
-    if argv[0] == 'tiempo': return tiempo(argv[1:], flags)
+def main(*argv, calles=False, fecha=False, release=None, rejilla: maybe(int, 10) = None):
+    """A place (id of pois.py) [side], `punto x y [side] [z]` or a box `x0 x1 y0 y1 [z] [name]`."""
+    argv = list(argv) or ['plaza-de-armas']
+    if not (argv[0] == 'punto' and 3 <= len(argv) <= 5 or len(argv) <= 2 or 4 <= len(argv) <= 6):
+        raise SystemExit(__doc__)
     from PIL import ImageDraw                 # Pillow solo para dibujar (historia no lo necesita)
     if argv[0] == 'punto':
         x, y = float(argv[1]), float(argv[2]); h = float(argv[3]) / 2 if len(argv) > 3 else 450
@@ -262,10 +242,10 @@ def main(argv):
         p = pois[argv[0]]; h = float(argv[1]) / 2 if len(argv) > 1 else 450
         x0, x1, y0, y1, z, name = p['x']-h, p['x']+h, p['y']-h, p['y']+h, 18, argv[0]
     g = json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data')))
-    sys.path.insert(0, str(ROOT / 'pipeline')); from build import mark_built, pip
+    from build import mark_built
     t0 = [b[0] for b in g['blocks']]; mark_built(g['blocks'])
 
-    rel = release_of(flags); img, P = mosaic(x0, x1, y0, y1, z, rel)
+    rel = release_of(release); img, P = mosaic(x0, x1, y0, y1, z, rel)
     d = ImageDraw.Draw(img)
     for i, b in enumerate(g['blocks']):
         r = dec(b[3])
@@ -274,7 +254,7 @@ def main(argv):
         d.polygon([P(q) for q in r], outline=col, width=2)
         c = (sum(q[0] for q in r)/len(r), sum(q[1] for q in r)/len(r))
         if pip(c, r): q = P(c); d.text((q[0]-10, q[1]-5), str(i), fill=(255, 255, 0))
-    if '--calles' in flags:                                   # calles del mapa (gris) y cruces de grilla cada 100 m
+    if calles:                                   # calles del mapa (gris) y cruces de grilla cada 100 m
         for s in g['streets']:
             pts = dec(s[2])
             if any(x0-50 < q[0] < x1+50 and y0-50 < q[1] < y1+50 for q in pts): d.line([P(q) for q in pts], fill=(170, 170, 170), width=1)
@@ -282,9 +262,7 @@ def main(argv):
             for gy in range(int(y0//100+1)*100, int(y1)+1, 100):
                 q = P((gx, gy)); d.line([(q[0]-4, q[1]), (q[0]+4, q[1])], fill='white'); d.line([(q[0], q[1]-4), (q[0], q[1]+4)], fill='white')
                 if gx % 200 == 0 and gy % 200 == 0: d.text((q[0]+3, q[1]+2), f'{gx},{gy}', fill='white')
-    for fl in flags:                                          # --rejilla[=N]: una cruz cada N m (10), rotulada cada 5, para leer coordenadas
-        if not fl.startswith('--rejilla'): continue
-        n = int(fl.split('=')[1]) if '=' in fl else 10
+    for n in [rejilla] if rejilla else []:                   # --rejilla[=N]: una cruz cada N m (10), rotulada cada 5, para leer coordenadas
         for gx in range(int(x0//n+1)*n, int(x1)+1, n):
             for gy in range(int(y0//n+1)*n, int(y1)+1, n):
                 q = P((gx, gy)); big = gx % (5*n) == 0 and gy % (5*n) == 0
@@ -298,9 +276,9 @@ def main(argv):
             for r in rings: d.polygon([P(q) for q in r], outline=(255, 150, 0), width=3)
             r = rings[0]; c = (sum(q[0] for q in r)/len(r), sum(q[1] for q in r)/len(r)); q = P(c)
             d.text((q[0]-20, q[1]+6), f"{k} {u['uso']}", fill=(255, 150, 0))
-    if '--fecha' in flags: stamp(img, print_dates(x0, x1, y0, y1, z, rel))
+    if fecha: stamp(img, print_dates(x0, x1, y0, y1, z, rel))
     out = ROOT / 'diagnostics' / f'sat-{name}.png'; out.parent.mkdir(exist_ok=True)
     img.save(out); print(out.relative_to(ROOT), img.size)
 
 if __name__ == '__main__':
-    main(sys.argv[1:] or ['plaza-de-armas'])
+    cli.run({'marco': marco, 'historia': historia, 'tiempo': tiempo}, __doc__, default=main)

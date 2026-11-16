@@ -16,6 +16,7 @@ Para agregar un lugar: añada una llamada add(...), corra `make pois build` y va
 `make validate`.
 """
 import csv, json
+import cli
 from common import loc, DATA
 P = []
 
@@ -397,4 +398,4 @@ def main():
     print(len(P), 'lugares ->', DATA / 'pois.json', 'y pois.csv')
 
 if __name__ == '__main__':
-    main()
+    cli.run({}, __doc__, default=main)

@@ -31,28 +31,17 @@ Salida (todas las coordenadas en metros de grilla enteros, codificadas en delta:
   ruta5, widths
 """
 import json, math, collections
-from common import loc, MANZANAS_DIR, NAV_GRAPH, CONFIG, DATA, RAW, require, EXT, comuna, clip_line
-import rutas
+import cli, net, osm, rutas
+from common import loc, MANZANAS_DIR, NAV_GRAPH, CONFIG, DATA, RAW, require, EXT, comuna
+from geom import enc, rdp, simplify_ring, area, pip, seg_dist, clip_line
 
 XMIN, XMAX, YMIN, YMAX = EXT                          # ≈ lon -71.722..-71.492, lat -35.532..-35.311
 COMUNA = '7101'                                       # código del Censo de la comuna de Talca
 EPS_BLOCK, EPS_STREET = 1.2, 0.8                      # tolerancia Douglas-Peucker (m)
 
-def rdp(pts, eps):
-    if len(pts) < 3: return pts
-    a, b = pts[0], pts[-1]; dx, dy = b[0]-a[0], b[1]-a[1]; L = math.hypot(dx, dy) or 1e-9
-    dmax, idx = 0, 0
-    for i in range(1, len(pts)-1):
-        p = pts[i]; d = abs(dy*(p[0]-a[0]) - dx*(p[1]-a[1])) / L
-        if d > dmax: dmax, idx = d, i
-    if dmax > eps: return rdp(pts[:idx+1], eps)[:-1] + rdp(pts[idx:], eps)
-    return [a, b]
-
 def rdp_ring(ring, eps):
-    # un anillo cerrado tiene inicio == fin, así que se simplifica en dos mitades
-    if len(ring) <= 4: return ring
-    m = len(ring) // 2
-    return rdp(ring[:m+1], eps)[:-1] + rdp(ring[m:] + [ring[0]], eps)[:-1]
+    """A ring simplified in two halves (geom.simplify_ring); one of 4 vertices or fewer as it is."""
+    return ring if len(ring) <= 4 else simplify_ring(ring, eps)
 
 def clip_poly(P):
     """Sutherland-Hodgman contra el rectángulo de la maqueta."""
@@ -71,12 +60,6 @@ def clip_poly(P):
         P = out
     return P
 
-def enc(pts):
-    out = []; px = py = 0
-    for x, y in pts:
-        xi, yi = int(round(x)), int(round(y)); out += [xi-px, yi-py]; px, py = xi, yi
-    return out
-
 def load_blocks():
     blocks, count = [], collections.Counter()
     for fn, t in [('R07_MANZANA_IND_C17', 0), ('R07_MANZANA_SIN_INF_C17', 1), ('R07_MANZANA_ALDEA_C17', 2)]:
@@ -92,7 +75,7 @@ def load_blocks():
                 if ring[0] == ring[-1]: ring = ring[:-1]
                 ring = clip_poly(rdp_ring(ring, EPS_BLOCK))
                 if len(ring) < 3: continue
-                A = 0.5*sum(ring[i-1][0]*ring[i][1] - ring[i][0]*ring[i-1][1] for i in range(len(ring)))
+                A = area(ring)
                 if abs(A) < 30: continue
                 if A < 0: ring = ring[::-1]          # siempre antihorario
                 blocks.append([t, pr.get('TOTAL_PERS') or 0, pr.get('TOTAL_VIVI') or 0, enc(ring)])
@@ -160,17 +143,12 @@ def osm_streets(graph, near=6, cell=50):
             for gx in range(int(min(a[0], b[0])-near)//cell, int(max(a[0], b[0])+near)//cell+1):
                 for gy in range(int(min(a[1], b[1])-near)//cell, int(max(a[1], b[1])+near)//cell+1): H[(gx, gy)].append((a, b))
     def covered(p):
-        for a, b in H.get((int(p[0])//cell, int(p[1])//cell), ()):
-            dx, dy = b[0]-a[0], b[1]-a[1]; L = dx*dx+dy*dy or 1e-9
-            t = max(0, min(1, ((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L))
-            if math.hypot(p[0]-a[0]-t*dx, p[1]-a[1]-t*dy) < near: return True
-        return False
-    el = json.load(open(f))['elements']
-    N = {e['id']: loc(e['lon'], e['lat']) for e in el if e['type'] == 'node'}
+        return any(seg_dist(p, a, b) < near for a, b in H.get((int(p[0])//cell, int(p[1])//cell), ()))
+    N, W, _ = osm.load('comuna')
     out = []
-    for e in el:
+    for e in W.values():
         t = e.get('tags') or {}
-        if e['type'] != 'way' or CLS.get(t.get('highway')) is None or t.get('area') == 'yes': continue
+        if CLS.get(t.get('highway')) is None or t.get('area') == 'yes': continue
         if not all(n in N for n in e['nodes']): continue
         P = [N[n] for n in e['nodes']]
         if all(not (XMIN < p[0] < XMAX and YMIN < p[1] < YMAX) for p in P): continue
@@ -203,7 +181,6 @@ def osm_river(name, r):
     raw/osm/rio-<name>.json (fetched again when an object is missing); delete it to fetch it again. Returns
     (centreline, [[outer, island, ...], ...], [branch, ...]) in grid metres, cut to the model with a 300 m margin
     (lines) or exactly (area)."""
-    from landmark import get
     f = RAW / 'osm' / f'rio-{name}.json'
     via, agua = osm_objs(r['osm']['via'], 'way'), osm_objs(r['osm'].get('agua', []), 'relation')
     tunel = set(r['osm'].get('tunel', []))
@@ -212,13 +189,12 @@ def osm_river(name, r):
     d = json.load(open(f)) if f.exists() else None
     if not d or not have(d, 'via', via + ramas) or not have(d, 'agua', agua):
         api = 'https://api.openstreetmap.org/api/0.6/'
-        fetch = lambda objs: {'elements': [e for t, i in objs for e in json.loads(get(f'{api}{t}/{i}/full.json'))['elements']]}
+        fetch = lambda objs: {'elements': [e for t, i in objs for e in net.get_json(f'{api}{t}/{i}/full.json')['elements']]}
         d = {'via': fetch(via + ramas), 'agua': fetch(agua)}
         f.parent.mkdir(parents=True, exist_ok=True); f.write_text(json.dumps(d))
     def parts(k):
-        el = d[k]['elements']; N = {e['id']: e for e in el if e['type'] == 'node'}
-        P = {i: loc(e['lon'], e['lat']) for i, e in N.items()}
-        return el, {e['id']: e['nodes'] for e in el if e['type'] == 'way'}, P
+        m = osm.Map(d[k]['elements'])
+        return m, {i: w['nodes'] for i, w in m.W.items()}, m.N
     _, ways, P = parts('via')
     ch = list(ways[via[0][1]]); under = [via[0][1] in tunel] * (len(ch)-1)   # under[j]: segment ch[j]-ch[j+1] is in a tunnel
     for k, (_, i) in enumerate(via[1:]):                 # chain the ways, each turned to follow the previous one
@@ -243,16 +219,16 @@ def osm_river(name, r):
     runs.sort(key=lambda c: -sum(math.dist(c[j], c[j+1]) for j in range(len(c)-1)))
     cl = runs[0]
     br = runs[1:] + [c for c in (crop([P[n] for n in ways[i]]) for _, i in ramas) if c]
-    el, ways, P = parts('agua')
-    area2 = lambda ring: sum(P[ring[i-1]][0]*P[ring[i]][1] - P[ring[i]][0]*P[ring[i-1]][1] for i in range(len(ring)))
+    m, ways, P = parts('agua')
+    area2 = lambda ring: area([P[n] for n in ring])
     outers, inners = [], []
     for t, i in agua:
         if t == 'way': outers.append(ways[i]); continue
-        rel = [e for e in el if e['type'] == 'relation' and e['id'] == i][0]
-        for m in sorted(rel['members'], key=lambda m: m['role'] != 'outer'):   # outer first
-            ring = ways[m['ref']]
-            assert ring[0] == ring[-1], f"anillo abierto en la vía {m['ref']}"  # each ring is one closed way here
-            (outers if m['role'] == 'outer' else inners).append(ring)
+        rel = m.R[i]
+        for e in sorted(rel['members'], key=lambda e: e['role'] != 'outer'):   # outer first
+            ring = ways[e['ref']]
+            assert ring[0] == ring[-1], f"anillo abierto en la vía {e['ref']}"  # each ring is one closed way here
+            (outers if e['role'] == 'outer' else inners).append(ring)
     if len(outers) > 1:
         # merge outers along their shared edges: with every ring counter-clockwise, a shared edge runs both ways
         # and cancels; the edges left chain into the merged rings. Only rings that share an edge are merged (two
@@ -284,25 +260,17 @@ def osm_river(name, r):
     def clean(ring):
         ring = clip_poly(rdp_ring([P[n] for n in ring[:-1]], 1.5))
         if len(ring) < 3: return None
-        A = 0.5*sum(ring[i-1][0]*ring[i][1] - ring[i][0]*ring[i-1][1] for i in range(len(ring)))
-        return ring if abs(A) >= 30 else None
+        return ring if abs(area(ring)) >= 30 else None
     polys = []
     for o in outers:
         oc = clean(o)
         if not oc: continue
         po = [P[n] for n in o]
-        holes = [h for h in inners if pip_xy(P[h[0]], po)]
+        holes = [h for h in inners if pip(P[h[0]], po)]
         polys.append([oc] + [hc for hc in map(clean, holes) if hc])
     n = sum(len(p) for p in polys)
     print(f'río {name} (OSM): eje de {len(cl)} puntos, {len(br)} ramas, agua en {len(polys)} polígonos y {n} anillos ({n-len(polys)} islas)')
     return cl, polys, br
-
-def pip_xy(p, ring):
-    c = False; x, y = p
-    for i in range(len(ring)):
-        a, b = ring[i-1], ring[i]
-        if (a[1] > y) != (b[1] > y) and x < a[0] + (y-a[1])*(b[0]-a[0])/(b[1]-a[1]): c = not c
-    return c
 
 def rail_extras(fe, L):
     """The ramal, the crossings, the catenary masts and the signals of `ferrocarril` (pipeline/railway.py writes them)."""
@@ -332,4 +300,4 @@ def main():
     (DATA / 'geometry.json').write_text(s); print('data/geometry.json:', len(s), 'bytes')
 
 if __name__ == '__main__':
-    main()
+    cli.run({}, __doc__, default=main)

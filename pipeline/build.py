@@ -15,8 +15,10 @@ cada uno, que la página pide con fetch apenas empieza (src/page.html, el marcad
                                                     (app.<hash>.js:N como en la consola del navegador, o solo N);
                                                     index.html:N o (index):N para una línea de la página
 """
-import hashlib, json, re, shutil, sys
-from common import ROOT, DATA, CONFIG, require, loc, in_ring
+import hashlib, json, re, shutil
+import cli
+from common import ROOT, DATA, CONFIG, require, loc
+from geom import dec, enc, pip, in_ring, area
 
 SRC = ROOT / 'src'
 DIST = ROOT / 'dist'
@@ -86,18 +88,6 @@ def where(line, pieces=script_pieces):
         n += k
     raise ValueError(f'tiene {n - 1} líneas: no hay línea {line}')
 
-def dec(a):
-    pts, x, y = [], 0, 0
-    for i in range(0, len(a), 2): x += a[i]; y += a[i+1]; pts.append((x, y))
-    return pts
-
-def pip(p, r):
-    inside = False
-    for i in range(len(r)):
-        (x0, y0), (x1, y1) = r[i-1], r[i]
-        if (y0 > p[1]) != (y1 > p[1]) and p[0] < x0 + (p[1]-y0)*(x1-x0)/(y1-y0): inside = not inside
-    return inside
-
 def mark_built(blocks):
     """Manzanas tipo 1 (sin información) que config/manzanas.json señala como construidas -> tipo 3; y al revés, las
     manzanas con datos (tipo 0) que señala como parques (el bandejón de la Alameda) -> tipo 1, sin lotes."""
@@ -108,12 +98,6 @@ def mark_built(blocks):
             hit = [b for b in blocks if b[0] in src and pip(p, dec(b[3]))]
             assert hit, f"manzanas.json ({key}): ninguna manzana {'sin información' if dst == 3 else 'con datos'} contiene «{m['nombre']}»"
             for b in hit: b[0] = dst
-
-def enc(pts):
-    out = []; px = py = 0
-    for x, y in pts:
-        xi, yi = int(round(x)), int(round(y)); out += [xi-px, yi-py]; px, py = xi, yi
-    return out
 
 USO_OPTS = {'rumbo': 'r', 'cancha': 'c', 'tipo': 't', 'arboles': 'a', 'matorral': 'm',
             'especie': 'e', 'plantacion': 'y', 'conduccion': 'd', 'arboles_ha': 'n'}   # (los cuatro últimos: los huertos de CIREN)
@@ -139,7 +123,7 @@ def land_uses(geo):
         if sum(in_ring(p, lim) for p in r) < len(r) / 2: continue   # mostly outside the commune (in Maule): not drawn (in_ring: banded edges, 30× faster than pip on the 461-vertex limit)
         if u['uso'] == 'vivienda':
             if 'poly' in u:
-                r = u['poly']; A = abs(sum(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1] for i in range(len(r))))/2
+                r = u['poly']; A = abs(area(r))
                 viv = u.get('viviendas') or max(1, round(A/1e4*35)); geo['blocks'].append([3, u.get('personas') or viv*3, viv, enc(r)])
             elif geo['blocks'][u['bi']][0] == 1: geo['blocks'][u['bi']][0] = 3
             continue
@@ -167,11 +151,9 @@ def asset(name, data):
 FACHADA = ('alto', 'pisos', 'color', 'zocalo', 'zocalo_alto', 'techo', 'pb', 'estilo')
 
 
-def main():
-    if '--where' in sys.argv:
-        i = sys.argv.index('--where')
-        if i + 1 == len(sys.argv): raise SystemExit(cmd_where.__doc__)
-        return cmd_where(sys.argv[i + 1])
+def main(*, where=None):
+    """dist/ (or, with --where, the source file and line of a line of the script or the page)."""
+    if where: return cmd_where(where)
     geo = json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data')))
     mark_built(geo['blocks'])
     land_uses(geo)
@@ -208,4 +190,4 @@ def main():
     print('dist/index.html:', len(html.encode()), 'bytes;', ', '.join(f'{u.split("/")[-1]}: {size(u)}' for u in [app, three, *urls.values()]))
 
 if __name__ == '__main__':
-    main()
+    cli.run({}, __doc__, default=main)

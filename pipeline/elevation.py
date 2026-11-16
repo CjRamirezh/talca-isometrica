@@ -25,6 +25,7 @@ Salida (metros de grilla; nodos de la grilla, no celdas):
   python elevation.py --srtm     -> lo mismo con el SRTM (escribe data/elevation.json: para comparar, no para quedarse)
 """
 import array, gzip, json, math, sys
+import cli
 from common import RAW, DATA, unloc, require, EXT, comuna, in_ring
 from geotiff import Grid, Raster
 
@@ -62,12 +63,12 @@ def gauss(row, sigma=SIGMA):
         out.append(acc / ws)
     return out
 
-def main():
+def main(stats=False, srtm=False):
     # grilla fina con un margen para que los filtros no se recorten en el borde
     m = (OPEN_R + 3 * SIGMA) * FINE * 2
     fx0, fy0 = XMIN - m, YMIN - m
     fnx, fny = int((XMAX - XMIN + 2 * m) / FINE) + 1, int((YMAX - YMIN + 2 * m) / FINE) + 1
-    if '--srtm' in sys.argv: t, name = Hgt(require(HGT)), 'SRTM'
+    if srtm: t, name = Hgt(require(HGT)), 'SRTM'
     else:   # solo la ventana de la tesela que cubre la grilla fina (girada: las cuatro esquinas)
         ll = [unloc(x, y) for x in (fx0, fx0 + (fnx - 1) * FINE) for y in (fy0, fy0 + (fny - 1) * FINE)]
         t = Raster(str(require(COP, 'Ejecute: make fetch')), max(p[0] for p in ll), min(p[0] for p in ll),
@@ -102,12 +103,15 @@ def main():
     print(f'data/elevation.json ({name}): {len(s)} bytes, {nx}x{ny} nodos de {S} m ({sum(keep)} en la comuna), '
           f'{min(vals):.0f}–{max(vals):.0f} m s.n.m., plaza {z0:.1f} m')
 
-    if 'stats' in sys.argv:   # cuánto quita el filtro: debería ser poco en el campo y algo más en el centro
+    if stats:   # cuánto quita el filtro: debería ser poco en el campo y algo más en el centro
         for name, (x0, x1, y0, y1) in {'centro': (-800, 800, -800, 800), 'campo oriente': (4200, 5500, 2500, 4500),
                                        'cerros poniente': (-3900, -2600, -1500, 1500)}.items():
             d = [fine(raw, x, y) - fine(smooth, x, y) for x in range(x0, x1, FINE) for y in range(y0, y1, FINE)]
             mu = sum(d) / len(d); sd = math.sqrt(sum((v - mu) ** 2 for v in d) / len(d))
             print(f'  {name:16s} bruto − filtrado: media {mu:+.1f} m, desv. {sd:.1f} m, máx. {max(d):+.1f} m')
 
+def cmd_main(*, srtm=False): main(False, srtm)
+def cmd_stats(*, srtm=False): main(True, srtm)
+
 if __name__ == '__main__':
-    main()
+    cli.run({'stats': cmd_stats}, __doc__, default=cmd_main)

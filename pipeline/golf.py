@@ -16,8 +16,10 @@ satelital puede ser vieja») y las sombras de los árboles quedan pegadas a sus 
 
 El trazado desde Esri es lo que permite OSM como fondo de dibujo; la imagen en sí no entra en el repositorio.
 """
-import colorsys, json, sys
+import colorsys, json
+import cli
 from common import CONFIG, DATA, ROOT
+from geom import pip
 from satellite import mosaic
 
 BOX = (3240, 4350, 720, 1270)   # grid metres around the club's outline (w101587762)
@@ -28,13 +30,6 @@ def outline():
     for u in json.load(open(CONFIG / 'usos.json'))['usos']:
         if 'w101587762' in u.get('fuente', ''): return [tuple(p) for p in u['poly']]
     raise SystemExit('No está el contorno w101587762 en config/usos.json')
-
-def pip(p, r):
-    x, y = p; ins = False; j = len(r) - 1
-    for i in range(len(r)):
-        if (r[i][1] > y) != (r[j][1] > y) and x < (r[j][0] - r[i][0]) * (y - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]: ins = not ins
-        j = i
-    return ins
 
 def classify(r, g, b):
     """'t' pasto cortado, 'k' copa o sombra, 'w' agua, 's' arena, '.' otro (HSV de la imagen de Esri, calibrado a ojo)."""
@@ -113,7 +108,4 @@ def panel():
     print('diagnostics/golf-clases.png', im.size)
 
 if __name__ == '__main__':
-    a = sys.argv[1:]
-    if a == ['panel']: panel()
-    elif not a: main()
-    else: raise SystemExit(__doc__)   # anything else (a typo, --help) used to rewrite data/golf.json
+    cli.run({'panel': panel}, __doc__, default=main)   # anything else (a typo) is an error: it used to rewrite data/golf.json

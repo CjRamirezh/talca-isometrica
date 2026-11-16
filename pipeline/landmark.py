@@ -41,21 +41,19 @@ La consulta puede ir en cualquier lugar salvo justo después de --cat, que la to
 
 Requiere internet y Pillow para el plano (uv run --with pillow python landmark.py osm …).
 """
-import json, math, os, re, sys, time, urllib.error, urllib.parse, urllib.request
+import json, math, os, re, time, urllib.error, urllib.parse
+import cli, net, osm
+from cli import maybe
 from common import ROOT, DATA, RAW, loc, unloc, require
+from geom import dec
 
-UA = {'User-Agent': 'talca-isometrica/1.0 (maqueta isometrica de Talca)'}
 OSM = 'https://api.openstreetmap.org/api/0.6/map.json?bbox={},{},{},{}'
 COMMONS = 'https://commons.wikimedia.org/w/api.php?'
 SW = [16, 13, 11, 9.5, 7, 5, 3.5, 3.5]   # ancho de calle por clase, como en la plantilla
 
 def get(url, tries=6):
     # Commons answers 429 when several sessions download at once: wait and retry
-    for k in range(tries):
-        try: return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60).read()
-        except urllib.error.HTTPError as e:
-            if e.code != 429 or k == tries - 1: raise
-            time.sleep(10 * (k + 1))
+    return net.get(url, tries=tries, wait=10, timeout=60)
 
 def poi(pid):
     m = re.fullmatch(r'(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)', pid)
@@ -66,23 +64,14 @@ def poi(pid):
     if pid not in pois: raise SystemExit(f'No existe el lugar {pid!r} en data/pois.json')
     return pois[pid]
 
-def dec(a):
-    pts, x, y = [], 0, 0
-    for i in range(0, len(a), 2): x += a[i]; y += a[i+1]; pts.append((x, y))
-    return pts
-
 def load_osm(pid, half=250):
     f = RAW / 'osm' / f'{pid}.json'
     if not f.exists():
         p = poi(pid); dla, dlo = half / 110950, half / (111320 * math.cos(math.radians(-p['lat'])))
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_bytes(get(OSM.format(p['lon']-dlo, p['lat']-dla, p['lon']+dlo, p['lat']+dla)))
-    d = json.load(open(f))
-    nodes = {e['id']: e for e in d['elements'] if e['type'] == 'node'}
-    ways = {e['id']: e for e in d['elements'] if e['type'] == 'way'}
-    rels = [e for e in d['elements'] if e['type'] == 'relation']
-    xy = lambda w: [loc(nodes[n]['lon'], nodes[n]['lat']) for n in w['nodes'] if n in nodes]
-    return nodes, ways, rels, xy
+    m = osm.read(f)
+    return m.nodes, m.W, list(m.R.values()), m.pts
 
 SKIP = {'footway', 'path', 'steps', 'crossing', 'cycleway', 'service', 'track'}
 def interesting(t):
@@ -121,7 +110,7 @@ def cmd_osm(pid, half='250'):
 def plan(pid, p, half, ways, shown, xy):
     try: from PIL import Image, ImageDraw
     except ImportError: print('\n(sin Pillow no hay plano: uv run --with pillow python landmark.py osm …)'); return
-    sys.path.insert(0, str(ROOT / 'pipeline')); from build import mark_built
+    from build import mark_built
     g = json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data')))
     t0 = [b[0] for b in g['blocks']]; mark_built(g['blocks'])
     S = 2; X0, Y1 = p['x']-half, p['y']+half; N = int(2*half*S)
@@ -154,15 +143,9 @@ def plan(pid, p, half, ways, shown, xy):
     out = ROOT / 'diagnostics' / f'plan-{pid}.png'; out.parent.mkdir(exist_ok=True)
     img.save(out); print(f'\n-> {out.relative_to(ROOT)} ({N} px = {2*half:.0f} m; norte de grilla arriba)')
 
-def cmd_frame(pid, *args):
-    args = list(args); origin = angle = None
-    if '--origin' in args:
-        i = args.index('--origin'); origin = (float(args[i+1]), float(args[i+2])); del args[i:i+3]
-    if '--angle' in args:
-        i = args.index('--angle'); angle = float(args[i+1]); del args[i:i+2]
-    if not args: raise SystemExit('Indique al menos un id de vía')
+def cmd_frame(pid, *ids: int, origin: (float, float) = None, angle: float = None):
+    if not ids: raise SystemExit('Indique al menos un id de vía')
     nodes, ways, rels, xy = load_osm(pid)
-    ids = [int(a) for a in args]
     for wid in ids:
         if wid not in ways: raise SystemExit(f'La vía {wid} no está en raw/osm/{pid}.json')
     ref = xy(ways[ids[0]]); ring = ref[:-1] if ref[0] == ref[-1] else ref
@@ -282,7 +265,7 @@ def mapillary_rows(at, r):
     b = ','.join(f'{v:.6f}' for v in bbox(at[0], at[1], r))
     url = 'https://graph.mapillary.com/images?' + urllib.parse.urlencode({'bbox': b, 'limit': 200,
           'fields': 'id,captured_at,compass_angle,computed_compass_angle,computed_geometry,geometry,is_pano,creator,thumb_1024_url'})
-    d = json.loads(urllib.request.urlopen(urllib.request.Request(url, headers={**UA, 'Authorization': f'OAuth {tok}'}), timeout=60).read())
+    d = json.loads(net.get(url, headers={'Authorization': f'OAuth {tok}'}, timeout=60))
     rows = []
     for im in d.get('data', []):
         g = (im.get('computed_geometry') or im.get('geometry') or {}).get('coordinates')
@@ -315,15 +298,10 @@ def flickr_rows(at, r):
                      ph['url_m'], note))
     return rows
 
-def cmd_photos(pid, *args):
-    args = list(args); opts = {}
-    for o in ('--geo', '--cat', '--panoramax', '--mapillary', '--flickr'):
-        if o in args:
-            # the value: a radius in m, or for --cat a category; anything else is the query
-            i = args.index(o); v = args[i+1] if i + 1 < len(args) and not args[i+1].startswith('--') else None
-            if v and o != '--cat' and not re.fullmatch(r'\d+(\.\d+)?', v): v = None
-            opts[o] = v; del args[i:i+(2 if v else 1)]
-    query = args[0] if args else None
+def cmd_photos(pid, query=None, *, geo: maybe(float, '') = None, cat: maybe(str, '') = None, panoramax: maybe(float, '') = None,
+               mapillary: maybe(float, '') = None, flickr: maybe(float, '') = None):
+    # each flag's value: a radius in m, or for --cat a category ('': none given); anything else is the query
+    opts = {f'--{k}': v or None for k, v in (('geo', geo), ('cat', cat), ('panoramax', panoramax), ('mapillary', mapillary), ('flickr', flickr)) if v is not None}
     at = where(pid)   # con consulta, pid puede ser cualquier nombre (una calle): solo nombra la carpeta
     if not at and set(opts) - {'--cat'}: raise SystemExit(f'{pid!r} no es un lugar ni un punto de grilla: --geo y las demás fuentes necesitan uno')
     rows, seen = [], set()
@@ -358,6 +336,4 @@ def cmd_photos(pid, *args):
     print(f'-> {out.relative_to(ROOT)}/ (más recientes primero)')
 
 if __name__ == '__main__':
-    cmds = {'osm': cmd_osm, 'frame': cmd_frame, 'photos': cmd_photos}
-    if len(sys.argv) < 3 or sys.argv[1] not in cmds: raise SystemExit(__doc__)
-    cmds[sys.argv[1]](*sys.argv[2:])
+    cli.run({'osm': cmd_osm, 'frame': cmd_frame, 'photos': cmd_photos}, __doc__)

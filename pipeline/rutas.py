@@ -15,25 +15,17 @@ Formato de config/rutas.json: {"reemplazos": [{"de": nombre en OSM, "a": nombre 
 """
 import json, math, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cli
 from common import CONFIG, DATA, RAW, loc
+from geom import dec, seg_dist as seg_d
 
 def reemplazos():
     """config/rutas.json -> {name in OSM: corrected name}."""
     f = CONFIG / 'rutas.json'
     return {r['de']: r['a'] for r in json.load(open(f))['reemplazos']} if f.exists() else {}
 
-def dec(a):
-    pts, x, y = [], 0, 0
-    for i in range(0, len(a), 2): x += a[i]; y += a[i+1]; pts.append((x, y))
-    return pts
-
-def seg_d(p, a, b):
-    dx, dy = b[0]-a[0], b[1]-a[1]; L = dx*dx+dy*dy or 1e-9
-    t = max(0, min(1, ((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L))
-    return math.hypot(p[0]-a[0]-t*dx, p[1]-a[1]-t*dy)
-
-def check(m='25'):
-    m = float(m); g = json.load(open(DATA / 'geometry.json'))
+def check(m: float = 25):
+    g = json.load(open(DATA / 'geometry.json'))
     mop, cell = {}, 100
     for f in json.load(open(RAW / 'cl' / 'vialidad' / 'red_vial.geojson'))['features']:
         geo = f.get('geometry') or {}; rol = f['properties']['ROL']
@@ -58,10 +50,9 @@ def check(m='25'):
                 for rol in hit: c['r'][rol] = c['r'].get(rol, 0) + L/n
     norm = lambda s: re.sub(r'[^0-9A-Z]', '', s.upper().replace('RUTA', ''))
     for nm, c in sorted(names.items(), key=lambda kv: -kv[1]['L']):
-        top = sorted(c['r'].items(), key=lambda kv: -kv[1])
+        top = sorted(c['r'].items(), key=lambda kv: (-kv[1], kv[0]))   # ties by name: the order of a set changed between runs
         warn = top and norm(top[0][0]) != norm(nm) and top[0][1] > c['L']*.5
         print(f"{nm:24} {c['L']/1000:6.1f} km  " + ', '.join(f'{r} {v*100/c["L"]:.0f} %' for r, v in top[:3]) + ('   <- el MOP dice otro rol' if warn else ''))
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2 or sys.argv[1] != 'check': raise SystemExit(__doc__)
-    check(*sys.argv[2:])
+    cli.run({'check': check}, __doc__)

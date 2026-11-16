@@ -13,8 +13,10 @@ bandas o BigTIFF se rechaza con un error.
 
 El archivo es un dato descargado: se lee con `python -I` y la ruta como argumento.
 """
-import array, gzip, json, math, struct, sys, zlib
+import array, gzip, json, math, os, struct, sys, zlib
 from itertools import accumulate
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # python -I: the folder is not on the path
+import cli
 
 TYPES = {1: 'B', 2: 's', 3: 'H', 4: 'I', 5: 'II', 6: 'b', 8: 'h', 9: 'i', 11: 'f', 12: 'd', 16: 'Q'}
 SIZE = {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 8: 2, 9: 4, 11: 4, 12: 8, 16: 8}
@@ -111,28 +113,26 @@ def decode(raw, tw, th, isz, code, bo, pred):
         a = array.array(code, u.tobytes())
     return a
 
-def main():
-    if len(sys.argv) < 3: raise SystemExit(__doc__)
-    cmd, path = sys.argv[1], sys.argv[2]
-    if cmd == 'info':
-        buf = open(path, 'rb').read(); bo, T = tags(buf)
-        g = Raster(path)
-        print(f'{T[256][0]}×{T[257][0]} px, {T[258][0]} bits (formato {T.get(339, [1])[0]}), compresión {T.get(259, [1])[0]}, '
-              f'predictor {T.get(317, [1])[0]}, bloques {T.get(322, ["-"])[0]}×{T.get(323, ["-"])[0]}, {g.k} px/grado; '
-              f'centro del píxel (0, 0) en {g.lat_n:.6f}, {g.lon_w:.6f}; sin dato: {g.nodata}')
-    elif cmd == 'punto':
-        lat, lon = float(sys.argv[3]), float(sys.argv[4]); d = 2 / 3600
-        print(f'{Raster(path, lat + d, lat - d, lon - d, lon + d).at(lat, lon):.2f}')
-    elif cmd == 'recorte':
-        out = sys.argv[3]
-        box = list(map(float, sys.argv[4:8])) if len(sys.argv) > 7 else [-35.28, -35.56, -71.76, -71.45]
-        g = Raster(path, *box)
-        hdr = {'lat_n': g.lat_n, 'lon_w': g.lon_w, 'k': g.k, 'nx': g.nx, 'ny': g.ny, 'scale': 0.1, 'src': path.rsplit('/', 1)[-1]}
-        dm = array.array('h', (-32768 if x < -1000 else max(-32767, min(32767, round(x * 10))) for x in g.v))
-        if sys.byteorder == 'little': dm.byteswap()
-        with gzip.open(out, 'wb') as f: f.write((json.dumps(hdr) + '\n').encode()); f.write(dm.tobytes())
-        print(hdr)
-    else: raise SystemExit(__doc__)
+def cmd_info(path):
+    buf = open(path, 'rb').read(); bo, T = tags(buf)
+    g = Raster(path)
+    print(f'{T[256][0]}×{T[257][0]} px, {T[258][0]} bits (formato {T.get(339, [1])[0]}), compresión {T.get(259, [1])[0]}, '
+          f'predictor {T.get(317, [1])[0]}, bloques {T.get(322, ["-"])[0]}×{T.get(323, ["-"])[0]}, {g.k} px/grado; '
+          f'centro del píxel (0, 0) en {g.lat_n:.6f}, {g.lon_w:.6f}; sin dato: {g.nodata}')
+
+def cmd_punto(path, lat: float, lon: float):
+    d = 2 / 3600
+    print(f'{Raster(path, lat + d, lat - d, lon - d, lon + d).at(lat, lon):.2f}')
+
+def cmd_recorte(path, out, *box: float):
+    if len(box) not in (0, 4): raise SystemExit('recorte: la caja son cuatro números (lat_n lat_s lon_w lon_e)')
+    box = list(box) or [-35.28, -35.56, -71.76, -71.45]
+    g = Raster(path, *box)
+    hdr = {'lat_n': g.lat_n, 'lon_w': g.lon_w, 'k': g.k, 'nx': g.nx, 'ny': g.ny, 'scale': 0.1, 'src': path.rsplit('/', 1)[-1]}
+    dm = array.array('h', (-32768 if x < -1000 else max(-32767, min(32767, round(x * 10))) for x in g.v))
+    if sys.byteorder == 'little': dm.byteswap()
+    with gzip.open(out, 'wb') as f: f.write((json.dumps(hdr) + '\n').encode()); f.write(dm.tobytes())
+    print(hdr)
 
 if __name__ == '__main__':
-    main()
+    cli.run({'info': cmd_info, 'punto': cmd_punto, 'recorte': cmd_recorte}, __doc__)

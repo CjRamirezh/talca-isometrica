@@ -64,41 +64,17 @@ construida, igual que config/manzanas.json).
 """
 import json, math, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # python -I pipeline/usos.py (raw/cl/ is not trusted)
-from common import ROOT, DATA, CONFIG, RAW, loc, require, comuna, in_ring
+import cli, geom, osm
+from common import DATA, CONFIG, loc, require, comuna
 from build import hito_ids, usos_entries, USOS_FILES
+from geom import dec, pip, in_ring, near_ring, bbox, apart, rdp, crossings_at
 
 USOS = ['industrial', 'cementerio', 'militar', 'educacional', 'salud', 'deportivo', 'parque', 'huerto', 'vina',
         'potrero', 'eriazo', 'bosque', 'feria', 'golf', 'vivienda', 'conjunto', 'parcelas', 'terminal']
 
-def dec(a):
-    pts, x, y = [], 0, 0
-    for i in range(0, len(a), 2): x += a[i]; y += a[i+1]; pts.append((x, y))
-    return pts
+def area(r): return abs(geom.area(r))
 
-def pip(p, r):
-    inside = False
-    for i in range(len(r)):
-        (x0, y0), (x1, y1) = r[i-1], r[i]
-        if (y0 > p[1]) != (y1 > p[1]) and p[0] < x0 + (p[1]-y0)*(x1-x0)/(y1-y0): inside = not inside
-    return inside
-
-def bbox(r): return (min(p[0] for p in r), min(p[1] for p in r), max(p[0] for p in r), max(p[1] for p in r))
-
-def apart(a, b): return a[0] > b[2] or b[0] > a[2] or a[1] > b[3] or b[1] > a[3]   # two disjoint boxes
-
-def area(r): return abs(sum(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1] for i in range(len(r))))/2
-
-def centroid(r):
-    A = cx = cy = 0
-    for i in range(len(r)):
-        (x0, y0), (x1, y1) = r[i-1], r[i]; c = x0*y1-x1*y0; A += c; cx += (x0+x1)*c; cy += (y0+y1)*c
-    return (cx/(3*A), cy/(3*A)) if A else r[0]
-
-def rdp(pts, eps):
-    if len(pts) < 3: return pts
-    a, b = pts[0], pts[-1]; dx, dy = b[0]-a[0], b[1]-a[1]; L = math.hypot(dx, dy) or 1e-9
-    d = [abs(dy*(p[0]-a[0])-dx*(p[1]-a[1]))/L for p in pts[1:-1]]; i = max(range(len(d)), key=d.__getitem__)
-    return rdp(pts[:i+2], eps)[:-1] + rdp(pts[i+1:], eps) if d[i] > eps else [a, b]
+centroid = geom.centre
 
 def simplify(ring, eps):
     r = rdp(list(ring) + [ring[0]], eps)[:-1]
@@ -153,30 +129,11 @@ def entries(g=None):
     return out
 
 def load_map(name):
-    d = json.load(open(require(RAW / 'osm' / f'map-{name}.json', f'Ejecute: python pipeline/traces.py tiles … {name}')))
-    N, W, R = {}, {}, {}
-    for e in d['elements']:
-        if e['type'] == 'node': N[e['id']] = loc(e['lon'], e['lat'])
-        elif e['type'] == 'way': W[e['id']] = e
-        else: R[e['id']] = e
-    return N, W, R
+    return osm.load(name, f'Ejecute: python pipeline/traces.py tiles … {name}')
 
 def join(ways):
-    """Chain open ways (lists of node ids) into closed rings."""
-    ways, rings = [list(w) for w in ways if len(w) > 1], []
-    while ways:
-        cur = ways.pop()
-        while cur[0] != cur[-1]:
-            for k, w in enumerate(ways):
-                if w[0] == cur[-1]: cur += w[1:]
-                elif w[-1] == cur[-1]: cur += w[-2::-1]
-                elif w[-1] == cur[0]: cur = w[:-1] + cur
-                elif w[0] == cur[0]: cur = w[:0:-1] + cur
-                else: continue
-                ways.pop(k); break
-            else: break
-        if cur[0] == cur[-1] and len(cur) > 3: rings.append(cur[:-1])
-    return rings
+    """Chain open ways (lists of node ids) into closed rings, without the repeated node."""
+    return [r[:-1] for r in osm.join(ways, last=True) if len(r) > 3]
 
 def shape(obj, N, W):
     """[outer rings], [inner rings] of a closed way or a multipolygon, in grid metres (None if incomplete)."""
@@ -222,9 +179,9 @@ def features(name, box=None):
     return out
 
 # ---------------------------------------------------------------- commands
-def cmd_survey(name, *args):
-    flags = [a for a in args if a.startswith('--')]; args = [a for a in args if not a.startswith('--')]
-    box = tuple(map(float, args[:4])) if len(args) >= 4 else None
+def cmd_survey(name, *box: float, todo=False):
+    if len(box) not in (0, 4): raise SystemExit('survey: la caja son cuatro números (x0 x1 y0 y1)')
+    box = box or None
     g, blocks = geometry(); bix = BlockIndex(blocks)
     used = [(u, rs) for u, rs in entries(g)] if (CONFIG / 'usos.json').exists() else []
     for f in sorted(features(name, box), key=lambda f: -f['A']):
@@ -235,16 +192,14 @@ def cmd_survey(name, *args):
             b = bix.at(p); k = 'sin manzana' if b is None else f"t{b['t']}"
             cnt[k] = cnt.get(k, 0) + 1
         blank = (cnt.get('t1', 0) + cnt.get('sin manzana', 0)) / n
-        if blank < .3 and '--todo' not in flags: continue
+        if blank < .3 and not todo: continue
         cov = sum(1 for p in pts if any(pip(p, rs[0]) for _, rs in used)) / n
         bis = sorted({b['i'] for p in pts for b in [bix.at(p)] if b and b['t'] == 1})
         print(f"{f['id']:>12} {f['A']/1e4:6.2f} ha ({f['c'][0]:6.0f},{f['c'][1]:6.0f}) {f['lab']:<34} {f['name'][:32]:<32}"
               f" {' '.join(f'{k}:{v*100//n}%' for k, v in sorted(cnt.items()))}{'  usado:%d%%' % (cov*100) if cov else ''}"
               f"{'  bi ' + ','.join(map(str, bis[:6])) if bis else ''}")
 
-def cmd_osm(name, *ids):
-    eps = 1.5
-    if '--eps' in ids: k = ids.index('--eps'); eps = float(ids[k+1]); ids = ids[:k] + ids[k+2:]
+def cmd_osm(name, *ids, eps: float = 1.5):
     N, W, R = load_map(name)
     for i in ids:
         obj = (W if i[0] == 'w' else R).get(int(i[1:]))
@@ -253,11 +208,9 @@ def cmd_osm(name, *ids):
         r = simplify(max(s[0], key=area), eps)
         print(json.dumps([[round(p[0]), round(p[1])] for p in r], separators=(',', ':')))
 
-def cmd_blancos(ha='0.3', *args):
+def cmd_blancos(ha='0.3', *, osm=None):
     g, blocks = geometry(); used = entries(g)
-    feats = None
-    if '--osm' in args:
-        feats = features(args[args.index('--osm')+1])
+    feats = features(osm) if osm else None
     for b in sorted(blocks, key=lambda b: -b['A']):
         if b['t'] != 1 or b['A'] < float(ha)*1e4: continue
         pts = samples(b['r'], max(8, math.sqrt(b['A'])/5))
@@ -479,7 +432,7 @@ def rfill(rings, x0, y0, nx, ny, c=1.0):
     for j in range(ny):
         y = y0 + (j+.5)*c
         for r in rings:
-            xs = sorted(r[i-1][0] + (y-r[i-1][1])*(r[i][0]-r[i-1][0])/(r[i][1]-r[i-1][1]) for i in range(len(r)) if (r[i-1][1] > y) != (r[i][1] > y))
+            xs = crossings_at(r, y)
             for k in range(0, len(xs)-1, 2):
                 for i in range(max(0, math.ceil((xs[k]-x0)/c-.5)), min(nx-1, math.floor((xs[k+1]-x0)/c-.5))+1): g[j*nx+i] = 1
     return g
@@ -736,12 +689,10 @@ def cmd_lista(kind, minimo='0'):
     g, blocks = geometry(); bix = BlockIndex(blocks); E = entries(g)
     feats = [f for f in features('comuna') if set(f['lab'].split()) & keys]
     pois = {p['id']: p for p in json.load(open(DATA / 'pois.json'))['pois']}; hp = {h: pois[h] for h in hito_ids() if h in pois}
-    near = lambda p, r, m: pip(p, r) or any(math.hypot(*(lambda a, b: (p[0]-a[0]-max(0, min(1, ((p[0]-a[0])*(b[0]-a[0])+(p[1]-a[1])*(b[1]-a[1]))/((b[0]-a[0])**2+(b[1]-a[1])**2 or 1)))*(b[0]-a[0]),
-                                                                     p[1]-a[1]-max(0, min(1, ((p[0]-a[0])*(b[0]-a[0])+(p[1]-a[1])*(b[1]-a[1]))/((b[0]-a[0])**2+(b[1]-a[1])**2 or 1)))*(b[1]-a[1])))(r[i-1], r[i])) < m for i in range(len(r)))
     rows = establecimientos(kind); miss = []
     for e in rows:
         p = e['p']; box = lambda r: min(q[0] for q in r)-30 <= p[0] <= max(q[0] for q in r)+30 and min(q[1] for q in r)-30 <= p[1] <= max(q[1] for q in r)+30
-        here = [u['uso'] for u, rs in E if box(rs[0]) and near(p, rs[0], 30)]
+        here = [u['uso'] for u, rs in E if box(rs[0]) and near_ring(p, rs[0], 30)]
         if want in here or e['mat'] < int(minimo): continue
         b = bix.at(p); f = [x for x in feats if any(pip(p, o) for o in x['outer'])]
         h = [k for k, q in hp.items() if math.hypot(q['x']-p[0], q['y']-p[1]) < 120]
@@ -756,8 +707,9 @@ def cmd_lista(kind, minimo='0'):
 
 CL_IMPORT = {'ciren': imp_ciren, 'censo2024': imp_censo2024, 'areasverdes': imp_areasverdes}
 
+def cmd_escuelas(minimo='0'): cmd_lista('escuelas', minimo)
+def cmd_salud(): cmd_lista('salud')
+
 if __name__ == '__main__':
-    cmds = {'survey': cmd_survey, 'osm': cmd_osm, 'blancos': cmd_blancos, 'check': cmd_check, 'importar': cmd_importar,
-            'escuelas': lambda *a: cmd_lista('escuelas', *a), 'salud': lambda *a: cmd_lista('salud', *a)}
-    if len(sys.argv) < 2 or sys.argv[1] not in cmds: raise SystemExit(__doc__)
-    cmds[sys.argv[1]](*sys.argv[2:])
+    cli.run({'survey': cmd_survey, 'osm': cmd_osm, 'blancos': cmd_blancos, 'check': cmd_check, 'importar': cmd_importar,
+             'escuelas': cmd_escuelas, 'salud': cmd_salud}, __doc__)

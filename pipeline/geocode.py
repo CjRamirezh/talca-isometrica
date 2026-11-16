@@ -14,7 +14,8 @@ Uso:
   python pipeline/geocode.py validate                   # compara data/pois.json con su dirección
   python pipeline/geocode.py lines                      # mediana de cada calle (candidatos para config/grid_lines.json)
 """
-import json, re, sys, statistics, collections
+import json, re, statistics, collections
+import cli
 from common import loc, unloc, NAV_GRAPH, DATA, require
 
 PAT = re.compile(r'^(?:Avenida |Calle )?(\d+) (Norte|Sur|Oriente|Poniente)$')
@@ -87,14 +88,14 @@ def validate():
         flag = '  <-- revisar' if d > 80 else ''
         print(f'{p["id"]:26s} {p["a"][:28]:28s} {p["conf"]:6s} {d:7.0f}{flag}')
 
+def cmd_address(addr):
+    m = re.match(r'(\d+ \w+) (\d+)', addr)
+    if not m: raise SystemExit('uso: python pipeline/geocode.py address "2 Norte 781"   (calle y número)')
+    g, cr = geocode(m.group(1), m.group(2))
+    print('entre', cr, '->', g and unloc(*g))
+
+def cmd_lines():
+    for k, v in sorted(lines().items(), key=lambda kv: kv[1]): print(f'{k:12s} {v:8.0f}')
+
 if __name__ == '__main__':
-    cmd = sys.argv[1] if len(sys.argv) > 1 else 'validate'
-    if cmd == 'address':
-        m = re.match(r'(\d+ \w+) (\d+)', sys.argv[2]) if len(sys.argv) > 2 else None
-        if not m: raise SystemExit('uso: python pipeline/geocode.py address "2 Norte 781"   (calle y número)')
-        g, cr = geocode(m.group(1), m.group(2))
-        print('entre', cr, '->', g and unloc(*g))
-    elif cmd == 'lines':
-        for k, v in sorted(lines().items(), key=lambda kv: kv[1]): print(f'{k:12s} {v:8.0f}')
-    elif cmd == 'validate': validate()
-    else: raise SystemExit(__doc__)   # an unknown command used to run validate
+    cli.run({'address': cmd_address, 'lines': cmd_lines, 'validate': validate}, __doc__, default=validate)   # no command: validate

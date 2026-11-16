@@ -24,10 +24,10 @@ Lo que diga Wikidata hay que confirmarlo en una fuente primaria antes de llevarl
 con palabras propias. Wikidata es CC0; las coordenadas de pois.py vienen de OSM (ODbL) y no se copian a Wikidata.
 Biblioteca estándar; requiere internet la primera vez.
 """
-import json, math, re, sys, time, urllib.parse, urllib.request
+import json, math, re, time, urllib.parse
+import cli, net
 from common import ROOT, DATA, RAW, loc, comuna, in_ring, require
 
-UA = {'User-Agent': 'talca-isometrica/1.0 (maqueta isometrica de Talca; https://github.com/eduramirezh/talca-isometrica)'}
 CACHE = RAW / 'wikidata'
 TALCA = ('Q4469', 'Q31947291')                       # la ciudad y la comuna
 BOX = ('Point(-71.76 -35.31)', 'Point(-71.45 -35.535)')
@@ -35,12 +35,7 @@ WANT = re.compile(r'tribunal|juzgado|corte|notar|fiscal|c[aá]rcel|monumento|mem
                   r'catedral|santuario|capilla|museo|estaci[oó]n|puente|batalla|combate|bien cultural|edificio|teatro', re.I)
 
 def get(url, accept=None):
-    h = dict(UA, Accept=accept) if accept else UA
-    for k in range(4):
-        try: return json.loads(urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=300).read())
-        except urllib.error.HTTPError as e:
-            if e.code not in (429, 500, 502, 503, 504) or k == 3: raise
-            time.sleep(10 * (k + 1))
+    return net.get_json(url, headers={'Accept': accept} if accept else None, wait=10, timeout=300)
 
 def sparql(q):
     return get('https://query.wikidata.org/sparql?' + urllib.parse.urlencode({'query': q}), 'application/sparql-results+json')['results']['bindings']
@@ -87,10 +82,10 @@ def cmd_item(q):
     lab = {k: label(v) for k, v in entities(tg, 'labels').items()} if tg else {}
     print(json.dumps(row(q, e, lab), ensure_ascii=False, indent=1))
 
-def cmd_check(*args):
+def cmd_check(*, refresh=False):
     pois = json.load(open(require(DATA / 'pois.json', 'Ejecute: make pois')))['pois']
     wd = {p['id']: [q.strip() for q in p['wd'].split(',')] for p in pois if p.get('wd')}
-    if '--refresh' in args or not (CACHE / 'entities.json').exists():
+    if refresh or not (CACHE / 'entities.json').exists():
         print('bajando de Wikidata…'); fetch({q for qs in wd.values() for q in qs})
     ents = json.load(open(CACHE / 'entities.json')); lab = json.load(open(CACHE / 'labels.json'))
     missing = sorted({q for qs in wd.values() for q in qs} - set(ents))
@@ -135,6 +130,4 @@ def cmd_check(*args):
                 print(f"  {a['q']} y {b['q']}: «{a['name']}» / «{b['name']}», a {math.dist(a['xy'], b['xy']):.0f} m")
 
 if __name__ == '__main__':
-    cmds = {'check': cmd_check, 'item': cmd_item}
-    if len(sys.argv) < 2 or sys.argv[1] not in cmds: raise SystemExit(__doc__)
-    cmds[sys.argv[1]](*sys.argv[2:])
+    cli.run({'check': cmd_check, 'item': cmd_item}, __doc__)

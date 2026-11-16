@@ -12,7 +12,9 @@ Es la medición de docs/METODOLOGIA.md §3: en Talca da 85° (las calles a −5�
 grilla con los ejes es el pico con el signo cambiado, llevado a (−45°, 45°]. Un pico con menos de ~40 % del largo a
 ±2° dentro de 1 km es una grilla irregular: no hay un giro que la alinee. Ver docs/PLAN-COMUNAS.md.
 """
-import json, math, sys, collections
+import json, math, os, sys, collections
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # python -I: the folder is not on the path
+import cli
 
 
 def segments(path, lat0, lon0):
@@ -35,10 +37,8 @@ def segments(path, lat0, lon0):
             yield from zip(ns, ns[1:])
 
 
-def main(a):
-    if len(a) < 3: raise SystemExit(__doc__)
-    path, lat0, lon0 = a[0], float(a[1]), float(a[2])
-    radii = [float(r) for r in a[3:]] or [600, 1200, 2500]
+def main(path, lat0: float, lon0: float, *radii: float):
+    radii = radii or [600, 1200, 2500]
     segs = list(segments(path, lat0, lon0))
     for R in radii:
         H, tot, A = collections.Counter(), 0.0, []
@@ -58,4 +58,4 @@ def main(a):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    cli.run({}, __doc__, default=main)

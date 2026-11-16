@@ -47,50 +47,16 @@
 El río se arma con process_geometry.osm_river() (caché raw/osm/rio-<río>.json; con --osm, rio-<río>-prueba.json).
 Las cajas de `check` se bajan solas alrededor del eje (raw/osm/map-rio-<río>.json).
 """
-import json, math, re, sys, time, urllib.error, urllib.request
-from common import ROOT, DATA, RAW, CONFIG, loc, unloc, require
+import json, math, re, sys, urllib.error
+import cli, net, osm
 import process_geometry as pg
+from common import ROOT, DATA, RAW, CONFIG, loc, unloc, require
+from geom import dec, pip, rdp, crossings, merc_px, seg_dist as segd, seg_point as segp, polyline_dist as pld
 
 SW = [16, 13, 11, 9.5, 7, 5, 3.5, 3.5]               # ancho de calle por clase, como en la plantilla
 CLS = ['troncal', 'primaria', 'secundaria', 'terciaria', 'residencial', 'peatonal', 'peatonal', 'servicio']
 R5W, RAILW = 26, 6                                  # anchos de la Ruta 5 y de la vía en la plantilla
-UA = {'User-Agent': 'talca-isometrica/1.0 (maqueta isometrica de Talca)'}
-
-def dec(a):
-    pts, x, y = [], 0, 0
-    for i in range(0, len(a), 2): x += a[i]; y += a[i+1]; pts.append((x, y))
-    return pts
-
-def segd(p, a, b):
-    dx, dy = b[0]-a[0], b[1]-a[1]; L = dx*dx+dy*dy or 1e-9
-    t = max(0, min(1, ((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L)); return math.hypot(p[0]-a[0]-t*dx, p[1]-a[1]-t*dy)
-
-def segp(p, a, b):
-    dx, dy = b[0]-a[0], b[1]-a[1]; L = dx*dx+dy*dy or 1e-9
-    t = max(0, min(1, ((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L)); return (a[0]+t*dx, a[1]+t*dy)
-
-def pld(p, pl): return min(segd(p, pl[i], pl[i+1]) for i in range(len(pl)-1))
-
-def crossings(pl, ql):
-    out = []
-    for i in range(len(pl)-1):
-        a, b = pl[i], pl[i+1]; r = (b[0]-a[0], b[1]-a[1])
-        for j in range(len(ql)-1):
-            c, d = ql[j], ql[j+1]; s = (d[0]-c[0], d[1]-c[1]); den = r[0]*s[1]-r[1]*s[0]
-            if abs(den) < 1e-12: continue
-            t = ((c[0]-a[0])*s[1]-(c[1]-a[1])*s[0])/den; u = ((c[0]-a[0])*r[1]-(c[1]-a[1])*r[0])/den
-            if 0 <= t <= 1 and 0 <= u <= 1: out.append((a[0]+t*r[0], a[1]+t*r[1]))
-    return out
-
 # ---------------------------------------------------------------- tiles
-def get(url):
-    for k in range(4):
-        try: return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read()
-        except urllib.error.HTTPError as e:
-            if e.code == 400: raise                    # demasiados nodos: quien llama divide la caja
-            if k == 3: raise
-            time.sleep(5*(k+1))
-
 def tiles(x0, x1, y0, y1, name, step=0.01):
     """OSM `map` boxes over a grid-metre box, cached per box and merged into raw/osm/map-<name>.json."""
     cs = [unloc(x, y) for x in (x0, x1) for y in (y0, y1)]
@@ -107,22 +73,20 @@ def tiles(x0, x1, y0, y1, name, step=0.01):
     print(f'raw/osm/{out.name}: {len(els)} elementos', file=sys.stderr)
     return list(els.values())
 
-def cmd_tiles(x0, x1, y0, y1, name):
-    tiles(*map(float, (x0, x1, y0, y1)), name)
+def cmd_tiles(x0: float, x1: float, y0: float, y1: float, name):
+    tiles(x0, x1, y0, y1, name)
 
 def cmd_tiles_comuna(name='comuna', *bases):
     """The OSM `map` boxes over the whole commune: a 0,01° grid aligned to whole degrees, skipping the boxes that do
     not reach the commune (300 m margin) and, when raw/osm/map-todo.json exists, those inside its box (the old model,
     -4000 5600 -4200 4700); merged with raw/osm/map-<base>.json for each base there is (by default todo and este)."""
-    from common import comuna, in_ring
+    from common import comuna, near_ring
     R = comuna(); xs, ys = [p[0] for p in R], [p[1] for p in R]
     cs = [unloc(x, y) for x in (min(xs)-300, max(xs)+300) for y in (min(ys)-300, max(ys)+300)]
     la0, la1 = min(c[0] for c in cs), max(c[0] for c in cs); lo0, lo1 = min(c[1] for c in cs), max(c[1] for c in cs)
     have = [b for b in bases or ('todo', 'este') if (RAW / 'osm' / f'map-{b}.json').exists()]
     old = lambda p: 'todo' in have and -4000 <= p[0] <= 5600 and -4200 <= p[1] <= 4700
-    def near(p, m=300):
-        if in_ring(p, R): return True
-        return min(segd(p, R[i-1], R[i]) for i in range(len(R))) < m
+    near = lambda p: near_ring(p, R, 300)
     els, n, k0 = {}, 0, math.floor(lo0*100)
     for b in have:
         for e in json.load(open(RAW / 'osm' / f'map-{b}.json'))['elements']: els[(e['type'], e['id'])] = e
@@ -143,9 +107,9 @@ def tiles_box(a, b, c, d):
     T = RAW / 'osm' / 'tiles'; T.mkdir(parents=True, exist_ok=True)
     f = T / f'{a:.4f}_{b:.4f}_{c:.4f}_{d:.4f}.json'
     if not f.exists():
-        try: data = get(f'https://api.openstreetmap.org/api/0.6/map.json?bbox={a:.5f},{b:.5f},{c:.5f},{d:.5f}')
+        try: data = net.get(f'https://api.openstreetmap.org/api/0.6/map.json?bbox={a:.5f},{b:.5f},{c:.5f},{d:.5f}')
         except urllib.error.HTTPError as e:
-            if e.code != 400: raise
+            if e.code != 400: raise                     # 400: too many nodes, the box is split
             mx, my = (a+c)/2, (b+d)/2
             return [e for q in [(a, b, mx, my), (mx, b, c, my), (a, my, mx, d), (mx, my, c, d)] for e in tiles_box(*q)]
         f.write_bytes(data)
@@ -159,20 +123,11 @@ def river(name, osm=None):
     cl, polys, br = pg.osm_river(f'{name}-prueba' if osm else name, r)
     return r, cl, polys, br
 
-def opts(args, flags):
-    pos, kw = [], {}
-    it = iter(args)
-    for a in it:
-        if a in flags: kw[a] = next(it) if flags[a] else True
-        else: pos.append(a)
-    return pos, kw
-
-def cmd_check(name, *args):
-    _, kw = opts(args, {'--osm': 1, '--pads': 1, '--map': 1})
-    r, cl, polys, br = river(name, kw.get('--osm')); w = r['ancho_m']
+def cmd_check(name, *, osm_=None, pads=None, map_=None):
+    r, cl, polys, br = river(name, osm_); w = r['ancho_m']
     g = json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data')))
     lines = [cl] + br
-    inA = lambda q: any(pg.pip_xy(q, p[0]) and not any(pg.pip_xy(q, h) for h in p[1:]) for p in polys)
+    inA = lambda q: any(pip(q, p[0]) and not any(pip(q, h) for h in p[1:]) for p in polys)
     edges = [(rg[i-1], rg[i]) for p in polys for rg in p for i in range(len(rg))]
     inbox = lambda p: pg.XMIN <= p[0] <= pg.XMAX and pg.YMIN <= p[1] <= pg.YMAX
     cin = [p for p in cl if inbox(p)]
@@ -186,16 +141,14 @@ def cmd_check(name, *args):
         print('trazado a mano -> eje de OSM (m):', ', '.join(f'{pld(h, cl):.0f}' for h in hand if inbox(h)))
     # OSM ways that cross the axis
     xs = [p[0] for l in lines for p in l if inbox(p)]; ys = [p[1] for l in lines for p in l if inbox(p)]
-    el = (json.load(open(require(RAW / 'osm' / f"map-{kw['--map']}.json", 'Ejecute: make osm')))['elements'] if '--map' in kw
-          else tiles(min(xs)-150, max(xs)+150, min(ys)-150, max(ys)+150, f'rio-{name}'))
-    N = {e['id']: e for e in el if e['type'] == 'node'}
-    pt = lambda e: [loc(N[n]['lon'], N[n]['lat']) for n in e['nodes'] if n in N]
+    m = osm.load(map_) if map_ else osm.Map(tiles(min(xs)-150, max(xs)+150, min(ys)-150, max(ys)+150, f'rio-{name}'))
+    pt = m.pts
     # culverts: the stream or canal itself under the road (tunnel=culvert on a waterway)
-    culv = [pt(e) for e in el if e['type'] == 'way' and 'waterway' in (e.get('tags') or {}) and e['tags'].get('tunnel') == 'culvert']
+    culv = [pt(e) for e in m.W.values() if 'waterway' in (e.get('tags') or {}) and e['tags'].get('tunnel') == 'culvert']
     osmx = []
-    for e in el:
+    for e in m.W.values():
         t = e.get('tags') or {}
-        if e['type'] != 'way' or not ('highway' in t or 'railway' in t): continue
+        if not ('highway' in t or 'railway' in t): continue
         pts = pt(e)
         for l in lines:
             for p in crossings(pts, l):
@@ -233,7 +186,7 @@ def cmd_check(name, *args):
         while x <= max(bx):
             y = min(by)
             while y <= max(by):
-                if pg.pip_xy((x, y), rg):
+                if pip((x, y), rg):
                     d = depth((x, y))
                     if d is not None: n += 1; dmax = max(dmax, d)
                 y += S
@@ -256,8 +209,8 @@ def cmd_check(name, *args):
                     acc.setdefault((g['names'][s[1]], s[0]), []).append(q)
     for (nm, c), qs in sorted(acc.items(), key=lambda kv: -len(kv[1])):
         print(f'  {nm[:35]:<35} {CLS[c]:<11} {len(qs)*2} m, en torno a ({sum(q[0] for q in qs)/len(qs):.0f}, {sum(q[1] for q in qs)/len(qs):.0f})')
-    if '--pads' in kw:
-        pads = json.loads(open(kw['--pads']).read().split('PADS ', 1)[1].splitlines()[0])
+    if pads:
+        pads = json.loads(open(pads).read().split('PADS ', 1)[1].splitlines()[0])
         pois = {p['id']: p for p in json.load(open(DATA / 'pois.json'))['pois']}
         print('\nexplanadas a menos de 120 m del agua:')
         for x0, y0, x1, y1, h in pads:
@@ -269,30 +222,14 @@ def cmd_check(name, *args):
                 print(f'  [{x0}, {y0}, {x1}, {y1}] a {d:.0f} m; lugar más cercano: {p["id"]}')
 
 # ---------------------------------------------------------------- panel
-def cmd_panel(name, *args):
+def cmd_panel(name, x0: float, x1: float, y0: float, y1: float, z: int = 18, *, osm_=None):
     from PIL import Image, ImageDraw
-    pos, kw = opts(args, {'--osm': 1})
-    if len(pos) < 4: raise SystemExit(__doc__)
-    x0, x1, y0, y1 = map(float, pos[:4]); z = int(pos[4]) if len(pos) > 4 else 18
-    r, cl, polys, br = river(name, kw.get('--osm'))
+    from satellite import mosaic
+    r, cl, polys, br = river(name, osm_)
     g = json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data')))
-    n = 2 ** z
-    def px(x, y):
-        la, lo = unloc(x, y); s = math.radians(la)
-        return (lo+180)/360*n*256, (1-math.log(math.tan(s)+1/math.cos(s))/math.pi)/2*n*256
-    cs = [px(x, y) for x in (x0, x1) for y in (y0, y1)]
-    X0, X1 = min(c[0] for c in cs), max(c[0] for c in cs); Y0, Y1 = min(c[1] for c in cs), max(c[1] for c in cs)
-    img = Image.new('RGB', (int(X1-X0), int(Y1-Y0)))
-    URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-    cache = RAW / 'satelite'; cache.mkdir(parents=True, exist_ok=True)
-    for tx in range(int(X0//256), int(X1//256)+1):
-        for ty in range(int(Y0//256), int(Y1//256)+1):
-            f = cache / f'{z}_{tx}_{ty}.jpg'
-            if not f.exists(): f.write_bytes(get(URL.format(z=z, x=tx, y=ty)))
-            img.paste(Image.open(f), (int(tx*256-X0), int(ty*256-Y0)))
+    img, P = mosaic(x0, x1, y0, y1, z)
     img = img.convert('RGBA'); ov = Image.new('RGBA', img.size, (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
-    P = lambda q: tuple(a-b for a, b in zip(px(*q), (X0, Y0)))
-    mpp = math.dist(px(0, 0), px(100, 0)) / 100
+    mpp = math.dist(merc_px(*unloc(0, 0), z), merc_px(*unloc(100, 0), z)) / 100
     inb = lambda pts, m=100: any(x0-m < q[0] < x1+m and y0-m < q[1] < y1+m for q in pts)
     for s in g['streets']:
         pts = dec(s[2])
@@ -300,14 +237,14 @@ def cmd_panel(name, *args):
     for p in polys:
         for k, rg in enumerate(p):
             d.polygon([P(q) for q in rg], fill=(40, 120, 255, 60) if k == 0 else (0, 0, 0, 0), outline=(60, 160, 255, 255))
-    sys.path.insert(0, str(ROOT / 'pipeline')); from build import mark_built
+    from build import mark_built
     t0 = [b[0] for b in g['blocks']]; mark_built(g['blocks'])
     for i, b in enumerate(g['blocks']):
         rg = dec(b[3])
         if not inb(rg, 0): continue
         d.polygon([P(q) for q in rg], outline=(80, 255, 80, 255) if b[0] != t0[i] else (255, 60, 200, 255) if b[0] == 0 else (0, 230, 255, 255))
         c = (sum(q[0] for q in rg)/len(rg), sum(q[1] for q in rg)/len(rg))
-        if pg.pip_xy(c, rg): q = P(c); d.text((q[0]-10, q[1]-5), str(i), fill=(255, 255, 0, 255))
+        if pip(c, rg): q = P(c); d.text((q[0]-10, q[1]-5), str(i), fill=(255, 255, 0, 255))
     if 'puntos' in r:
         hand = [loc(lo, la) for la, lo in r['puntos']]; hw = r['ancho_m']/2
         for i in range(len(hand)-1):
@@ -321,13 +258,13 @@ def cmd_panel(name, *args):
         pts = [P(q) for q in dec(g.get(k, []))]
         if len(pts) < 2: continue
         d.line(pts, fill=col+(90,), width=max(1, int(wd*mpp))); d.line(pts, fill=col+(255,), width=2)
-    m = RAW / 'osm' / f'map-rio-{name}.json'
-    if m.exists():
-        el = json.load(open(m))['elements']; N = {e['id']: e for e in el if e['type'] == 'node'}
-        for e in el:
+    f = RAW / 'osm' / f'map-rio-{name}.json'
+    if f.exists():
+        m = osm.read(f)
+        for e in m.W.values():
             t = e.get('tags') or {}
-            if e['type'] == 'way' and t.get('bridge') and t['bridge'] != 'no' and ('highway' in t or 'railway' in t):
-                pts = [loc(N[k]['lon'], N[k]['lat']) for k in e['nodes'] if k in N]
+            if t.get('bridge') and t['bridge'] != 'no' and ('highway' in t or 'railway' in t):
+                pts = m.pts(e)
                 if len(pts) > 1 and inb(pts): d.line([P(q) for q in pts], fill=(255, 230, 0, 255), width=3)
     for gx in range(int(x0//250)*250, int(x1)+1, 250):
         for gy in range(int(y0//250)*250, int(y1)+1, 250):
@@ -340,15 +277,15 @@ def cmd_panel(name, *args):
     img.convert('RGB').save(out); print(out.relative_to(ROOT), img.size)
 
 # ---------------------------------------------------------------- line
-def cmd_line(name, *args):
-    _, kw = opts(args, {'--mid': 0, '--eps': 1})
-    conds = [a.split('=', 1) for a in args if '=' in a and not a.startswith('--')]
-    el = json.load(open(require(RAW / 'osm' / f'map-{name}.json', f'Ejecute: python traces.py tiles x0 x1 y0 y1 {name}')))['elements']
-    N = {e['id']: e for e in el if e['type'] == 'node'}
-    W = [e['nodes'] for e in el if e['type'] == 'way' and all(re.search(v, (e.get('tags') or {}).get(k, '')) for k, v in conds)
+def cmd_line(name, *conds, mid=False, eps: float = 2.0):
+    bad = [a for a in conds if '=' not in a]
+    if bad: raise SystemExit(f'line: cada condición es clave=regex: {" ".join(bad)}')
+    conds = [a.split('=', 1) for a in conds]
+    m = osm.load(name, f'Ejecute: python traces.py tiles x0 x1 y0 y1 {name}'); N = m.N
+    W = [e['nodes'] for e in m.W.values() if all(re.search(v, (e.get('tags') or {}).get(k, '')) for k, v in conds)
          and all(n in N for n in e['nodes'])]
     if not W: raise SystemExit('ninguna vía calza con ' + ' '.join(f'{k}={v}' for k, v in conds))
-    P = lambda n: loc(N[n]['lon'], N[n]['lat'])
+    P = lambda n: N[n]
     # chain through nodes where exactly one way ends and one begins (keeps each carriageway of a motorway apart)
     st, en = {}, {}
     for k, w in enumerate(W): st.setdefault(w[0], []).append(k); en.setdefault(w[-1], []).append(k)
@@ -368,7 +305,7 @@ def cmd_line(name, *args):
     from common import comuna, near_ring
     R = comuna(); inm = lambda p: near_ring(p, R, 300)   # the commune, with a 300 m margin
     A = chains[0]
-    if '--mid' in kw:
+    if mid:
         B = chains[1]; mid, seps = [], []
         out, acc = [A[0]], 0                           # A resampled every 15 m
         for i in range(len(A)-1):
@@ -382,17 +319,15 @@ def cmd_line(name, *args):
         print(f'separación entre cadenas: {min(seps):.0f}–{max(seps):.0f} m (mediana {sorted(seps)[len(seps)//2]:.0f})', file=sys.stderr)
         A = mid
     else: A = [p for p in A if inm(p)]
-    A = pg.rdp(A, float(kw.get('--eps', 2)))
+    A = rdp(A, eps)
     if A[0][1] < A[-1][1]: A = A[::-1]
     print(json.dumps([[round(c, 5) for c in unloc(*p)] for p in A]))
 
 # ---------------------------------------------------------------- cruces / vial (the Ruta 5)
 def motorway(name='este'):
     """The motorway ways of raw/osm/map-<name>.json (both carriageways), every other way, and a node lookup."""
-    el = json.load(open(require(RAW / 'osm' / f'map-{name}.json', 'Ejecute: python traces.py tiles 1300 5200 -4400 4900 este')))['elements']
-    N = {e['id']: e for e in el if e['type'] == 'node'}
-    P = lambda e: [loc(N[n]['lon'], N[n]['lat']) for n in e['nodes'] if n in N]
-    ways = [(e, e.get('tags') or {}, P(e)) for e in el if e['type'] == 'way']
+    m = osm.load(name, 'Ejecute: python traces.py tiles 1300 5200 -4400 4900 este')
+    ways = [(e, e.get('tags') or {}, m.pts(e)) for e in m.W.values()]
     ways = [w for w in ways if len(w[2]) > 1]
     return [w for w in ways if w[1].get('highway') == 'motorway'], [w for w in ways if w[1].get('highway') != 'motorway']
 
@@ -407,9 +342,8 @@ def crossing_kind(t, mt):
     if t.get('highway') == 'motorway_link': return None                   # a ramp leaving or joining: not a crossing
     return 'paso superior' if up else 'paso inferior' if under else 'a nivel'
 
-def cmd_cruces(*args):
+def cmd_cruces(name='este'):
     """Every way of OSM that crosses the Ruta 5 inside the model, grouped by structure, with its type."""
-    name = args[0] if args else 'este'
     mw, other = motorway(name)
     from common import comuna, in_ring
     R = comuna(); inside = lambda p: in_ring(p, R)    # the model is the commune
@@ -446,9 +380,8 @@ def cmd_cruces(*args):
         print(f'  w{m["id"]:<11} ({mp[0][0]:.0f}, {mp[0][1]:.0f})->({mp[-1][0]:.0f}, {mp[-1][1]:.0f}) {L:5.0f} m  pistas {mt.get("lanes", "?")}'
               f'  lit={mt.get("lit", "-")}  {mt.get("maxspeed", "")} km/h' + ('  PUENTE' if mt.get('bridge') else '') + (f'  ancho {mt["width"]}' if 'width' in mt else ''))
 
-def cmd_calzadas(*args):
+def cmd_calzadas(name='este'):
     """The Ruta 5's two carriageways and its motorway_link ramps -> data/ruta5.json (R5 in src/js/66-ruta5.js, via build.py)."""
-    name = args[0] if args else 'este'
     mw, other = motorway(name)
     from common import comuna, near_ring
     R = comuna(); near = lambda p, m=150: near_ring(p, R, m)    # the model is the commune
@@ -467,23 +400,23 @@ def cmd_calzadas(*args):
     length = lambda ch: sum(math.dist(mw[k][2][i], mw[k][2][i+1]) for k in ch for i in range(len(mw[k][2])-1))
     chains.sort(key=length, reverse=True)
     print(f'{len(mw)} vías de autopista -> {len(chains)} cadenas: ' + ', '.join(f'{length(c):.0f} m' for c in chains[:4]), file=sys.stderr)
-    enc = lambda pts: [v for i, p in enumerate(pts) for v in ((round(p[0]*10), round(p[1]*10)) if i == 0 else
-                       (round(p[0]*10)-round(pts[i-1][0]*10), round(p[1]*10)-round(pts[i-1][1]*10)))]
+    from geom import enc
+    dm = lambda pts: enc(pts, 10)
     out = {'c': [], 'k': []}
     for ch in chains[:2]:
         pts, ln, lit, br, ids = [], '', '', '', []
         for k in ch:
-            e, t, P = mw[k]; q = pg.rdp(P, 0.3)
+            e, t, P = mw[k]; q = rdp(P, 0.3)
             if not any(near(p) for p in q): continue
             q = q if not pts else q[1:]
             pts += q; n = len(q) - (1 if len(pts) == len(q) else 0)
             ln += t.get('lanes', '2')[0]*n; lit += ('1' if t.get('lit') == 'yes' else '0')*n; br += ('1' if t.get('bridge') else '0')*n; ids.append(e['id'])
-        out['c'].append({'p': enc(pts), 'l': ln, 'lit': lit, 'br': br})
+        out['c'].append({'p': dm(pts), 'l': ln, 'lit': lit, 'br': br})
         print(f'calzada de ({pts[0][0]:.0f}, {pts[0][1]:.0f}) a ({pts[-1][0]:.0f}, {pts[-1][1]:.0f}): {len(pts)} puntos, vías '
               + ' '.join(f'w{i}' for i in ids), file=sys.stderr)
     for e, t, P in other:
         if t.get('highway') != 'motorway_link' or not any(near(p, 0) for p in P): continue
-        out['k'].append([int(t.get('lanes', '1')[0])] + enc(pg.rdp(P, 0.3)))
+        out['k'].append([int(t.get('lanes', '1')[0])] + dm(rdp(P, 0.3)))
     print(f'{len(out["k"])} ramales (motorway_link): ' + ' '.join(f'w{e["id"]}' for e, t, P in other
           if t.get('highway') == 'motorway_link' and any(near(p, 0) for p in P)), file=sys.stderr)
     # the median: distance between the two lines along the first one
@@ -493,29 +426,14 @@ def cmd_calzadas(*args):
     (DATA / 'ruta5.json').write_text(json.dumps(out, separators=(',', ':')) + '\n')
     print(f'-> {DATA / "ruta5.json"} (build.py lo inyecta como DATA.r5; luego make build)', file=sys.stderr)
 
-def cmd_vial(*args):
+def cmd_vial(x0: float, x1: float, y0: float, y1: float, z: int = 18, name='este'):
     """Panel of the Ruta 5 over the Esri image: OSM's carriageways, ramps, crossings, and the map's axis and streets."""
     from PIL import Image, ImageDraw
-    if len(args) < 4: raise SystemExit(__doc__)
-    x0, x1, y0, y1 = map(float, args[:4]); z = int(args[4]) if len(args) > 4 else 18; name = args[5] if len(args) > 5 else 'este'
+    from satellite import mosaic
     g = json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data')))
-    n = 2 ** z
-    def px(x, y):
-        la, lo = unloc(x, y); s = math.radians(la)
-        return (lo+180)/360*n*256, (1-math.log(math.tan(s)+1/math.cos(s))/math.pi)/2*n*256
-    cs = [px(x, y) for x in (x0, x1) for y in (y0, y1)]
-    X0, X1 = min(c[0] for c in cs), max(c[0] for c in cs); Y0, Y1 = min(c[1] for c in cs), max(c[1] for c in cs)
-    img = Image.new('RGB', (int(X1-X0), int(Y1-Y0)))
-    URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-    cache = RAW / 'satelite'; cache.mkdir(parents=True, exist_ok=True)
-    for tx in range(int(X0//256), int(X1//256)+1):
-        for ty in range(int(Y0//256), int(Y1//256)+1):
-            f = cache / f'{z}_{tx}_{ty}.jpg'
-            if not f.exists(): f.write_bytes(get(URL.format(z=z, x=tx, y=ty)))
-            img.paste(Image.open(f), (int(tx*256-X0), int(ty*256-Y0)))
+    img, P = mosaic(x0, x1, y0, y1, z)
     img = img.convert('RGBA'); ov = Image.new('RGBA', img.size, (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
-    P = lambda q: tuple(a-b for a, b in zip(px(*q), (X0, Y0)))
-    mpp = math.dist(px(0, 0), px(100, 0)) / 100
+    mpp = math.dist(merc_px(*unloc(0, 0), z), merc_px(*unloc(100, 0), z)) / 100
     inb = lambda pts, m=100: any(x0-m < q[0] < x1+m and y0-m < q[1] < y1+m for q in pts)
     for s in g['streets']:
         pts = dec(s[2])
@@ -541,6 +459,5 @@ def cmd_vial(*args):
     img.convert('RGB').save(out); print(out.relative_to(ROOT), img.size)
 
 if __name__ == '__main__':
-    cmds = {'check': cmd_check, 'panel': cmd_panel, 'tiles': cmd_tiles, 'tiles-comuna': cmd_tiles_comuna, 'line': cmd_line, 'cruces': cmd_cruces, 'calzadas': cmd_calzadas, 'vial': cmd_vial}
-    if len(sys.argv) < 2 or sys.argv[1] not in cmds: raise SystemExit(__doc__)
-    cmds[sys.argv[1]](*sys.argv[2:])
+    cli.run({'check': cmd_check, 'panel': cmd_panel, 'tiles': cmd_tiles, 'tiles-comuna': cmd_tiles_comuna, 'line': cmd_line,
+             'cruces': cmd_cruces, 'calzadas': cmd_calzadas, 'vial': cmd_vial}, __doc__)

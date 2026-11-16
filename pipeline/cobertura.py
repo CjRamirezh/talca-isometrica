@@ -16,8 +16,10 @@ coordenadas, así que no depende de ella), en corridas.
 """
 import json, math, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cli
 from common import DATA, EXT, comuna, require
 from fuentes_cl import FILES, polys
+from geom import crossings_at, scanlines
 
 S = 40
 CLASES = ['agricola', 'urbano', 'agua', 'pradera', 'matorral-pradera', 'matorral', 'matorral-arborescente',
@@ -51,17 +53,7 @@ def raster():
     for p, rings in polys(require(FILES['conaf'], 'Ejecute: python -I pipeline/fuentes_cl.py fetch conaf')):
         k, tall = clase(p); k = CLASES.index(k)
         if not k: continue
-        rows = {}
-        for r in rings:
-            for i in range(len(r)):
-                (ax, ay), (bx, by) = r[i-1], r[i]
-                if ay == by: continue
-                lo, hi = (ay, by) if ay < by else (by, ay)
-                for j in range(max(0, math.ceil((lo-y0)/S)), min(ny-1, math.floor((hi-y0)/S))+1):
-                    y = y0 + j*S
-                    if lo <= y < hi: rows.setdefault(j, []).append(ax + (y-ay)*(bx-ax)/(by-ay))
-        for j, xs in rows.items():
-            xs.sort()
+        for j, xs in scanlines(rings, y0, S, ny).items():
             for m in range(0, len(xs)-1, 2):
                 for i in range(max(0, math.ceil((xs[m]-x0)/S)), min(nx-1, math.floor((xs[m+1]-x0)/S))+1):
                     c[j*nx+i] = k; t[j*nx+i] = tall
@@ -89,7 +81,6 @@ def main():
 
 def stats():
     """Hectares per class in the commune, and the share of each that the slope rule (wildAt > 0.35) already marks."""
-    from usos import pip
     nx, ny, c, t = raster(); lim = comuna(); e = json.load(open(DATA / 'elevation.json'))
     (ex, ey), es, (enx, eny) = e['o'], e['s'], e['n']
     h, v = [0.0]*(enx*eny), 0
@@ -103,7 +94,7 @@ def stats():
         s = max(0, min(1, (m/9-0.04)/0.07)); return s*s*(3-2*s)
     x0, y0 = EXT[0], EXT[2]; ha, wa = [0]*len(CLASES), [0]*len(CLASES)
     for j in range(ny):
-        y = y0 + j*S; xs = sorted(lim[i-1][0] + (y-lim[i-1][1])*(lim[i][0]-lim[i-1][0])/(lim[i][1]-lim[i-1][1]) for i in range(len(lim)) if (lim[i-1][1] > y) != (lim[i][1] > y))
+        y = y0 + j*S; xs = crossings_at(lim, y)
         for i in range(nx):
             x = x0 + i*S
             if not any(xs[m] <= x < xs[m+1] for m in range(0, len(xs)-1, 2)): continue
@@ -112,6 +103,4 @@ def stats():
     for k, n in enumerate(CLASES): print(f'{n:22} {ha[k]:8.0f} ha   pendiente > 0,35: {wa[k]/max(ha[k], 1e-9)*100:4.0f} %')
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == 'stats': stats()
-    elif len(sys.argv) > 1: raise SystemExit(__doc__)
-    else: main()
+    cli.run({'stats': stats}, __doc__, default=main)

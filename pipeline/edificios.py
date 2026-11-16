@@ -63,9 +63,12 @@ dato (la plantilla elige uno o dos pisos), 2 con pisos de Google 2.5D; manzana, 
 fuente, el índice en "fuentes" (ms, google). Las huellas van de a corridas de una manzana ("k"), en el orden de las
 manzanas, y en cada una después de sus edificios de OSM; sus plantas, sin huecos, como las describe h_encode().
 """
-import json, math, sys
+import json, math
+import cli
 from common import ROOT, RAW, DATA, CONFIG, loc, require
-from build import dec, pip, mark_built, land_uses
+from build import mark_built, land_uses
+from geom import dec, enc, pip, in_ring, area, centre, vertex_mean as centroid, bbox, seg_dist, simplify_ring, crossings_at
+from osm import load as osm_load, join as assemble
 
 TIPOS = ['otro', 'casa', 'comercio', 'publico', 'iglesia', 'techo', 'ruina', 'galpon', 'departamentos']
 TIPO = {'house': 1, 'residential': 1, 'detached': 1, 'semidetached_house': 1, 'terrace': 1, 'bungalow': 1,
@@ -90,53 +93,18 @@ def num(v):
     try: return float(str(v).replace(',', '.').split()[0])
     except (TypeError, ValueError, IndexError): return None
 
-def area(r): return sum(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1] for i in range(len(r)))/2
-
-def simplify(pts, eps):
-    """Douglas-Peucker sobre una polilínea abierta."""
-    if len(pts) < 3: return pts
-    a, b = pts[0], pts[-1]; dx, dy = b[0]-a[0], b[1]-a[1]; L = math.hypot(dx, dy)
-    best, k = -1, 0
-    for i in range(1, len(pts)-1):
-        p = pts[i]
-        d = abs(dy*(p[0]-a[0])-dx*(p[1]-a[1]))/L if L > 1e-9 else math.hypot(p[0]-a[0], p[1]-a[1])
-        if d > best: best, k = d, i
-    if best <= eps: return [a, b]
-    return simplify(pts[:k+1], eps)[:-1] + simplify(pts[k:], eps)
-
 def ring_of(pts, eps=0.25, ccw=True):
     """Un anillo cerrado de OSM -> sin el nodo repetido, simplificado, en el sentido pedido; None si queda chico."""
     if len(pts) > 1 and pts[0] == pts[-1]: pts = pts[:-1]
     if len(pts) < 3: return None
-    # simplificado como dos mitades abiertas, para que el primer vértice no quede fijo en una arista recta
-    h = len(pts)//2; r = simplify(pts[:h+1], eps)[:-1] + simplify(pts[h:] + [pts[0]], eps)[:-1]
+    r = simplify_ring(pts, eps)      # dos mitades abiertas: el primer vértice no queda fijo en una arista recta
     if len(r) < 3 or abs(area(r)) < 1: return None
     if (area(r) > 0) != ccw: r.reverse()
     return r
 
-def assemble(ways):
-    """Las vías de un multipolígono (listas de puntos) unidas por sus extremos en anillos cerrados."""
-    ways = [w[:] for w in ways if len(w) > 1]; rings = []
-    while ways:
-        cur = ways.pop(0)
-        while cur[0] != cur[-1]:
-            for i, w in enumerate(ways):
-                if w[0] == cur[-1]: cur += w[1:]
-                elif w[-1] == cur[-1]: cur += w[::-1][1:]
-                elif w[-1] == cur[0]: cur = w + cur[1:]
-                elif w[0] == cur[0]: cur = w[::-1] + cur[1:]
-                else: continue
-                ways.pop(i); break
-            else: break
-        if cur[0] == cur[-1]: rings.append(cur)
-    return rings
-
-def enc(pts):
+def enc_dm(pts):
     """[(x, y), …] en metros -> enteros en decímetros, en delta."""
-    out = []; px = py = 0
-    for x, y in pts:
-        xi, yi = int(round(x*10)), int(round(y*10)); out += [xi-px, yi-py]; px, py = xi, yi
-    return out
+    return enc(pts, 10)
 
 # Las huellas de aprendizaje automático ("h" de data/edificios.json; METODOLOGIA §14). Casi todas tienen solo ángulos
 # rectos (Microsoft las regulariza): se guardan como una dirección y los largos de sus lados sobre una grilla de HQ m
@@ -209,12 +177,8 @@ def h_rect(r, k):
 
 def h_dev(r, G):
     """Cuánto se aleja G de r (m): el mayor de las distancias de cada vértice de uno al contorno del otro."""
-    def far(A, B): return max(min(math.sqrt(seg_d2(p, B[j-1], B[j])) for j in range(len(B))) for p in A)
+    def far(A, B): return max(min(seg_dist(p, B[j-1], B[j]) for j in range(len(B))) for p in A)
     return max(far(r, G), far(G, r))
-
-def seg_d2(p, a, b):
-    dx, dy = b[0]-a[0], b[1]-a[1]; L = dx*dx + dy*dy; t = ((p[0]-a[0])*dx + (p[1]-a[1])*dy)/L if L else 0; t = min(1, max(0, t))
-    return (a[0]+t*dx-p[0])**2 + (a[1]+t*dy-p[1])**2
 
 def h_encode(rings):
     """Las huellas (anillos antihorarios, en metros de grilla, en el orden de la plantilla) -> ({"n", "o", "l"}: tres
@@ -248,21 +212,9 @@ def h_encode(rings):
         out.append(G); px, py = G[0]
     return {'n': N, 'o': O, 'l': L}, out, nr
 
-_ELS = {}
-def elements(name='comuna'):
-    if name not in _ELS: _ELS[name] = json.load(open(require(RAW / 'osm' / f'map-{name}.json', 'Ejecute: make osm')))['elements']
-    return _ELS[name]
-
-_NODES = {}
-def node_locs(name='comuna'):
-    if name not in _NODES: _NODES[name] = {e['id']: loc(e['lon'], e['lat']) for e in elements(name) if e['type'] == 'node'}
-    return _NODES[name]
-
 def osm(name='comuna'):
     """Los edificios y las superficies de raw/osm/map-<name>.json: ([(id, [anillo, hueco…], tags)], [(anillo, tipo)])."""
-    els = elements(name); nodes = node_locs(name)
-    ways = {e['id']: e for e in els if e['type'] == 'way'}
-    pts = lambda w: [nodes[n] for n in w['nodes'] if n in nodes]
+    m = osm_load(name); els, ways, pts = m.elements, m.W, m.pts
     bld, srf = [], []
     for e in els:
         t = e.get('tags') or {}
@@ -307,24 +259,12 @@ def inside(b, p): bb = b['bb']; return bb[0] <= p[0] <= bb[2] and bb[1] <= p[1] 
 
 def point_in(b):
     """Un punto dentro de la manzana: su centroide, o el medio del tramo más largo de la fila central."""
-    r = b['r']; A = area(r)
-    cx = sum((r[i-1][0]+r[i][0])*(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1]) for i in range(len(r)))/(6*A)
-    cy = sum((r[i-1][1]+r[i][1])*(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1]) for i in range(len(r)))/(6*A)
-    if pip((cx, cy), r): return (cx, cy)
+    r = b['r']; c = centre(r)
+    if pip(c, r): return c
     y = (b['bb'][1]+b['bb'][3])/2
-    xs = sorted(r[i-1][0]+(y-r[i-1][1])*(r[i][0]-r[i-1][0])/(r[i][1]-r[i-1][1]) for i in range(len(r)) if (r[i-1][1] > y) != (r[i][1] > y))
+    xs = crossings_at(r, y)
     a, c = max(((xs[k], xs[k+1]) for k in range(0, len(xs)-1, 2)), key=lambda s: s[1]-s[0])
     return ((a+c)/2, y)
-
-def centroid(r): return (sum(p[0] for p in r)/len(r), sum(p[1] for p in r)/len(r))
-
-def centre(r):
-    """El centroide de área de un anillo (el de vértices se corre hacia las esquinas con muchos puntos)."""
-    A = area(r)
-    if abs(A) < 1e-9: return centroid(r)
-    cx = sum((r[i-1][0]+r[i][0])*(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1]) for i in range(len(r)))/(6*A)
-    cy = sum((r[i-1][1]+r[i][1])*(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1]) for i in range(len(r)))/(6*A)
-    return (cx, cy)
 
 def median(v):
     v = sorted(v); n = len(v)
@@ -379,13 +319,6 @@ class Cells:
             for gy in range(int(bb[1]//c), int(bb[3]//c)+1): out.update(self.d.get((gx, gy), ()))
         return out
 
-def bbox(r): xs = [p[0] for p in r]; ys = [p[1] for p in r]; return (min(xs), min(ys), max(xs), max(ys))
-
-def seg_dist(p, a, b):
-    dx, dy = b[0]-a[0], b[1]-a[1]; L = dx*dx+dy*dy
-    t = max(0, min(1, ((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L)) if L else 0
-    return math.hypot(p[0]-a[0]-t*dx, p[1]-a[1]-t*dy)
-
 def context():
     """Lo que filtra las huellas de aprendizaje automático: las calzadas del mapa (data/geometry.json, el 80 % del
     medio ancho de su clase), el agua de los ríos y el límite de la comuna, y de raw/osm/map-comuna.json los landuse
@@ -396,7 +329,7 @@ def context():
         pts = dec(s[2]); w = SW[s[0]]*0.4
         for a, b in zip(pts, pts[1:]): road.add((min(a[0], b[0])-w, min(a[1], b[1])-w, max(a[0], b[0])+w, max(a[1], b[1])+w), (a, b, w))
     water = [[dec(r) for r in p] for polys in g['area'].values() for p in polys]
-    els, N = elements(), node_locs(); W = {e['id']: e for e in els if e['type'] == 'way'}
+    m = osm_load(); els, N, W = m.elements, m.N, m.W
     lu, hw = Cells(200), Cells(100)
     for e in els:
         t = e.get('tags') or {}
@@ -426,7 +359,6 @@ def ml(cfg, bld, ctx):
     centro en una calzada del mapa o en el agua, las que salen de la comuna, las de `excluir` (por su id GERS) y las
     que otra mayor cubre en más de la mitad (dups())."""
     from collections import Counter
-    from common import in_ring
     path = ML / 'huellas.jsonl'
     if not path.exists(): return [], Counter(), {}
     sh = shifts(bld); excl = {e['id'] for e in cfg['excluir'] if 'id' in e}; mn = cfg['mixto']['m2']
@@ -561,6 +493,7 @@ def ml_row(m, k, kind):
     return k, (int(round(h*10)), TIPOS.index(t), lv, est, FUENTES.index(m['f'])), m['r'][0]
 
 def main(with_ml=True):
+    """data/edificios.json (with_ml=False: without the machine-learning footprints)."""
     from collections import Counter
     cfg, B, excl, info = analyse(with_ml); T = techos(); mn = cfg['mixto']['m2']; ctx = info['ctx']
     alt = json.load(open(ML / 'alturas-osm.json')) if with_ml and (ML / 'alturas-osm.json').exists() else {}
@@ -579,10 +512,10 @@ def main(with_ml=True):
                 fl = raster_floors(alt[oid][0], abs(area(rings[0])))
                 if fl: h, lv, est = fl*3.0 + 0.5, fl, 2; nr += 1
             fam = T.get(oid); nt += fam is not None; nm += b['mix']
-            out['e'].append([oid, [enc(r) for r in rings], int(round(h*10)), TIPO.get(t['building'], 0), int(lv), TECHOS.index(fam) if fam in TECHOS else -1, int(est), k])
+            out['e'].append([oid, [enc_dm(r) for r in rings], int(round(h*10)), TIPO.get(t['building'], 0), int(lv), TECHOS.index(fam) if fam in TECHOS else -1, int(est), k])
             ne += est == 1; nf['osm'] += 1
         for m in b['ml']: H.append(ml_row(m, k, landuse_at(ctx, m['c']))); nf[m['f']] += 1
-        for r, s in b['srf']: out['s'].append([enc(r), s, k])
+        for r, s in b['srf']: out['s'].append([enc_dm(r), s, k])
     for z, g in enumerate(groups):
         for m in g: H.append(ml_row(m, len(sel) + len(mix) + z, 'suelta')); nf[m['f'] + ' sueltas'] += 1
     # las huellas, en "h", en el orden de las manzanas (en cada una, después de las de OSM de "e")
@@ -616,6 +549,7 @@ def cmd_manzanas(n='20'):
               f"{len(b['eds']):3d} edificios  punto [{p[0]:.0f}, {p[1]:.0f}]")
 
 def cmd_panel(*args):
+    if len(args) not in (0, 4, 5): raise SystemExit('panel: x0 x1 y0 y1 [z], o nada (el centro)')
     from PIL import Image, ImageDraw
     from satellite import mosaic
     a = [float(v) for v in args[:4]] if len(args) >= 4 else [-700, 800, -650, 650]
@@ -692,11 +626,8 @@ def cmd_techos(z='19'):
     from collections import Counter
     print(f'config/techos.json: {len(res)} de {len(eds)} edificios', dict(Counter(res.values()).most_common()))
 
+def cmd_main(): main()
+def cmd_solo_osm(): main(False)
+
 if __name__ == '__main__':
-    a = sys.argv[1:]
-    if not a: main()
-    elif a[0] == 'solo-osm': main(False)
-    elif a[0] == 'manzanas': cmd_manzanas(*a[1:])
-    elif a[0] == 'panel': cmd_panel(*a[1:])
-    elif a[0] == 'techos': cmd_techos(*a[1:])
-    else: sys.exit(__doc__)
+    cli.run({'solo-osm': cmd_solo_osm, 'manzanas': cmd_manzanas, 'panel': cmd_panel, 'techos': cmd_techos}, __doc__, default=cmd_main)
