@@ -69,9 +69,9 @@
     // ---- (B) 6 Oriente: the row is OSM's hut itself (w360214695, drawn by edificiosBase like any building); only its
     // east face gets the shopfronts: a sign band per stall, a counter outside and curtains, on a paved apron
     {const F=localFrame(676.36,128.44,91.4*Math.PI/180),{G,Gs,V,N3,R}=F;
-      {const Lg=new GB(1<<10);Lg.flat(Gs([[-.3,-.5],[3.4,-.5],[3.4,35.5],[-.3,35.5]]),.2,KB.pave);
+      {const {G:Lg,done}=groundLayer(S,1<<10);Lg.flat(Gs([[-.3,-.5],[3.4,-.5],[3.4,35.5],[-.3,35.5]]),.2,KB.pave);
         for(let v=-.5,k=0;v<35;v+=3,k++)Lg.flat(Gs([[-.3,v],[3.4,v],[3.4,Math.min(v+1.5,35.5)],[-.3,Math.min(v+1.5,35.5)]]),.22,k%2?KB.pave2:KB.pave);
-        const d=drape(Lg);S.dy=0;for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}}
+        done();}
       const W=34.7/6,sg=[KB.fascia,KB.black,KB.fascia,KB.fascia,KB.black,KB.fascia];
       for(let i=0;i<6;i++){const v0=.15+i*W,v1=v0+W-.3;S.dy=groundMin(R(0,v0,1.4,v1));
         const fr=(h0,h1,a,b,col,off)=>S.face([V(.6+off,a,h0),V(.6+off,b,h0),V(.6+off,b,h1),V(.6+off,a,h1)],N3(1,0),col);

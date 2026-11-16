@@ -1,13 +1,18 @@
 # El orden de los hitos dentro de buildModels(B,S): build.py pega src/js/hitos/<id>.js en este orden en el marcador
 # /*HITOS*/ de src/js/45-landmarks.js. Una línea por hito; lo que sigue a # es comentario.
 #
-# El orden importa:
-#   - plaza-de-armas va primero: define palmS y flagS, que usan gore-maule, municipalidad y parque-rio-claro (son
-#     const de buildModels, no existen antes de su línea), y su explanada (MODELS['plaza-de-armas'].pad) la toman
-#     el memorial, la Catedral, el GORE, la Municipalidad, Servicios Públicos y la Torre Talca.
+# Los hitos no comparten nombres: lo que usan varios (palmS, flagS, wallPath, wallRing, occFill, groundLayer…) está
+# en la cabecera de buildModels, y tools/check.py (make check) falla si un hito usa un nombre que declara otro. Lo que
+# sí comparten es estado (la cabecera lo enumera), y por eso el orden importa:
+#   - plaza-de-armas va primero: su explanada (MODELS['plaza-de-armas'].pad) la toman el memorial, la Catedral, el
+#     GORE, la Municipalidad, Servicios Públicos y la Torre Talca (make check falla si uno lee MODELS['<id>'] antes
+#     del hito que lo pone).
 #   - Las explanadas a menos de ~80 m comparten nodos del relieve y gana la última registrada (CLAUDE.md, trampa
-#     «Explanadas vecinas»).
+#     «Explanadas vecinas»). colegio-la-salle, gimnasio-regional, casino-dreams y calles-plaza dibujan sobre el
+#     terreno final (onFinalTerrain), que solo tiene las explanadas de los hitos anteriores: van después de sus
+#     vecinos.
 #   - puentes-rio-claro va después de parque-rio-claro: deckBridge() saca los árboles del parque bajo el tablero.
+#   - Cinco hitos marcan calles del mapa como suyas (streets[i].bridge); calles-plaza, al final, salta esas.
 #
 # Un hito nuevo: src/js/hitos/<id>.js, que empieza con la línea `  // ==== hito: <id> ====` (con la sangría de dos
 # espacios del cuerpo de buildModels), y su id en esta lista, al final salvo que deba ir antes de un vecino.

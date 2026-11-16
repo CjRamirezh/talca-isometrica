@@ -19,7 +19,7 @@
     const quad=(w,pts,col)=>S.face(pts.map(([s,h])=>w.q(s,h)),w.n,col);
     // a (u,v) polygon (any orientation, may be concave) as walls h0..h1 and a flat roof; returns the walls (WL) so
     // they can take window bands
-    const extrude=(q,h0,h1,wall,top)=>{let A=0;q.forEach((p,i)=>{const r=q[(i+1)%q.length];A+=p[0]*r[1]-r[0]*p[1];});const sg=A>0?1:-1,ws=[];
+    const extrude=(q,h0,h1,wall,top)=>{const sg=ringArea(q)>0?1:-1,ws=[];
       q.forEach((a,i)=>{const b=q[(i+1)%q.length],du=b[0]-a[0],dv=b[1]-a[1],L=Math.hypot(du,dv);if(L<.01)return;const out=[sg*dv/L,-sg*du/L],y0=h0<=0.31?h0-4:h0;
         S.face([V(a[0],a[1],y0),V(b[0],b[1],y0),V(b[0],b[1],h1),V(a[0],a[1],h1)],N3(out[0],out[1]),wall);ws.push(WL(a,b,out));});
       S.flat(Gs(q),h1,top);return ws;};

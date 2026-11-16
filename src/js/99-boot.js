@@ -75,7 +75,7 @@ function boot(){
     const B=new GB(1<<19),S=new GB(1<<16);
     const TT={};let tl=performance.now();const tm=k=>{const n=performance.now();TT[k]=Math.round(n-tl);tl=n;}; // ms per phase: __stats.t
     riversLevel();riversOcc();linesOcc();tm('rivers');   // level water; no lots or trees in the rivers, the Ruta 5 or the rail
-    buildModels(B,S);tm('models');          // records the landmark pads...
+    buildModels(B,S);tm('models');TT.hitos=HITOS_T; // records the landmark pads... (ms per landmark: __stats.t.hitos)
     edificiosPlan();tm('edPlan');           // the OSM buildings: those the landmarks leave, cut at the sidewalks, in occ (3)
     usosPlan();tm('usosPlan');              // land uses: their ground in occ, like a landmark
     applyPads();riversRelevel();terrainNormals(); // ...which level the terrain before anything is laid on it

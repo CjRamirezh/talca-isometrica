@@ -10,7 +10,6 @@
   // The new bridge's lamps glow (it is a lit road); the old one has none.
   {const K={asph:C('#57534F'),walk:C('#C9C3B6'),beam:C('#B3AEA4'),par:C('#D9D3C5'),red:C('#C8503A'),metal:C('#707070'),lamp:C('#F1E6C4'),
       old:C('#BDB8AD'),old2:C('#8F8A82'),oldBeam:C('#9C978E')};
-    const Q=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push([a[i],a[i+1]]);return o;};
     const bridge=(pts,hw,hAt,o)=>deckBridge(S,K,pts,hw,hAt,o);
     // the Ruta K-60-J bridge, 13 m (the map's carriageway): 9 m of road, sidewalks, parapets
     {const a=[-1806.5,529],b=[-1349,540.5],ha=E(...a)+.144,hb=E(...b)+.144,L=Math.hypot(b[0]-a[0],b[1]-a[1]);
@@ -18,6 +17,6 @@
       bridge([a,b],6.5,p=>ha+(hb-ha)*Math.hypot(p.x-a[0],p.y-a[1])/L,{walk:4.5,beamD:1.4,beamCol:K.beam,pier:25,lamps:true});}
     // the old bridge, 8 m, in two parts on either side of the gap
     {const a=[-1809,516],b=[-1471.5,509],ha=E(...a)+.14,hb=E(...b)+.14,hAt=p=>ha+(hb-ha)*(p.x-a[0])/(b[0]-a[0]);
-      bridge(Q([-1809,516,-1775.5,512.5,-1689.5,511]),4,hAt,{deck:K.old,balus:true,beamD:1.8,beamCol:K.oldBeam,pier:20});
-      bridge(Q([-1672.5,510.5,-1631,510.5,-1471.5,509]),4,hAt,{deck:K.old,balus:true,beamD:1.8,beamCol:K.oldBeam,pier:20});}
+      bridge(pairs([-1809,516,-1775.5,512.5,-1689.5,511]),4,hAt,{deck:K.old,balus:true,beamD:1.8,beamCol:K.oldBeam,pier:20});
+      bridge(pairs([-1672.5,510.5,-1631,510.5,-1471.5,509]),4,hAt,{deck:K.old,balus:true,beamD:1.8,beamCol:K.oldBeam,pier:20});}
     S.dy=0;}

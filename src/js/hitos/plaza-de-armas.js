@@ -1,15 +1,4 @@
   // ==== hito: plaza-de-armas ====
-  // helpers for the landmarks round the plaza (they could be shared): a Canary palm (ringed trunk, dark crown, eight
-  // arched fronds in two greens) and a Chilean flag on a pole, both on S at S.dy, in grid metres
-  const palmS=(x,y,h,r0=0)=>{const tr=C('#6E5B48'),cr=C('#4E7A3C'),fr=[C('#5F8C45'),C('#4E7A3A')];occMark(rotRect(x,y,3,3));
-    for(let z=0.3,k=0;z<h-.6;z+=1.2,k++)S.prism(ngon(x,y,k%2?.45:.5,6),z,Math.min(z+1.2,h-.6),k%2?shade(tr,.9):tr,tr);
-    S.prism(ngon(x,y,.8,6),h-.6,h+.3,cr,cr);
-    for(let i=0;i<8;i++){const t=r0+i*Math.PI/4,c=Math.cos(t),s=Math.sin(t),P=(d,w,z)=>[x+c*d-s*w,z,-(y+s*d+c*w)];
-      S.face([P(.3,-.3,h+.2),P(.3,.3,h+.2),P(2.2,.7,h+.6),P(2.2,-.7,h+.6)],null,fr[i%2]);
-      S.face([P(2.2,-.7,h+.6),P(2.2,.7,h+.6),P(4,.25,h-1),P(4,-.25,h-1)],null,fr[i%2]);}};
-  const flagS=(x,y,h0,ph)=>{const pole=C('#D9D9D6'),f=(x0,x1,z0,z1,c)=>{const t=h0+ph-.2;
-      for(const sg of [1,-1])S.face([[x+x0,t-z1,-y],[x+x1,t-z1,-y],[x+x1,t-z0,-y],[x+x0,t-z0,-y]],[0,0,sg],c);};
-    S.prism(rotRect(x,y,.22,.22),h0,h0+ph,pole,pole);f(.1,2.2,.75,1.5,C('#C8322B'));f(.1,.85,0,.75,C('#2B4C8C'));f(.85,2.2,0,.75,C('#F2F0EA'));};
   // Plaza de Armas, built on S in grid metres (the plaza is aligned with the grid). Plan from OpenStreetMap: park
   // w479529034 (rounded corners), the twelve lawn beds w1186645153–64 between the diagonal walks, the inner ring and
   // the outer ring, the two lawns along 1 Norte (w556036456, w556036459), the four round plazuelas on the cross axes
@@ -27,8 +16,7 @@
       bed:C('#4E7A3C'),bloom:C('#C77D8E'),stone:C('#A9A49A'),stone2:C('#BDB8AD'),water:C('#4F86B5'),iron:C('#2F2D2C'),
       green:C('#33544A'),zinc:C('#A9ADAB'),granite:C('#B3AEA4'),marble:C('#E4E0D6'),
       lamp:C('#F1E6C4')};
-    const Q=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push([a[i],a[i+1]]);return o;};
-    const PZ=Q([38.9,-54.2,35.8,-54.5,-21.3,-54,-29.9,-54,-35.8,-52.5,-41.2,-49.6,-47.4,-44.3,-51.5,-38.9,-53.5,-32.2,-55.7,-23.9,
+    const PZ=pairs([38.9,-54.2,35.8,-54.5,-21.3,-54,-29.9,-54,-35.8,-52.5,-41.2,-49.6,-47.4,-44.3,-51.5,-38.9,-53.5,-32.2,-55.7,-23.9,
       -55.7,22.4,-55,34.9,-53.3,40.4,-51.5,43.9,-47.7,48.9,-43.7,52,-39.2,53.7,-34.7,54.8,36.6,53.1,40.3,52.5,43.8,50.4,49.6,43.6,
       53.8,38.2,55.7,30.3,56.2,-29.9,55.8,-34.7,53.2,-41.1,48.4,-47.7,41.6,-53]);
     const LAWNS=[[-13.4,16.8,-4.5,7.9,-1.9,8.7,0.5,8.9,3,8.4,5.3,7.1,14.3,15.5,13.7,16.3,7.6,19.6,0.1,20.8,-7.1,20],
@@ -44,14 +32,13 @@
       [28,-33.3,24.3,-36.3,7.4,-36.5,9.1,-34.6,9.5,-31.2,8.7,-27.6,7.7,-26.4,15.1,-23.4,17.7,-21.6],
       [24.4,-7.9,22.9,-13.1,20.1,-17.8,31,-29.5,35.1,-25.8,35.3,-8.6,33.2,-9.9,29,-10,26.2,-9.3],
       [5.3,52.3,38,52.2,39.3,51.8,41.7,49.1,41.6,47.4,39.9,46.7,38.3,46.1,5.3,47.8,3.1,49.7,3.5,51.4],
-      [-31,48.3,-3,48,-2.3,49.4,-2.1,51.7,-3.2,52.7,-4.9,53.2,-7,53.5,-30.1,54,-32.2,52.8,-32.3,51.1,-32.2,49.2]].map(Q);
+      [-31,48.3,-3,48,-2.3,49.4,-2.1,51.7,-3.2,52.7,-4.9,53.2,-7,53.5,-30.1,54,-32.2,52.8,-32.3,51.1,-32.2,49.2]].map(pairs);
     // polygon tools: signed area, inset by d (mitred), a segment clipped to a convex polygon
-    const area=q=>{let a=0;for(let i=0;i<q.length;i++){const p=q[i],r=q[(i+1)%q.length];a+=p[0]*r[1]-r[0]*p[1];}return a/2;};
-    const inset=(q,d)=>{const s=area(q)>0?1:-1,n=q.length;return q.map((p,i)=>{const a=q[(i+n-1)%n],b=q[(i+1)%n];
+    const inset=(q,d)=>{const s=ringArea(q)>0?1:-1,n=q.length;return q.map((p,i)=>{const a=q[(i+n-1)%n],b=q[(i+1)%n];
       const l1=Math.hypot(p[0]-a[0],p[1]-a[1])||1,l2=Math.hypot(b[0]-p[0],b[1]-p[1])||1;
       const n1=[-(p[1]-a[1])/l1*s,(p[0]-a[0])/l1*s],n2=[-(b[1]-p[1])/l2*s,(b[0]-p[0])/l2*s],k=Math.max(.35,1+n1[0]*n2[0]+n1[1]*n2[1]);
       return [p[0]+(n1[0]+n2[0])*d/k,p[1]+(n1[1]+n2[1])*d/k];});};
-    const clip=(a,b,q)=>{let t0=0,t1=1;const s=area(q)>0?1:-1,d=[b[0]-a[0],b[1]-a[1]];
+    const clip=(a,b,q)=>{let t0=0,t1=1;const s=ringArea(q)>0?1:-1,d=[b[0]-a[0],b[1]-a[1]];
       for(let i=0;i<q.length;i++){const p=q[i],r=q[(i+1)%q.length],nx=-(r[1]-p[1])*s,ny=(r[0]-p[0])*s;
         const num=nx*(a[0]-p[0])+ny*(a[1]-p[1]),den=nx*d[0]+ny*d[1];
         if(Math.abs(den)<1e-9){if(num<0)return null;continue;}const t=-num/den;if(den>0)t0=Math.max(t0,t);else t1=Math.min(t1,t);if(t0>=t1)return null;}

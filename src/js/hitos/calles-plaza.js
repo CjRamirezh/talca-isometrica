@@ -12,7 +12,7 @@
   // (~24 m apart, as in the game), the lane lines (3 m every 8 m), the size of the trees (OSM gives no species).
   // The pads already registered are applied to the terrain while this block is drawn, as the Colegio De La Salle:
   // last in ORDER.
-  {const keepEH=EH.slice();applyPads();
+  onFinalTerrain(()=>{
     const Z0=132,inZ=(x,y)=>Math.abs(x)<=Z0&&Math.abs(y)<=Z0,ZONE=[[-Z0,-Z0],[Z0,-Z0],[Z0,Z0],[-Z0,Z0]];
     const K={concrete:C('#8E8C86'),iron:C('#24322B'),iron2:C('#2E3E35'),lantern:C('#E6DDB8'),grey:C('#3A3C3C'),black:C('#1D1D1D'),red:C('#D8452F')};
     const NAMES=/^(Calle 1 Norte|Calle 1 Sur|Calle 1 Oriente|Cardenal Raúl Silva Henríquez)$/;
@@ -68,4 +68,4 @@
       let road=false;for(const s of sts.concat(links))for(let i=0;i+1<s.pts.length&&!road;i++){const a=s.pts[i],b=s.pts[i+1];if(segDist2(x,y,a[0],a[1],b[0],b[1])<(curb(s)+.3)**2)road=true;}
       if(road)continue;TREES.push([x,y,sz,sd]);nt++;}
     window.__callesPlaza={lamps:nl,lights:ns,trees:nt};
-    EH.set(keepEH);S.dy=0;}
+    S.dy=0;});

@@ -50,16 +50,21 @@ def page_pieces():
 def script_pieces():
     """The script as [(source file, its first line, text)]: the files src/js/*.js in the order of their names;
     src/js/45-landmarks.js holds /*HITOS*/ inside buildModels(B,S), where the landmarks src/js/hitos/<id>.js go in the
-    order of hitos/ORDER. Each piece comes after a line `// ---- src/js/<file>[:line] ----` (its first line is 0), so
-    that the browser's sources show where the code comes from."""
+    order of hitos/ORDER, each one followed by `__HT('<id>');` (its line is the id's in ORDER): the landmark's clock and
+    fingerprint (src/js/45-landmarks.js, __stats.t.hitos, tools/hitos.py). Each piece comes after a line
+    `// ---- src/js/<file>[:line] ----` (its first line is 0), so that the browser's sources show where the code
+    comes from."""
     def js(f, a, text, ind=''):
         return [(f, 0, f'{ind}// ---- {f.relative_to(ROOT)}{f":{a}" if a > 1 else ""} ----\n'), (f, a, text)]
-    out = []
+    out, order = [], SRC / 'js' / 'hitos' / 'ORDER'
+    lines = {l.split('#')[0].strip(): k for k, l in enumerate(order.read_text().splitlines(), 1)}
     for f in sorted((SRC / 'js').glob('*.js')):
         if f.name != '45-landmarks.js': out += js(f, 1, f.read_text()); continue
         (a, head), (b, tail) = cut(f, '/*HITOS*/')
         out += js(f, a, head)
-        for h in hito_ids(): out += js(SRC / 'js' / 'hitos' / f'{h}.js', 1, (SRC / 'js' / 'hitos' / f'{h}.js').read_text(), '  ')
+        for h in hito_ids():
+            out += js(SRC / 'js' / 'hitos' / f'{h}.js', 1, (SRC / 'js' / 'hitos' / f'{h}.js').read_text(), '  ')
+            out.append((order, lines[h], f"  __HT('{h}');\n"))
         out += js(f, b, tail, '  ')
     return out
 

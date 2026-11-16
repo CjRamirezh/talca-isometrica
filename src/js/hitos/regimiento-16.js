@@ -18,13 +18,13 @@
       cream:C('#E6D8B4'),cream2:C('#D9CDB0'),rustR:C('#8F5240'),rustR2:C('#7F4636'),teja:C('#B3412E'),teja2:C('#9A3828'),olive:C('#7C7860'),olive2:C('#6C6853'),zinc:C('#B8BAB6'),zinc2:C('#A5A8A4'),metal:C('#E4E4DE'),metal2:C('#D2D3CD'),
       wall:C('#DDD3BA'),white:C('#ECE7DC'),glass:C('#3B4653'),pool:C('#5BB0D6'),poolE:C('#E6E2D6'),dark:C('#5A4636')};
     const RING=[143,-224,60,-225,60,-229,36,-249,25,-266,21,-286,-6,-329,-85,-303,-88,-225,-86,-133,-162,-111,-131,113,-112,145,-85,194,-38,248,7,323,141,290,145,286,145,116,141,40,142,-14,142,-98];
-    const UV=[];for(let i=0;i<RING.length;i+=2)UV.push([RING[i],RING[i+1]]);const GR=Gs(UV),inR=(u,v)=>pip([u,v],UV);
+    const UV=pairs(RING);const GR=Gs(UV),inR=(u,v)=>pip([u,v],UV);
     occFill(GR,2.5);
     const BL=[],bl=(u0,v0,u1,v1,m=2)=>{BL.push([u0-m,v0-m,u1+m,v1+m]);};
     const inBL=(u,v)=>BL.some(o=>u>o[0]&&u<o[2]&&v>o[1]&&v<o[3]);
     // ---- ground: dry soil under all (0.11); the stadium's track and pitch, the lawns, the aprons and the parade ground
     // (0.12–0.14), draped on the terrain (no pad)
-    {const Lg=new GB(1<<14),lay=(q,o,c)=>{if(q.length>2)Lg.flat(q,o,c);},rc=(u0,v0,u1,v1)=>[[u0,v0],[u1,v0],[u1,v1],[u0,v1]];
+    {const {G:Lg,lay,done}=groundLayer(S,1<<14),rc=(u0,v0,u1,v1)=>[[u0,v0],[u1,v0],[u1,v1],[u0,v1]];
       lay(GR,.11,K.soil);
       lay(Gs(rc(-47,-147,42,-107)),.12,K.dry);                                         // the training field north of the stadium
       lay(Gs(rc(-24,157,-5,227)),.12,K.asph2);lay(Gs(rc(50,225,92,268)),.12,K.asph2);lay(Gs(rc(-98,-57,-76,-18)),.12,K.yard); // old paving, the apron of the sheds, the hangar's yard
@@ -45,12 +45,11 @@
         const c=p.reduce((s,q)=>[s[0]+q[0]/4,s[1]+q[1]/4],[0,0]);lay(Gs(p.map(q=>[c[0]+(q[0]-c[0])*1.1,c[1]+(q[1]-c[1])*1.2])),.13,K.poolE);lay(Gs(p),.14,K.pool);}
       // dirt roads: the west side of the stadium, the avenue from the east gate to the parade ground
       ribbon(Lg,Gs([[-80,-300],[-79,-139],[-72,-110]]),5,.13,K.road);ribbon(Lg,Gs([[142,1],[110,1],[84,0]]),5,.13,K.road);
-      const d=drape(Lg);S.dy=0;
-      for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}}
+      done();}
     bl(-77,-301,5,-162,0);bl(3,-77,38,-63,1);bl(100,-191,113,-185,1);bl(50,-42,82,50,0);bl(-24,157,-5,227,0);
     // ---- the wall: the east side, the north-east and the south-east stretches (indices 15..2 of the ring), 2.4 m, with the gate
-    {const run=[15,16,17,18,19,20,21,0,1,2].map(i=>GR[i]);let A=0;for(let i=0;i<GR.length;i++){const p=GR[i],q=GR[(i+1)%GR.length];A+=p[0]*q[1]-q[0]*p[1];}
-      wallPath(run,false,2.4,.5,K.wall,K.white,[[...G(142,1),3.5]],A>0?1:-1);}
+    {const run=[15,16,17,18,19,20,21,0,1,2].map(i=>GR[i]);
+      wallPath(run,false,2.4,.5,K.wall,K.white,[[...G(142,1),3.5]],ringArea(GR)>0?1:-1);}
     // gate piers
     for(const o of [-3.8,3.8]){const q=Gs([[139.8,1+o-.5],[143.4,1+o-.5],[143.4,1+o+.5],[139.8,1+o+.5]]);S.dy=groundMin(q);S.prism(q,.3,3.4,K.white,K.white);}S.dy=0;
     // ---- buildings: a gabled block (ridge along its long side), walls with rows of dark windows

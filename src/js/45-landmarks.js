@@ -71,13 +71,104 @@ function deckBridge(S,K,pts,hw,hAt,o){const sm=[];
         const hx=ox-p.nx*ls*2,hy=oy-p.ny*ls*2;S.prism(rotRect(hx,hy,.6,.8,a),p.h+7.55,p.h+7.85,K.metal,K.lamp);GLOW.push(hx,p.h+7.4,hy);}}
     // no tree of the park's wood under or through the deck
     for(let i=TREES.length-1;i>=0;i--){const t=TREES[i];if(sm.some(p=>Math.hypot(t[0]-p.x,t[1]-p.y)<hw+5))TREES.splice(i,1);}}
+// The landmarks' clock: build.py puts __HT('<id>') after each landmark in buildModels, which records its ms in
+// HITOS_T (__stats.t.hitos). With window.__HITOS_HASH set before the page loads (tools/hitos.py) it also records in
+// HITOS_H a fingerprint of what the landmark emitted and changed, per part: the new vertices and indices of S and B,
+// the occupancy raster, the terrain (EH) and the shared lists the landmarks write. A refactor of a landmark has to
+// leave every fingerprint as it was; the first one that changes names the landmark. Hashing takes seconds and is not
+// counted in HITOS_T.
+const HITOS_T={},HITOS_H=window.__HITOS_HASH?{}:null;window.__hitos={t:HITOS_T,h:HITOS_H};
+function hitoClock(B,S){let t=performance.now();const last={S:[S.nv,S.ni],B:[B.nv,B.ni]};
+  const fnv=(h,u)=>{for(let i=0;i<u.length;i++)h=Math.imul(h^u[i],16777619);return h>>>0;};
+  const bytes=a=>new Uint8Array(a.buffer,a.byteOffset,a.byteLength),hex=h=>h.toString(16).padStart(8,'0');
+  const txt=x=>{const s=JSON.stringify(x,(k,v)=>typeof v==='function'?undefined:v instanceof RegExp?String(v):v)??'';let h=0x811c9dc5;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return hex(h>>>0);};
+  const gb=(G,k)=>{const [v0,i0]=last[k];let h=0x811c9dc5;h=fnv(h,bytes(G.P.subarray(v0*3,G.nv*3)));h=fnv(h,bytes(G.N.subarray(v0*3,G.nv*3)));
+    h=fnv(h,bytes(G.C.subarray(v0*3,G.nv*3)));h=fnv(h,bytes(G.I.subarray(i0,G.ni).map(i=>i-v0)));last[k]=[G.nv,G.ni];return hex(h)+'/'+(G.nv-v0);};
+  const grid=g=>{let h=0x811c9dc5;g.c.forEach((c,i)=>{if(c){h=fnv(h,new Uint8Array(new Uint32Array([i]).buffer));h=fnv(h,c);}});return hex(h);};
+  return id=>{const n=performance.now();HITOS_T[id]=Math.round((n-t)*10)/10;
+    if(HITOS_H)HITOS_H[id]={S:gb(S,'S'),B:gb(B,'B'),dy:[S.dy,B.dy],occ:grid(occ),EH:hex(fnv(0x811c9dc5,bytes(EH))),
+      models:txt(MODELS),pads:txt(PADS),glow:txt(GLOW),nolots:txt(NOLOTS),trees:txt(TREES),clear:txt([CLEAR,CLEAR_T,LAMP_SKIP]),
+      rail:txt(RAIL_BR),streets:txt(streets.map(s=>[s.c,s.name,s.bridge,s.paint,s.lanes])),usos:txt(USOS.map(u=>u.keep))};
+    t=performance.now();};}
+// The landmarks' base palette, docs/ESTETICA.md §4 in code: a landmark's palette starts from it, K={...KH, <its own
+// colours>}, and a colour of its own under a name of KH replaces that tone (where the photos say otherwise). Also the
+// colours of the shared objects (palmS, flagS)
+const KH=Object.freeze({brick:hex('#A04B34'),brick2:hex('#8F4330'),white:hex('#ECE7DC'),white2:hex('#D3CDC0'),plinth:hex('#C9C3B6'),
+  rim:hex('#EEE8DA'),tile:hex('#A35C42'),tile2:hex('#8E4F3A'),flat:hex('#8F8A82'),membrane:hex('#F0EFE9'),membrane2:hex('#D8D6CE'),
+  glass:hex('#3B4653'),glass2:hex('#2C3540'),office:hex('#4D5D66'),door:hex('#5A4636'),opening:hex('#2E2C2B'),copper:hex('#3F5C4E'),
+  iron:hex('#3A3A3A'),mast:hex('#707070'),grass:hex('#5F9840'),grass2:hex('#72AC4D'),step:hex('#D9D3C5'),step2:hex('#C6BFAF'),
+  palmTrunk:hex('#6E5B48'),palmCrown:hex('#4E7A3C'),palmFrond:hex('#5F8C45'),palmFrond2:hex('#4E7A3A'),
+  pole:hex('#D9D9D6'),flagRed:hex('#C8322B'),flagBlue:hex('#2B4C8C'),flagWhite:hex('#F2F0EA')});
+// polygon tools for the landmarks (with ringArea, insetRing and clipHalf of 52-edificios.js): pairs() turns a flat
+// list [x0,y0,x1,y1,…] (how the long outlines are written) into points, ccwRing() gives a ring counter-clockwise
+const pairs=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push([a[i],a[i+1]]);return o;};
+const ccwRing=r=>ringArea(r)<0?r.slice().reverse():r;
+// occFill(ring, margin): marks the ring's cells in occ (1, like occMark), leaving margin m free along the map's streets
+// (usosPlan's rule: the sidewalks, street trees and parked cars stay). A landmark that covers a land use with it makes
+// usosPlan skip that use (CLAUDE.md, trap «Un hito sobre un uso de suelo lo saca entero»)
+function occFill(ring,m){let y0=1e9,y1=-1e9;for(const p of ring){y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
+  for(let gy=Math.max(0,Math.floor((y0-YMIN)/OC));gy<=Math.min(ocH-1,Math.floor((y1-YMIN)/OC));gy++){const cy=YMIN+(gy+.5)*OC,xs=pipRow(ring,cy,[]);
+    for(let i=0;i+1<xs.length;i+=2)for(let gx=Math.max(0,Math.ceil((xs[i]-XMIN)/OC-.5));gx<=Math.min(ocW-1,Math.floor((xs[i+1]-XMIN)/OC-.5));gx++){
+      if(occ.get(gx,gy)===1)continue;if(!nearStreet(XMIN+(gx+.5)*OC,cy,m))occ.set(gx,gy,1);}}}
+// Flat layers on the terrain where a landmark has no pad (CLAUDE.md, trap «Capas planas sin explanada»): the layer is
+// filled in a GB of its own, cut along the terrain's edges and laid on it (drape()), and its triangles copied to S with
+// the normal [0,1,0] (EN() is still zero in buildModels), at S.dy 0 (S.dy is put back after).
+function drapeInto(S,G){const d=drape(G),sv=S.dy;S.dy=0;
+  for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}
+  S.dy=sv;}
+// groundLayer(S, cap, F): such a layer, {G, lay, rc, pl, done}: G the GB (cap: its first size, ribbon(G, …) draws in
+// it), lay(q, o, col) a ring of grid metres at o over the ground (one of fewer than three points is skipped), with F
+// (localFrame) rc(u0, v0, u1, v1, o, col) a (u,v) rectangle and pl(pts, o, col) a (u,v) ring; done() lays it on S.
+// Heights: CLAUDE.md, trap «Capas planas sin explanada»
+function groundLayer(S,cap,F){const G=new GB(cap),lay=(q,o,c)=>{if(q.length>2)G.flat(q,o,c);};
+  return {G,lay,rc:F&&((u0,v0,u1,v1,o,c)=>lay(F.R(u0,v0,u1,v1),o,c)),pl:F&&((pts,o,c)=>lay(F.Gs(pts),o,c)),done:()=>drapeInto(S,G)};}
+// onFinalTerrain(fn): runs fn on the final terrain from inside buildModels, where E() is the terrain without pads
+// (CLAUDE.md, trap «E() dentro de buildModels…»): the pads registered so far are applied to EH (applyPads) while fn
+// runs and EH is put back after, also if fn throws. It sees only the pads of the landmarks before it in ORDER
+function onFinalTerrain(fn){const keep=EH.slice();applyPads();try{return fn();}finally{EH.set(keep);}}
+// buildModels(B, S): the landmarks, src/js/hitos/<id>.js pasted at /*HITOS*/ in the order of hitos/ORDER (build.py).
+// Every landmark draws on S (no window shader: each one draws its own windows); B, the mesh with procedural windows,
+// is there for a landmark that wants them, and none does today. A landmark is a block {…} of its own: what it declares
+// stays in it, and what the landmarks share is declared here, in this header, never in a landmark (tools/check.py fails
+// when a landmark uses a name another one declares). The shared state they write, which the landmarks after them read
+// (so their order matters; hitos/ORDER says where):
+//   MODELS[id]: each landmark's point and height; MODELS['plaza-de-armas'].pad is the pad height the buildings round
+//     the plaza take (memorial, Catedral, GORE, Municipalidad, Servicios Públicos, Torre Talca), so that their pads,
+//     which share terrain nodes, stay level (CLAUDE.md, trap «Explanadas vecinas»);
+//   PADS (padAt), which onFinalTerrain() applies: it sees only the pads registered before it;
+//   TREES: deckBridge() removes those under its deck (puentes-rio-claro, after parque-rio-claro);
+//   streets[i].bridge: a street a landmark draws itself (bridges; the tracks inside a ground, ownTracks()), which the
+//     map skips and calles-plaza leaves alone;
+//   occ, NOLOTS, GLOW, CLEAR, CLEAR_T, LAMP_SKIP, RAIL_BR, USOS[i].keep: read after buildModels.
 function buildModels(B,S){ // S: models drawn without the window shader
+  const __HT=hitoClock(B,S); // build.py calls it after each landmark
   const C=hex;
-  const at=id=>BYID[id];
-  // reserve the footprint and stand the model on the ground: landmarks get a levelled pad (pad=true),
-  // campus buildings just sit on their lowest corner
-  const reserve=(x,y,w,d,pad=true)=>{rectOcc(x,y,w,d);B.dy=pad?padAt(x-w/2,y-d/2,x+w/2,y+d/2):groundMin(rotRect(x,y,w,d));};
-  let p;
+  // a Canary palm (ringed trunk, dark crown, eight arched fronds in two greens) and a Chilean flag on a pole, both on S
+  // at S.dy, in grid metres (the Plaza de Armas, the GORE, the Municipalidad, the Parque Río Claro, the casino)
+  const palmS=(x,y,h,r0=0)=>{const tr=KH.palmTrunk,cr=KH.palmCrown,fr=[KH.palmFrond,KH.palmFrond2];occMark(rotRect(x,y,3,3));
+    for(let z=0.3,k=0;z<h-.6;z+=1.2,k++)S.prism(ngon(x,y,k%2?.45:.5,6),z,Math.min(z+1.2,h-.6),k%2?shade(tr,.9):tr,tr);
+    S.prism(ngon(x,y,.8,6),h-.6,h+.3,cr,cr);
+    for(let i=0;i<8;i++){const t=r0+i*Math.PI/4,c=Math.cos(t),s=Math.sin(t),P=(d,w,z)=>[x+c*d-s*w,z,-(y+s*d+c*w)];
+      S.face([P(.3,-.3,h+.2),P(.3,.3,h+.2),P(2.2,.7,h+.6),P(2.2,-.7,h+.6)],null,fr[i%2]);
+      S.face([P(2.2,-.7,h+.6),P(2.2,.7,h+.6),P(4,.25,h-1),P(4,-.25,h-1)],null,fr[i%2]);}};
+  const flagS=(x,y,h0,ph)=>{const pole=KH.pole,f=(x0,x1,z0,z1,c)=>{const t=h0+ph-.2;
+      for(const sg of [1,-1])S.face([[x+x0,t-z1,-y],[x+x1,t-z1,-y],[x+x1,t-z0,-y],[x+x0,t-z0,-y]],[0,0,sg],c);};
+    S.prism(rotRect(x,y,.22,.22),h0,h0+ph,pole,pole);f(.1,2.2,.75,1.5,KH.flagRed);f(.1,.85,0,.75,KH.flagBlue);f(.85,2.2,0,.75,KH.flagWhite);};
+  // wallPath(pts, closed, h, w, wall, cap, gaps): a wall of thickness w along the grid points pts, on the left of its
+  // direction, h high with a cap 0.3 m wider and 0.3 m taller, in pieces of ≤8 m on their lowest corner; gaps [x, y, r]
+  // leave an opening r each side of the point. wallRing(ring, …) closes a ring with its wall on the inside (the
+  // Cementerio, the Regimiento, the colleges, the casino)
+  const wallPath=(pts,closed,h,w,wall,cap,gaps=[],sg=1)=>{
+    for(let i=0;i<pts.length-(closed?0:1);i++){const a=pts[i],b=pts[(i+1)%pts.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.5)continue;
+      const tx=(b[0]-a[0])/L,ty=(b[1]-a[1])/L,nx=-ty*sg,ny=tx*sg,cuts=[];
+      for(const [gx,gy,gr] of gaps){const t=(gx-a[0])*tx+(gy-a[1])*ty,d=Math.abs((gx-a[0])*nx+(gy-a[1])*ny);if(d<gr+w&&t>-gr&&t<L+gr)cuts.push([t-gr,t+gr]);}
+      cuts.sort((p,q)=>p[0]-q[0]);
+      const P=(s,o)=>[a[0]+tx*s+nx*o,a[1]+ty*s+ny*o],run=(s,e)=>{if(e-s<.4)return;const n=Math.ceil((e-s)/8);
+        for(let k=0;k<n;k++){const s0=s+(e-s)*k/n,s1=s+(e-s)*(k+1)/n,q=[P(s0,0),P(s1,0),P(s1,w),P(s0,w)];S.dy=groundMin(q);
+          S.prism(q,.3,h,wall,wall,false);S.prism([P(s0,-.15),P(s1,-.15),P(s1,w+.15),P(s0,w+.15)],h,h+.3,cap,cap);}};
+      let t=0;for(const [c0,c1] of cuts){if(c0>t)run(t,c0);t=Math.max(t,c1);}if(t<L)run(t,L);}
+    S.dy=0;};
+  const wallRing=(ring,h,w,wall,cap,gaps)=>wallPath(ring,true,h,w,wall,cap,gaps,ringArea(ring)>0?1:-1);
   /*HITOS*/
   // ==== fin de los hitos ====
   B.dy=0;S.dy=0;

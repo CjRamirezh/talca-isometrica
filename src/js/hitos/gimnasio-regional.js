@@ -46,9 +46,9 @@
     // applied while this block is drawn so that drape() and the lot see the final terrain, and undone after (applyPads
     // runs later for everyone)
     const gx0=Math.min(...gOUT.map(p=>p[0]))-3,gx1=Math.max(...gOUT.map(p=>p[0]))+3,gy0=Math.min(...gOUT.map(p=>p[1]))-3,gy1=Math.max(...gOUT.map(p=>p[1]))+3;
-    S.dy=padAt(gx0,gy0,gx1,gy1);const keepEH=EH.slice();applyPads();
+    S.dy=padAt(gx0,gy0,gx1,gy1);onFinalTerrain(()=>{
     // ---- the ground, draped on the terrain
-    {const Lg=new GB(1<<15),lay=(q,o,c)=>{if(q.length>2)Lg.flat(q,o,c);};
+    {const {G:Lg,lay,done}=groundLayer(S,1<<15);
       for(const [q,t] of LAWNS)lay(Gs(q),.11,t?K.lawn2:K.lawn);
       for(const q of SANDS)lay(Gs(q),.11,K.sand);
       lay(Gs(RING),.12,K.asph);lay(Gs(LOT),.13,K.asph);
@@ -56,8 +56,7 @@
       ribbon(Lg,[[2398,295],[2378,247]],7,.14,K.asph);ribbon(Lg,[[2416,202],[2436,198]],6,.14,K.asph);
       for(const q of PADS_)lay(Gs(q),.14,K.pad);
       for(const p of PATHS)ribbon(Lg,p.map(a=>G(a[0],a[1])),1.6,.14,K.gravel);
-      const d=drape(Lg);const sv=S.dy;S.dy=0;
-      for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}S.dy=sv;}
+      done();}
     // ---- the building. Faces with an explicit normal; up(): a normal with its y > 0 from the triangle itself
     const up=(a,b,c,col)=>{const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];let n=[uy*vz-uz*vy,uz*vx-ux*vz,ux*vy-uy*vx];
       const L=Math.hypot(...n)||1;n=n.map(x=>x/L);if(n[1]<0)n=n.map(x=>-x);S.face([a,b,c],n,col);};
@@ -108,4 +107,4 @@
       grove([[-80,-10],[-72,-14],[-40,-50],[-34,-62],[-44,-60],[-70,-30]],8,1.3);
       for(const [u,v] of [[-60,30],[-68,48],[-56,70],[-48,100],[-56,-6],[26,-78],[-4,-84]])t(u,v,1.2+rr()*.3);}
     MODELS['gimnasio-regional']={x:X,y:Y,h:HF+HH+1.6};
-    EH.set(keepEH);S.dy=0;}
+    });S.dy=0;}

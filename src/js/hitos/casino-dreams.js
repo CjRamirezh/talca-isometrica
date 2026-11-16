@@ -43,9 +43,9 @@
     const inAxis=(u,v)=>u<-30&&Math.abs(v)<9.5,inDrive=(u,v)=>u>-95&&u<4&&Math.abs(v-50)<6.5,
       nearRoad=(u,v,d)=>[SROAD,EROAD,NROAD,NDRIVE].some(p=>{for(let i=0;i+1<p.length;i++)if(segDist2(u,v,...p[i],...p[i+1])<d*d)return true;return false;}),
       free=(u,v)=>!inAxis(u,v)&&!nearRoad(u,v,7.5); // a lawn's or a bay's piece that leaves the axis and the roads alone
-    const keepEH=EH.slice();applyPads(); // draw on the final terrain (the Estadio's pad reaches Circunvalación), undone below
+    onFinalTerrain(()=>{ // draw on the final terrain (the Estadio's pad reaches Circunvalación)
     // ---- the ground, draped on the terrain
-    {const Lg=new GB(1<<16),lay=(q,o,c)=>{if(q.length>2)Lg.flat(q,o,c);};
+    {const {G:Lg,lay,done}=groundLayer(S,1<<16);
       lay(RES,.11,K.meadow);
       // a band of the circle [r0, r1] × [t0, t1] in pieces of about `step` metres of arc, clipped to the north edge
       const band=(r0,r1,t0,t1,step,o,col,skip)=>{const rm=(r0+r1)/2,n=Math.max(1,Math.round((t1-t0)*rm/step));
@@ -68,8 +68,7 @@
       lay(Gs([[40,-60],[78,-100],[118,-90],[121,-40],[95,-45]]),.14,K.lawn);
       lay(Gs(DISPLAY),.14,K.lawn2);ribbon(Lg,Gs([[-122,0],[-142,30],[-142,62]]),2.5,.155,K.gravel);
       lay(Gs(rect(44,6,94,52)),.14,K.pave2);
-      const d=drape(Lg);const sv=S.dy;S.dy=0;
-      for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}S.dy=sv;}
+      done();}
     // ---- the building
     const bxQ=rect(...BX),fp=Gs(bxQ.concat(ngon(DC[0],DC[1],DR,16)));occMark(Gs(bxQ));occMark(Gs(ngon(DC[0],DC[1],DR+1,16)));
     const hG=groundMax(fp);S.dy=hG;
@@ -168,4 +167,4 @@
       edge([-874,819],[-1195,891],10,7);edge([-874,819],[-1195,891],9,-6);edge([-913,715],[-874,819],9,-9);edge([-928,661],[-913,715],9,-9);edge([-935,601],[-928,661],9,-8);edge([-1195,891],[-1297,680],11,7);edge([-913,715],[-874,819],9,7);edge([-928,661],[-913,715],9,7);
       grove([[-960,800],[-885,790],[-878,815],[-940,835]],16,1.3);grove([[-1150,840],[-1100,800],[-1060,815],[-1100,870],[-1150,880]],18,1.3);}
     MODELS['casino-dreams']={x:G(20,-8)[0],y:G(20,-8)[1],h:DK+14.5};
-    EH.set(keepEH);S.dy=0;}
+    });S.dy=0;}

@@ -16,27 +16,6 @@
   // gabled vaults), the number and place of the mausoleums and trees (read from the imagery), the heights (no dated photo
   // of the interior), the roofs' colours, the pavilion and the dome (only seen from above), the yard's sheds and the
   // rubble. No lights: nothing says the cemetery is lit.
-  // wallPath(pts, closed, h, w, wall, cap, gaps): a wall of thickness w along the grid points pts, on the left of its
-  // direction, h high with a cap 0.3 m wider and 0.3 m taller, in pieces of ≤8 m on their lowest corner; gaps [x, y, r]
-  // leave an opening r each side of the point. wallRing(ring, …) closes a ring with its wall on the inside (also used by
-  // the regiment).
-  const wallPath=(pts,closed,h,w,wall,cap,gaps=[],sg=1)=>{
-    for(let i=0;i<pts.length-(closed?0:1);i++){const a=pts[i],b=pts[(i+1)%pts.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.5)continue;
-      const tx=(b[0]-a[0])/L,ty=(b[1]-a[1])/L,nx=-ty*sg,ny=tx*sg,cuts=[];
-      for(const [gx,gy,gr] of gaps){const t=(gx-a[0])*tx+(gy-a[1])*ty,d=Math.abs((gx-a[0])*nx+(gy-a[1])*ny);if(d<gr+w&&t>-gr&&t<L+gr)cuts.push([t-gr,t+gr]);}
-      cuts.sort((p,q)=>p[0]-q[0]);
-      const P=(s,o)=>[a[0]+tx*s+nx*o,a[1]+ty*s+ny*o],run=(s,e)=>{if(e-s<.4)return;const n=Math.ceil((e-s)/8);
-        for(let k=0;k<n;k++){const s0=s+(e-s)*k/n,s1=s+(e-s)*(k+1)/n,q=[P(s0,0),P(s1,0),P(s1,w),P(s0,w)];S.dy=groundMin(q);
-          S.prism(q,.3,h,wall,wall,false);S.prism([P(s0,-.15),P(s1,-.15),P(s1,w+.15),P(s0,w+.15)],h,h+.3,cap,cap);}};
-      let t=0;for(const [c0,c1] of cuts){if(c0>t)run(t,c0);t=Math.max(t,c1);}if(t<L)run(t,L);}
-    S.dy=0;};
-  const wallRing=(ring,h,w,wall,cap,gaps)=>{let A=0;for(let i=0;i<ring.length;i++){const p=ring[i],q=ring[(i+1)%ring.length];A+=p[0]*q[1]-q[0]*p[1];}wallPath(ring,true,h,w,wall,cap,gaps,A>0?1:-1);};
-  // occFill(ring, margin): marks the ring's cells in occ, leaving margin m free along the map's streets (the land-use
-  // layer's rule: the sidewalks, street trees and parked cars stay)
-  const occFill=(ring,m)=>{let y0=1e9,y1=-1e9;for(const p of ring){y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
-    for(let gy=Math.max(0,Math.floor((y0-YMIN)/OC));gy<=Math.min(ocH-1,Math.floor((y1-YMIN)/OC));gy++){const cy=YMIN+(gy+.5)*OC,xs=pipRow(ring,cy,[]);
-      for(let i=0;i+1<xs.length;i+=2)for(let gx=Math.max(0,Math.ceil((xs[i]-XMIN)/OC-.5));gx<=Math.min(ocW-1,Math.floor((xs[i+1]-XMIN)/OC-.5));gx++){
-        if(occ.get(gx,gy)===1)continue;if(!nearStreet(XMIN+(gx+.5)*OC,cy,m))occ.set(gx,gy,1);}}};
   {const F=localFrame(-4,2120,75.3*Math.PI/180),{G,Gs,V,N3,R}=F;
     const K={soil:C('#BBA680'),field:C('#B39A74'),path:C('#DCD0B4'),wall:C('#DDC768'),wall2:C('#C9B25A'),white:C('#ECE7DC'),white2:C('#D3CDC0'),plinth:C('#C9C3B6'),
       grave:['#E8E4DA','#D3CFC5','#BDB8AE','#CFC2B2','#A8A49C'].map(C),niche:C('#D4CFC3'),niche2:C('#BFBAAE'),tile:C('#7E5240'),tile2:C('#6C4636'),
@@ -46,7 +25,7 @@
     K.gable=K.white2;
     const {box,WL,WV,rect,arch,roof}=facade(S,F,K);
     const RING=[-126.4,164.5,-96.6,192.1,-82.0,206.9,-54.4,240.2,-38.4,257.1,-4.8,257.4,101.0,260.6,99.8,200.8,99.5,150.4,99.3,133.2,93.0,125.5,92.9,103.9,99.1,98.5,99.2,50.1,98.3,-3.0,94.4,-3.2,94.8,-42.7,95.1,-80.9,94.6,-124.1,97.1,-163.0,97.4,-241.1,-11.9,-238.7,-12.2,-242.5,-33.1,-242.3,-33.2,-239.7,-130.6,-238.3,-129.4,-211.5,-125.8,-211.3,-125.1,-108.4,-125.2,-21.5,-125.1,26.3,-125.3,59.7,-126.3,135.1];
-    const UV=[];for(let i=0;i<RING.length;i+=2)UV.push([RING[i],RING[i+1]]);const GR=Gs(UV);
+    const UV=pairs(RING);const GR=Gs(UV);
     const inR=(u,v)=>pip([u,v],UV);
     occFill(GR,2.5);
     // the map's own tracks inside the walls (class 7, the cicloconecta graph: ~3 m off the paths seen on the imagery) are
@@ -61,14 +40,13 @@
     const PATHS=[[[29.5,-241],[29.5,58]],[[29.5,60],[32,96],[40,103],[52,110],[63,111],[99,117]],[[-116,-206],[-116,-110],[93,-109]],[[-122,-141],[94,-141]],[[-122,-190],[94,-190]],
       [[-122,-11],[94,-9]],[[-112,55],[29,54]],[[-64,-106],[-64,58]],[[-20,-106],[-20,58]],[[62,-106],[62,58]],[[61,85],[93,85]],[[-60,100],[-60,200]]];
     const PW=[7,5,3,3,3,3.4,3,2.5,2.5,2.5,3,3];
-    {const Lg=new GB(1<<15),lay=(q,o,c)=>{if(q.length>2)Lg.flat(q,o,c);};
+    {const {G:Lg,lay,done}=groundLayer(S,1<<15);
       lay(GR,.11,K.soil);
       lay(Gs([[-58,98],[-26,100],[98,98],[98,258],[-4,257],[-38,257],[-54,240],[-82,207],[-96,192],[-110,178],[-110,98]]),.12,K.field);
       for(let i=0;i<PATHS.length;i++)ribbon(Lg,PATHS[i].map(p=>G(p[0],p[1])),PW[i],.13,K.path);
       // the memorial plaza: a stone ring and yellow brick inside
       const mc=[46.9,87.6];lay(Gs(ngon(mc[0],mc[1],10.4,24)),.13,K.stone2);lay(Gs(ngon(mc[0],mc[1],9.2,24)),.14,K.brick);
-      const d=drape(Lg);S.dy=0;
-      for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}}
+      done();}
     for(let i=0;i<PATHS.length;i++){const p=PATHS[i],w=PW[i]/2+.4;for(let j=0;j<p.length-1;j++){const a=p[j],b=p[j+1];ob(Math.min(a[0],b[0])-w,Math.min(a[1],b[1])-w,Math.max(a[0],b[0])+w,Math.max(a[1],b[1])+w);}}
     // ---- walls: the yellow perimeter (2.6 m; openings at the entrance portico and the east gate), the white cross walls
     wallRing(GR,2.6,.6,K.wall,K.white,[[...G(-22.6,-242),11.6],[...G(99,116),3.5]]);

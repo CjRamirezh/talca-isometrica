@@ -49,7 +49,7 @@
     // ---- ground. Layers, each 1 cm above the last: dry soil under all (0.11); the gravel yards and parking (0.12); lawns,
     // the fields' bases, the covered court's floor, the track (0.13); paths, the road, mown bands, the infield (0.14);
     // the turf, the red cap, the runways (0.15); its bands (0.16); lines (0.17). Draped on the terrain (no pad)
-    {const Lg=new GB(1<<15),lay=(q,o,c)=>{if(q.length>2)Lg.flat(q,o,c);},rc=(u0,v0,u1,v1,o,c)=>lay(R(u0,v0,u1,v1),o,c),pl=(pts,o,c)=>lay(Gs(pts),o,c),
+    {const {G:Lg,lay,rc,pl,done}=groundLayer(S,1<<15,F),
         ell=(cu,cv,a,b,n=28)=>{const o=[];for(let i=0;i<n;i++){const t=i/n*Math.PI*2;o.push([cu+a*Math.cos(t),cv+b*Math.sin(t)]);}return o;};
       lay(RING,.11,K.soil);
       // gravel: the entrance yard with its loop, the yard round the classroom blocks and the gym, the parking lane on the east side
@@ -85,8 +85,7 @@
       pitch(-33,160,69,104);                                                                        // the turf pitch inside the track (w502205427)
       pitch(-50,27,60,98,ln15);pitch(1,4,40,74,ln15);                                                // the grass pitches (w502205426, w976147695), over the lawn's bands
       out(40.4,-44,98.8,-9,ln15);ln15(60.6,-44,61.4,-9);ln15(79.4,-44,80.2,-9);                       // the courts
-      const d=drape(Lg);S.dy=0;
-      for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}}
+      done();}
     // the keep-out boxes for the random trees: the pitches, the track, the courts, the lawns, the yards, the road and every building below
     bl(-100,-44,25,82,0);bl(-80,76,15,248,0);bl(40,-44,100,-8,0);bl(28,-50,50,340,3);bl(45,-4,104,135,0);
     // ---- buildings. blk: a block with a gabled roof (ridge along u or v) or a flat one with a parapet; wins: rows of dark

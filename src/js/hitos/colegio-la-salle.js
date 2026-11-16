@@ -29,7 +29,7 @@
   // the pads already registered are applied to the terrain while this block is drawn (and undone after, applyPads
   // does it again), every building stands on the final ground in steps of up to ~2.5 m (the step's gable in the darker
   // wall tone; the cross wing and the stairs take the east wing's step), and the ground is draped on it.
-  {const F=localFrame(0,0,Math.PI/2),{G,Gs,V,N3,R}=F,keepEH=EH.slice();applyPads();
+  onFinalTerrain(()=>{const F=localFrame(0,0,Math.PI/2),{G,Gs,V,N3,R}=F;
     const K={wall:C('#EEE7D3'),wall2:C('#E0D7C0'),plinth:C('#B9B2A2'),dado:C('#D98E70'),maroon:C('#80504A'),white:C('#F3EEE2'),glass:C('#3B4653'),glass2:C('#2C3540'),door:C('#5A4636'),
       blue:C('#2F4F8F'),tile:C('#B4BABC'),tile2:C('#A2A9AC'),flat:C('#A9ACAA'),greenR:C('#5F8A64'),greenR2:C('#7FA37A'),skylight:C('#A9C3C6'),
       gym:C('#E4E0D6'),asph:C('#8E9399'),line:C('#F3F0E6'),cblue:C('#33559F'),cred:C('#C0483A'),cred2:C('#A53A30'),deck:C('#C9B58C'),pool:C('#8EC3CB'),pave:C('#D8D1C1'),pave2:C('#CCC4B2'),sand:C('#D6C59A'),
@@ -39,7 +39,7 @@
     NOLOTS.push(Gs(SITE));occFill(Gs(SITE),2.5);
     // ground: paving under all (0.11), the asphalt yard with its courts, the garden on the Alameda, lawns and the
     // south-west garden; draped on the final terrain, copied to S facing up (EN() is still zero here)
-    {const Lg=new GB(1<<12),lay=(q,o,c)=>Lg.flat(Gs(q),o,c),box=(u0,v0,u1,v1)=>[[u0,v0],[u1,v0],[u1,v1],[u0,v1]];
+    {const {pl:lay,done}=groundLayer(S,1<<12,F),box=(u0,v0,u1,v1)=>[[u0,v0],[u1,v0],[u1,v1],[u0,v1]];
       lay(SITE,.11,K.pave);lay(box(2,359,39,443),.13,K.asph);
       // the north row of courts is painted blue inside a red border whose south edge alternates two reds (the school's
       // photo); the south row stays grey asphalt. Lines are 0.5 m, white, on both rows
@@ -53,8 +53,7 @@
       lay(box(-54,383,-21,392),.13,K.deck);lay(box(-38.7,384.5,-23.2,391.7),.15,K.line);lay(box(-38.2,385,-23.7,391.2),.17,K.pool);
       // the garden's sand plaza: a square turned 45° and the walks to the gate and the wings
       lay([[17,449],[25,457],[17,465],[9,457]],.15,K.sand);lay(box(15.5,457,18.5,469),.16,K.sand);lay(box(-8,455.5,38,458.5),.16,K.sand);
-      const d=drape(Lg);S.dy=0;
-      for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}}
+      done();}
     // windows: nst storeys of windows 1.5 m wide and 1.9 high every ~2.5 m (read from the school's photo of the east wing's
     // yard face, taking a 3.8 m storey as the scale and assumed for every wing) on wall w from s0 to s1, a plinth (the
     // yard faces' dado is salmon in the photo) and a white band under the eaves
@@ -151,4 +150,4 @@
       [-14,467,1],[-8,467,1],[-2,467,1],[4,467,1],[25,467,1],[31,467,1],[-15,452,1.3],[-12,461,1.2],[32,452,1.1],[2,452,1],
       [-50,429.5,1.2],[-38,429.5,1.1],[-28,429.5,1.2],[-54,367,1.4],[-46,362,1.3],[-38,368,1.4],[-52,356,1.3],[-41,355,1.2],[-33,362,1.2]])
       TREES.push([u,v,s,(u*7.3+v*1.7)%1]);
-    EH.set(keepEH);S.dy=0;}
+    S.dy=0;});

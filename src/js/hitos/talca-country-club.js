@@ -28,15 +28,14 @@
     NOLOTS.push(RING);occMark(RING);
     // the ground, draped on the terrain: rough 0.11, turf in mown bands 0.12, ponds' banks 0.13, collars, ponds 0.14, greens
     // 0.15, bunkers and courts 0.16
-    {const Lg=new GB(1<<15),[ox,oy]=D.o,c=D.c;
+    {const {G:Lg,done}=groundLayer(S,1<<15),[ox,oy]=D.o,c=D.c;
       Lg.flat(RING,.11,K.rough);
       for(const [j,i0,i1,n] of D.turf)Lg.flat([[ox+i0*c,oy+j*c],[ox+(i1+1)*c,oy+j*c],[ox+(i1+1)*c,oy+(j+n)*c],[ox+i0*c,oy+(j+n)*c]],.12,(j>>2)&1?K.turf2:K.turf);
       for(const p of PONDS){const m=p.reduce((s,q)=>[s[0]+q[0]/p.length,s[1]+q[1]/p.length],[0,0]);Lg.flat(p.map(q=>[m[0]+(q[0]-m[0])*1.25,m[1]+(q[1]-m[1])*1.25]),.13,K.rim);Lg.flat(p,.14,K.pond);}
       for(const [x,y,r] of GREENS){Lg.flat(ngon(x,y,r+1.6,14),.14,K.collar);Lg.flat(ngon(x,y,r,14),.15,K.green);}
       for(const [x,y] of BUNKERS)Lg.flat(ngon(x,y,3.4,10),.16,K.sand);
       TENNIS.forEach((q,k)=>{Lg.flat(q,.16,k%2?K.clay2:K.clay);});
-      const d=drape(Lg);S.dy=0;
-      for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}}
+      done();}
     // the trees: the crowns of data/golf.json, jittered inside their 6 m cell
     // (thinned to 60 %, none on a green, a bunker, a pond or by a building: the imagery's crowns come with their shadows)
     {const r=rng(5151),clear=(x,y)=>GREENS.some(([a,b,R])=>Math.hypot(x-a,y-b)<R+5)||BUNKERS.some(([a,b])=>Math.hypot(x-a,y-b)<7)||
@@ -51,6 +50,6 @@
     house(HOUSES[2],5.8,K.wall,K.tile2,2.4);                 // the house by the tennis courts
     house(HOUSES[3],7.5,K.wall2,K.slate,2.8);                // the dark-roofed building
     // the pools, on the ground
-    {const Lg=new GB(1<<8);Lg.flat([[3696,798],[3704,800],[3700,781],[3695,782]],.17,K.pool);Lg.flat([[3837,888],[3846,900],[3849,893],[3839,883]],.17,K.pool2);
-      const d=drape(Lg);S.dy=0;for(let t=0;t<d.ni;t+=3){const k=d.I[t]*3;S.face([0,1,2].map(j=>{const m=d.I[t+j]*3;return [d.P[m],d.P[m+1],d.P[m+2]];}),[0,1,0],[d.C[k],d.C[k+1],d.C[k+2]]);}}
+    {const {G:Lg,done}=groundLayer(S,1<<8);Lg.flat([[3696,798],[3704,800],[3700,781],[3695,782]],.17,K.pool);Lg.flat([[3837,888],[3846,900],[3849,893],[3839,883]],.17,K.pool2);
+      done();}
     MODELS['talca-country-club']={x:3835,y:852,h:10};S.dy=0;}
