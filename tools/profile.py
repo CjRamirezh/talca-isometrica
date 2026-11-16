@@ -1,11 +1,15 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["playwright==1.63"]
+# ///
 """Perfil de CPU del arranque del mapa: en qué funciones de src/ se van los ms de la carga.
 
-  uv run --with "playwright==1.63" python tools/profile.py --android            # en el teléfono por USB (como perf.py)
-  uv run --with "playwright==1.63" python tools/profile.py                      # Chromium sin interfaz, 390x844
-  uv run --with "playwright==1.63" python tools/profile.py --android --top 40 --under cityGen   # dentro de una función
-  python tools/profile.py --from arranque.cpuprofile --callers pip --depth 2    # quién llama a pip, en un perfil guardado
-  uv run --with "playwright==1.63" python tools/profile.py --etapa 1            # solo lo que va antes del primer cuadro
-  uv run --with "playwright==1.63" python tools/profile.py --etapa 2 --tareas 8 # la segunda etapa y sus tareas de más de 8 ms
+  uv run tools/profile.py --android            # en el teléfono por USB (como perf.py)
+  uv run tools/profile.py                      # Chromium sin interfaz, 390x844
+  uv run tools/profile.py --android --top 40 --under cityGen   # dentro de una función
+  python tools/profile.py --perfil arranque.cpuprofile --callers pip --depth 2    # quién llama a pip, en un perfil guardado
+  uv run tools/profile.py --etapa 1            # solo lo que va antes del primer cuadro
+  uv run tools/profile.py --etapa 2 --tareas 8 # la segunda etapa y sus tareas de más de 8 ms
 
 Abre una pestaña (con --android, en el Chrome del teléfono, igual que tools/perf.py --android), enciende el perfilador
 de V8 por CDP (una muestra cada --interval µs), la carga (en Chromium, la primera carga de un navegador nuevo; en el
@@ -15,21 +19,22 @@ aparece cuando termina la segunda etapa, rest()) y lo apaga. Imprime dos tablas,
   total    con lo que llama, contado una vez por pila (cityGen incluye a lotFree, etc.)
 --under F se queda con las muestras que tienen a F en su pila (los totales y propios dentro de ella). El perfilador
 hace más lenta la página (~10-20 %): sirve para comparar funciones, no para la cifra del arranque (perf.py --arranque).
---callers F da quién llama a F: los ms de F (con lo que llama) por cada camino de --depth llamadores. --from lee un
-perfil guardado con --save en vez de cargar la página.
+--callers F da quién llama a F: los ms de F (con lo que llama) por cada camino de --depth llamadores. --perfil lee un
+perfil guardado con --save en vez de cargar la página (hasta noviembre de 2026, --from: sirve todavía, con un aviso).
 Con --save guarda el perfil crudo (.cpuprofile, se abre en la pestaña Performance de las DevTools de Chrome).
 --etapa 1 se queda con las muestras de antes del primer cuadro o la primera tajada de rest() (el script, three.js, boot
 hasta la primera vista); --etapa 2, con las de después (rest() en tajadas y los cuadros que se dibujan entre ellas).
-Sirve con --under, --callers y --from.
+Sirve con --under, --callers y --perfil.
 --tareas MS además graba una traza del navegador (la categoría toplevel: cada tarea del hilo principal, con su duración
 exacta) y lista las tareas de la segunda etapa de más de MS ms: cuánto duró cada una y qué hizo, la parte de rest()
 que corrió en ella (la función que rest() llama, o lo que esa llama si es un ayudante de boot como streetsOf), o
 «cuadro» si fue loop(). Así se ve qué tajadas pasan de SLICE_BUSY (8 ms) o de SLICE_MS (40 ms) y en qué fase. No sirve
-con --from (el perfil guardado no lleva la traza). También da los ms entre cuadros (requestAnimationFrame) mientras
+con --perfil (el perfil guardado no lleva la traza). También da los ms entre cuadros (requestAnimationFrame) mientras
 corre la segunda etapa: mediana, percentil 90, máximo y cuántos pasan de 50 ms.
 --gesto desplaza el mapa en cada cuadro desde el primero hasta el final de rest() (__three.pan, 4 px de ida y vuelta),
 como quien lo arrastra mientras carga: sliced() usa entonces tajadas de SLICE_BUSY y la lista de tareas muestra cuánto
 dura cada pieza de rest() que no se puede partir.
+Abre la página con Map de tools/page.py (--gl metal: la GPU del Mac). Sale con 1 si hubo errores de consola.
 """
 import argparse, asyncio, json, re, sys
 
@@ -42,7 +47,8 @@ FRAMES = r"""(()=>{const d=window.__frames=[];let last=0,n=0,dir=1;const PAN=%s;
 from collections import defaultdict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from page import ROOT, add_page_args, alias  # noqa: E402 (page imports Playwright only when a Map opens)
 sys.path.insert(0, str(ROOT / 'pipeline'))
 import build  # noqa: E402
 
@@ -192,28 +198,23 @@ def report(prof, top, under):
             print(f'{ms:8.0f}  {fn:28s} {src}')
 
 async def main(a):
-    if a.from_:
-        prof = staged(json.load(open(a.from_)), a.etapa)
+    if a.perfil:
+        prof = staged(json.load(open(a.perfil)), a.etapa)
         return callers(prof, a.callers, a.depth, a.top) if a.callers else report(prof, a.top, a.under)
-    from playwright.async_api import async_playwright  # --from works without Playwright
-    from screenshot import open_page, serve
-    from perf import android_page
-    async with async_playwright() as p:
-        # locally, a page that has loaded nothing: after another load of the map (a reload, or about:blank in between)
-        # the old page's compositor is torn down (LayerTreeHost) in the middle of the profiled load, ~1 s on the main
-        # thread with SwiftShader. On the phone, a blank page in between
+    from page import Map
+    # locally, a page that has loaded nothing: after another load of the map (a reload, or about:blank in between)
+    # the old page's compositor is torn down (LayerTreeHost) in the middle of the profiled load, ~1 s on the main
+    # thread with SwiftShader. On the phone, the map once (its cache) and a blank page in between
+    init = None if a.android else FRAMES % ('true' if a.gesto else 'false')
+    async with Map.from_args(a, android=a.android, port=a.port, ready=None, init=init) as m:
+        b, pg = m.browser, m.page
         if a.android:
-            b, pg, logs, srv = await android_page(p, a.port)
-            url = pg.url; await pg.goto('about:blank'); await pg.wait_for_timeout(3000)
-        else:
-            b, pg, logs = await open_page(p, a.size, dpr=a.dpr, go=False, init=FRAMES % ('true' if a.gesto else 'false'))
-            url = serve()
+            await m.load(); await pg.goto('about:blank'); await pg.wait_for_timeout(3000)
         cdp = await pg.context.new_cdp_session(pg)
         await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', {'interval': a.interval})
         if a.tareas is not None: await b.start_tracing(page=pg, categories=['toplevel'])
         await cdp.send('Profiler.start')
-        await pg.goto(url)
-        await pg.wait_for_function('window.__stats&&window.__stats.load.shown', timeout=300000)
+        await m.load('full')
         prof = (await cdp.send('Profiler.stop'))['profile']
         trace = json.loads(await b.stop_tracing()) if a.tareas is not None else None
         print('arranque:', await pg.evaluate('JSON.stringify(window.__stats.load)'))
@@ -228,18 +229,19 @@ async def main(a):
         prof = staged(prof, a.etapa)
         if a.callers: callers(prof, a.callers, a.depth, a.top)
         else: report(prof, a.top, a.under)
-        if a.android: await pg.close()
-        else: await b.close()
+        bad = m.print_logs()
+    if bad: raise SystemExit(f'profile: {len(bad)} errores de consola')
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--android', action='store_true', help='en el Chrome de un teléfono Android conectado por adb')
     ap.add_argument('--port', type=int, default=8766)
-    ap.add_argument('--size', default='390x844'); ap.add_argument('--dpr', type=float, default=2)
+    add_page_args(ap, size='390x844', dpr=2, only=('size', 'dpr', 'gl'))
     ap.add_argument('--interval', type=int, default=200, help='µs entre muestras')
     ap.add_argument('--top', type=int, default=30); ap.add_argument('--under', help='solo las muestras con esta función en la pila')
     ap.add_argument('--callers', metavar='F', help='quién llama a la función F'); ap.add_argument('--depth', type=int, default=1)
-    ap.add_argument('--from', dest='from_', metavar='ARCHIVO', help='un perfil guardado con --save, sin cargar la página')
+    ap.add_argument('--perfil', metavar='ARCHIVO', help='un perfil guardado con --save, sin cargar la página')
+    alias(ap, '--from', '--perfil', metavar='ARCHIVO')
     ap.add_argument('--save', help='guarda el perfil crudo (.cpuprofile)')
     ap.add_argument('--etapa', type=int, choices=(1, 2), help='1: antes del primer cuadro; 2: rest() y los cuadros entre sus tajadas')
     ap.add_argument('--gesto', action='store_true', help='desplaza el mapa en cada cuadro de la segunda etapa (sin --android)')

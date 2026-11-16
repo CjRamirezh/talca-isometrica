@@ -1,11 +1,15 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["playwright==1.63", "pillow"]
+# ///
 """Video vertical del mapa para una historia de Instagram (1080x1920, H.264, 30 cuadros por segundo): se acerca a un punto
 mientras empieza a girar, da una vuelta de día, pasa a la noche con un fundido sin dejar de girar y se aleja de noche
 para mostrar las luces de la ciudad; el giro se detiene suave al final. Es el GIF de tools/gif.py, en alta calidad.
 
-  uv run --with "playwright==1.63" --with pillow python tools/video.py shots/historia.mp4
-  uv run --with "playwright==1.63" --with pillow python tools/video.py shots/historia.mp4 --center 0,0 --from 1.6 \\
+  uv run tools/video.py shots/historia.mp4
+  uv run tools/video.py shots/historia.mp4 --centro 0,0 --from 1.6 \\
       --zoom 6 --to 2.6 --intro 3.5 --day 8 --fade 1.5 --night 5 --speed 36 [--url ''] [--labels] [--no-brand]
-  uv run --with "playwright==1.63" --with pillow python tools/video.py shots/h/ --stills   # solo cuadros sueltos (PNG)
+  uv run tools/video.py shots/h/ --stills   # solo cuadros sueltos (PNG)
 
 --size es la ventana en píxeles CSS y --dpr su densidad: 540x960 a 2 da 1080x1920, con la interfaz de teléfono de la
 página. Sin la interfaz (panel, ficha, controles, escala) y, salvo --labels, sin marcadores ni nombres de calles; el
@@ -16,15 +20,14 @@ controles de Instagram (~250 px arriba y ~340 abajo de 1920). Los tiempos van en
 vez del video, para revisar el encuadre en segundos. --crf 18 con --maxrate 16 (Mbit/s) dan ~35 MB por 18 s: Instagram
 lo vuelve a comprimir a unos pocos Mbit/s, y sin tope un giro de pixel art pasa de 90 MB.
 Usa la GPU del Mac (Chromium con ANGLE sobre Metal, ~0,2 s por cuadro; --gl swiftshader sin GPU, ~6 veces más lento)
-y ffmpeg (brew install ffmpeg). Abre la página con open_page() de screenshot.py (necesita dist/: make build). Los
-trenes corren con el reloj: entre dos cuadros pasa más tiempo que en el video, así que saltan.
+y ffmpeg (brew install ffmpeg). Abre la página con Map de tools/page.py (necesita dist/: make build) y captura cada
+cuadro cuando el mapa quedó quieto (Map.settle()). Los trenes corren con el reloj: entre dos cuadros pasa más tiempo
+que en el video, así que saltan. Sale con 1 si hubo errores de consola.
 """
-import argparse, asyncio, io, math, subprocess
+import argparse, asyncio, io, math, subprocess, sys
 from pathlib import Path
-from playwright.async_api import async_playwright
-from screenshot import open_page
-
-HIDE = '#panel,#card,#more,#scale,.ctrls{display:none!important}'
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from page import Map, add_page_args, alias, ease
 # El título centrado bajo la zona del nombre de la cuenta y la barra de progreso; la dirección sobre la de responder.
 STORY = ('.brand{left:50%;top:13%;transform:translateX(-50%);text-align:center;max-width:none;white-space:nowrap;padding:12px 20px 13px}'
          '.brand h1{font-size:44px}.brand p{font-size:12px;margin-top:8px}'
@@ -32,7 +35,6 @@ STORY = ('.brand{left:50%;top:13%;transform:translateX(-50%);text-align:center;m
          'letter-spacing:.06em;color:var(--ink);background:color-mix(in srgb,var(--paper) 86%,transparent);padding:7px 14px;border-radius:4px;'
          'backdrop-filter:blur(3px)}')
 
-def ease(t): t = min(max(t, 0), 1); return t * t * (3 - 2 * t)
 def logz(a, b, t): return math.exp(math.log(a) + (math.log(b) - math.log(a)) * ease(t))
 
 def timeline(a):
@@ -50,8 +52,7 @@ def timeline(a):
 
 async def main(a):
     from PIL import Image
-    x, y = map(float, a.center.split(','))
-    css = HIDE + STORY + ('' if a.labels else '#overlay{display:none!important}') + ('.brand{display:none!important}' if a.no_brand else '')
+    x, y = map(float, a.centro.split(','))
     frames = timeline(a)
     w, h = (round(int(v) * a.dpr) for v in a.size.split('x'))
     out = Path(a.out)
@@ -61,17 +62,16 @@ async def main(a):
         enc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'image2pipe', '-framerate', str(a.fps), '-c:v', 'png', '-i', '-',
                                 '-c:v', 'libx264', '-preset', 'slow', '-crf', str(a.crf), '-maxrate', f'{a.maxrate}M', '-bufsize', f'{2 * a.maxrate}M', '-pix_fmt', 'yuv420p', '-profile:v', 'high',
                                 '-vf', f'scale={w}:{h}:flags=neighbor', '-movflags', '+faststart', str(out)], stdin=subprocess.PIPE)
-    async with async_playwright() as p:
-        b, pg, logs = await open_page(p, a.size, dpr=a.dpr, gl=a.gl)
-        await pg.add_style_tag(content=css)
+    async with Map.from_args(a) as m:
+        pg = m.page
+        await m.hide(overlay=not a.labels, brand=a.no_brand); await pg.add_style_tag(content=STORY)
         if a.url: await pg.evaluate('u=>{const d=document.createElement("div");d.id="story-url";d.textContent=u;document.body.append(d)}', a.url)
         await pg.evaluate('document.fonts.ready')
         state = {'night': False}
         async def shot(zoom, az, night):
             if night != state['night']:
                 await pg.evaluate("document.querySelector('#night').click()"); state['night'] = night
-            await pg.evaluate(f'__look({x},{y},{zoom},{az})')
-            await pg.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+            await m.run(f'__look({x},{y},{zoom},{az})')
             return await pg.screenshot()
         for i, (z, az, n) in enumerate(frames):
             if a.stills and i % a.every and i != len(frames) - 1: continue
@@ -83,18 +83,19 @@ async def main(a):
             if a.stills: (out / f'{i:04d}.png').write_bytes(png)
             else: enc.stdin.write(png)
             if i % 60 == 0: print(f'{i}/{len(frames)}', flush=True)
-        for l in logs:
-            if l.startswith(('ERROR:', 'error:')): print(l)
-        await b.close()
-    if a.stills: print(f'-> {out}/'); return
+        bad = m.print_logs()
+    if bad: print(f'video: {len(bad)} errores de consola')
+    if a.stills: print(f'-> {out}/'); sys.exit(1 if bad else 0)
     enc.stdin.close()
     if enc.wait(): raise SystemExit('ffmpeg falló')
     print(f'-> {out}: {len(frames)} cuadros, {len(frames) / a.fps:.1f} s, {w}x{h}, {out.stat().st_size / 1e6:.1f} MB')
+    if bad: sys.exit(1)
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('out'); ap.add_argument('--size', default='540x960'); ap.add_argument('--dpr', type=float, default=2)
-    ap.add_argument('--center', default='0,0', help='x,y de grilla del punto al que se acerca y alrededor del que gira')
+    ap.add_argument('out'); add_page_args(ap, size='540x960', dpr=2, gl='metal')
+    ap.add_argument('--centro', default='0,0', help='x,y de grilla del punto al que se acerca y alrededor del que gira')
+    alias(ap, '--center', '--centro')
     ap.add_argument('--from', dest='start', type=float, default=1.6, help='zoom inicial')
     ap.add_argument('--zoom', type=float, default=6, help='zoom de la vuelta de día')
     ap.add_argument('--to', dest='end', type=float, default=2.6, help='zoom final, de noche')
@@ -103,7 +104,7 @@ if __name__ == '__main__':
     ap.add_argument('--speed', type=float, default=36, help='grados de giro por segundo')
     ap.add_argument('--fps', type=int, default=30); ap.add_argument('--crf', type=int, default=18)
     ap.add_argument('--maxrate', type=float, default=16, help='Mbit/s como máximo')
-    ap.add_argument('--url', default='talca.eduramirez.com'); ap.add_argument('--gl', default='metal', choices=['metal', 'swiftshader'])
+    ap.add_argument('--url', default='talca.eduramirez.com')
     ap.add_argument('--labels', action='store_true'); ap.add_argument('--no-brand', action='store_true')
     ap.add_argument('--stills', action='store_true'); ap.add_argument('--every', type=int, default=45)
     asyncio.run(main(ap.parse_args()))

@@ -1,5 +1,20 @@
 // ==== boot ====
+// ---- window.__idle() (calidad-tools: tools/page.py Map.settle()) ----
+// window.__idle() (set in hooksView) is a promise that resolves once the map is still: the generation is over (rest(),
+// window.__stats), no flight is under way (anim), the selection ring (selRing) has stopped pulsing and a frame drawn after the call is on screen with nothing left to
+// draw (dirty, shDirty, and paLite: with crease:'normals' the frame after the camera stops). The tools wait on it
+// instead of fixed timeouts. The trains never stop: a frame of theirs may follow. The interface's CSS transitions and
+// animations must be over too (the compass needle turns in 0.5 s after a rotation; the endless ones, the selected
+// pin's pulse, do not count), and it waits for two still checks with no frame between them, so that the compositor
+// has the last frame.
+const IDLE=[];let FRAME_N=0,IDLE_F=-1;
+function idleCheck(){if(!IDLE.length)return;
+  if(!window.__stats||anim||dirty||shDirty||paLite||selRing.visible||document.getAnimations?.().some(a=>a.playState==='running'&&a.effect?.getTiming().iterations!==Infinity)){IDLE_F=-1;return;}
+  if(IDLE_F!==FRAME_N){IDLE_F=FRAME_N;return;}
+  for(let i=IDLE.length-1;i>=0;i--)if(FRAME_N>IDLE[i][0]){IDLE[i][1]();IDLE.splice(i,1);}}
+// ---- end of window.__idle() ----
 function loop(now){
+  idleCheck(); // before this frame's work: the last frame drawn is the one on screen
   if(anim){anim(now);}
   if(ringTick(now))dirty=true; // the selection ring's pulse, at RING_FPS for a few seconds after select()
   const tr=trainsTick(now);if(tr)dirty=true; // the trains: a frame at TRAIN_FPS while one moves in the view
@@ -8,7 +23,7 @@ function loop(now){
   // nothing and stay); the first frame after it stops draws them again
   const moving=!!anim||camMoved||now-camT<MOVE_MS;camMoved=false;if(paLite&&!moving)dirty=true;
   if(dirty){const t0=performance.now();ART=PA?paFit(PA):wpp()/DPR;setLod(ART);stripLod(cam);renderer.shadowMap.needsUpdate=shDirty;shDirty=false;
-    if(PA){paRender(moving);paLite=moving&&PA.ol>1&&PA.crease==='normals';}else renderer.render(scene,cam);layout();dirty=false;if(tr)trainFrame(now,performance.now()-t0);
+    if(PA){paRender(moving);paLite=moving&&PA.ol>1&&PA.crease==='normals';}else renderer.render(scene,cam);layout();dirty=false;FRAME_N++;if(tr)trainFrame(now,performance.now()-t0);
     if(!LOAD.frame){LOAD.frame=Math.round(performance.now());LOAD.frameMs=Math.round(LOAD.frame-t0);requestAnimationFrame(t=>{LOAD.shown=Math.round(performance.now());posterOff();});}}
   requestAnimationFrame(loop);
 }
@@ -198,6 +213,7 @@ function boot(){
 function hooksView(trees,cars){Object.assign(window,{
   __look:(x,y,zoom=4,az=view.az)=>{view.az=az;view.zoom=zoom;[view.tx,view.ty]=lift(x,y,az);placeCam();}, // centre a ground point (grid metres) at a zoom (4 = the card's) and azimuth: tools/screenshot.py --js
   __home:z=>homeView(z),                 // the initial view, at another zoom (to choose one: tools/screenshot.py --view)
+  __idle:()=>new Promise(r=>{IDLE.push([FRAME_N,r]);dirty=true;}), // the map is still (idleCheck, at the top): tools/page.py Map.settle()
   __pixelArt:pixelArt,                   // the pixel art's options, or null to turn it off (94-pixel-art.js; tools/variants.py)
   __trees:on=>{for(const m of trees)m.visible=on;shDirty=dirty=true;}, // hide the trees to see the ground under them (tools/variants.py)
   __cars:on=>{for(const m of cars)m.visible=on;shDirty=dirty=true;},   // the parked cars, likewise
@@ -207,7 +223,7 @@ function hooksView(trees,cars){Object.assign(window,{
   __train:trainHold,__trains:trainsList,__trainFps:trainFps, // hold a train at s, the trains' state, the frames they ask for (70-trains.js)
   __E:(x,y)=>E(x,y),                     // the ground's height (grid metres), to measure the structures from --js
   __three:{renderer,scene,cam,sun,pan,placeCam,fitShadow,get PA(){return PA;}}, // tools/perf.py: the renderer and what a frame depends on
-  __export:{PD,E,inTerrain,ext:[XMIN,XMAX,YMIN,YMAX],matBld}, // tools/export.py (with window.__KEEP)
+  __export:{PD,E,inTerrain,ext:[XMIN,XMAX,YMIN,YMAX],matBld,GLOW}, // tools/export.py (with window.__KEEP; GLOW: the landmarks' lights, for the game)
   __pads:PADS,                           // the landmark pads [x0,y0,x1,y1,h]: pipeline/traces.py check --pads
   __rail:RAILP,                          // the rail lines as paths for the train (68-rail.js): tools/probe.py
   __ed:EDS});}                           // the OSM buildings' counts and ms (52-edificios.js): tools/perf.py

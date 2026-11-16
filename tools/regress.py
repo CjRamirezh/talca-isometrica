@@ -1,24 +1,30 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["playwright==1.63", "pillow"]
+# ///
 """¿Sale el mismo mapa? Capturas de referencia y comparación píxel a píxel, para cambios que no deben cambiar la imagen.
 
-  uv run --with "playwright==1.63" --with pillow python tools/regress.py --save shots/ref          # antes del cambio
-  uv run --with "playwright==1.63" --with pillow python tools/regress.py --against shots/ref       # después
-  uv run --with "playwright==1.63" --with pillow python tools/regress.py --against shots/ref --only telefono
-  uv run --with "playwright==1.63" --with pillow python tools/regress.py --save shots/once --init "window.__STAGE=0"   # sin arranque progresivo
-  uv run --with "playwright==1.63" --with pillow python tools/regress.py --save shots/ref --view "terminal=__look(1722,-262,16)"   # más vistas (repetible), p. ej. las de un hito nuevo
+  uv run tools/regress.py --save shots/ref          # antes del cambio
+  uv run tools/regress.py --against shots/ref       # después
+  uv run tools/regress.py --against shots/ref --only telefono
+  uv run tools/regress.py --save shots/once --init "window.__STAGE=0"   # sin arranque progresivo
+  uv run tools/regress.py --save shots/ref --view "terminal=__look(1722,-262,16)"   # más vistas (repetible), p. ej. las de un hito nuevo
 
-Carga el mapa en Chromium sin interfaz (SwiftShader, open_page() de screenshot.py) en dos tamaños, teléfono (390x844,
+Carga el mapa en Chromium sin interfaz (SwiftShader, Map de tools/page.py; --gl metal, la GPU del Mac: más rápido,
+pero compare siempre con una referencia tomada con el mismo --gl) en dos tamaños, teléfono (390x844,
 densidad 2) y escritorio (1440x900), una carga por tamaño (~1 min cada una), deja quieto un tren (__train('main',
 11261): los demás se esconden y el horario se detiene) y toma las vistas de VIEWS con la cámara en lugares fijos
-(no la vista inicial, para que un cambio de ella no cuente). Guarda <tamaño>-<vista>.png y stats.json: __stats sin
-los tiempos (t, load y todo lo que se llame ms o termine en Ms).
+(no la vista inicial, para que un cambio de ella no cuente), cada una cuando el mapa quedó quieto (Map.settle()).
+Guarda <tamaño>-<vista>.png y stats.json: __stats sin los tiempos (t, load y todo lo que se llame ms o termine en Ms).
 Con --against compara con una referencia guardada: imprime, por vista, la parte de los píxeles distintos (un canal
-por más de 8, como variants.py --diff) y deja en --out (por omisión shots/regress) las capturas nuevas y, donde
-difieren, <vista>-diff.png en magenta sobre gris; luego las estadísticas que cambiaron. Sale con 1 si algo cambió.
+por más de 8: diff() de page.py, como variants.py --diff) y deja en --out (por omisión shots/regress) las capturas nuevas y, donde
+difieren, <vista>-diff.png en magenta sobre gris; luego las estadísticas que cambiaron. Sale con 1 si algo cambió o
+hubo errores de consola.
 """
 import argparse, asyncio, json, sys
 from pathlib import Path
-from playwright.async_api import async_playwright
-from screenshot import open_page, ROOT
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from page import Map, ROOT, add_page_args, parse_views, diff
 
 SIZES = {'telefono': ('390x844', 2), 'escritorio': ('1440x900', 1)}
 VIEWS = ['plaza=__look(-60,30,4)', 'plaza-z14=__look(-60,30,14.2,Math.PI/4+Math.PI)', 'ciudad=__look(-60,30,1.5)',
@@ -35,45 +41,38 @@ def flat(o, pre=''):
         for k, v in o.items(): yield from flat(v, f'{pre}{k}.')
     else: yield pre[:-1], o
 
-async def capture(out, only, init=None, extra=()):
-    out.mkdir(parents=True, exist_ok=True); stats = {}
-    async with async_playwright() as p:
-        for name, (size, dpr) in SIZES.items():
-            if only and name not in only: continue
-            b, pg, logs = await open_page(p, size, dpr=dpr, init=init)
-            stats[name] = clean(json.loads(await pg.evaluate('JSON.stringify(window.__stats)')))
-            await pg.evaluate(SETUP)
-            for v in [*VIEWS, *extra]:
-                vn, _, js = v.partition('=')
-                await pg.evaluate(js); await pg.wait_for_timeout(2500)
-                await pg.screenshot(path=str(out / f'{name}-{vn}.png'))
-            for l in logs:
-                if l.startswith(('ERROR:', 'error:')): print(l)
-            await b.close()
+async def capture(out, only, a):
+    out.mkdir(parents=True, exist_ok=True); stats = {}; bad = 0
+    views = parse_views([*VIEWS, *a.view])
+    for name, (size, dpr) in SIZES.items():
+        if only and name not in only: continue
+        async with Map(size, dpr, gl=a.gl, init=a.init) as m:
+            stats[name] = clean(await m.stats())
+            await m.run(SETUP)
+            for vn, js in views:
+                await m.run(js)
+                await m.page.screenshot(path=str(out / f'{name}-{vn}.png'))
+            bad += len(m.print_logs())
     (out / 'stats.json').write_text(json.dumps(stats, indent=1, ensure_ascii=False))
-    return stats
+    return bad
 
 def compare(ref, out):
-    from PIL import Image, ImageChops
+    from PIL import Image
     same = True
     for f in sorted(out.glob('*.png')):
         if f.name.endswith('-diff.png'): continue
         r = ref / f.name
         if not r.exists(): print(f'{f.stem}: sin referencia'); continue
-        a, b = Image.open(r).convert('RGB'), Image.open(f).convert('RGB')
-        if a.size != b.size: print(f'{f.stem}: otro tamaño {a.size} {b.size}'); same = False; continue
-        m = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 8 else 0)
-        n = sum(m.histogram()[255:]); share = 100 * n / (a.size[0] * a.size[1])
+        share, n, img = diff(Image.open(r), Image.open(f))
+        if n is None: print(f'{f.stem}: otro tamaño'); same = False; continue
         print(f'{f.stem}: {share:.3f} % de píxeles distintos ({n})')
-        if n:
-            same = False
-            Image.composite(Image.new('RGB', a.size, (255, 0, 200)), a.convert('L').convert('RGB'), m).save(out / f'{f.stem}-diff.png')
+        if n: same = False; img.save(out / f'{f.stem}-diff.png')
     rs, ns = json.loads((ref / 'stats.json').read_text()), json.loads((out / 'stats.json').read_text())
     for size in ns:
         a, b = dict(flat(rs.get(size, {}))), dict(flat(ns[size]))
-        diff = [(k, a.get(k), b.get(k)) for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)]
-        for k, x, y in diff: print(f'stats {size} {k}: {x} -> {y}')
-        if diff: same = False
+        diff_ = [(k, a.get(k), b.get(k)) for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)]
+        for k, x, y in diff_: print(f'stats {size} {k}: {x} -> {y}')
+        if diff_: same = False
         else: print(f'stats {size}: iguales ({len(b)} valores)')
     return same
 
@@ -84,10 +83,9 @@ if __name__ == '__main__':
     g.add_argument('--against', help='compara con la referencia de este directorio')
     ap.add_argument('--out', default=str(ROOT / 'shots' / 'regress'), help='dónde quedan las capturas nuevas con --against')
     ap.add_argument('--only', action='append', choices=list(SIZES), help='solo este tamaño (repetible)')
-    ap.add_argument('--init', help='JS que corre antes que la página (window.__STAGE=0: la generación de una vez)')
+    add_page_args(ap, only=('gl', 'init'))  # the sizes are SIZES'
     ap.add_argument('--view', action='append', default=[], help='una vista más, nombre=expresión (repetible); va igual con --save y --against')
     a = ap.parse_args()
-    if a.save: asyncio.run(capture(Path(a.save), a.only, a.init, a.view))
-    else:
-        out = Path(a.out); asyncio.run(capture(out, a.only, a.init, a.view))
-        sys.exit(0 if compare(Path(a.against), out) else 1)
+    if a.save: sys.exit(1 if asyncio.run(capture(Path(a.save), a.only, a)) else 0)
+    out = Path(a.out); bad = asyncio.run(capture(out, a.only, a))
+    sys.exit(0 if compare(Path(a.against), out) and not bad else 1)

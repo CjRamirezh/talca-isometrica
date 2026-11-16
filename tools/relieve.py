@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["pillow"]
+# ///
 """Compara dos versiones de data/elevation.json: lo que el cambio de modelo de elevación mueve en la maqueta.
 
   python tools/relieve.py <antes.json> <después.json>
@@ -10,14 +14,37 @@ Imprime, sobre los nodos dentro de la comuna:
 Con --png <archivo> dibuja además la diferencia real sin su mediana (el cambio de la plaza, que mueve todo; rojo:
 sube, azul: baja; ±5 m satura) y el matorral que aparece (verde) o desaparece (magenta) (requiere Pillow:
 uv run --with pillow python tools/relieve.py …).
+relief() y el umbral del matorral se leen de src/js/25-terrain.js (formulas()): si su forma cambia, la herramienta se
+detiene en vez de calcular otra cosa, y `make check` (tools/check.py) lo avisa.
 """
-import json, math, sys
+import json, math, re, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'pipeline'))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / 'pipeline'))
 from common import comuna, in_ring
 
-RELIEF_A, RELIEF_K = 3, 50                       # los de 25-terrain.js
-relief = lambda d: math.copysign(RELIEF_A * RELIEF_K * math.log1p(abs(d) / RELIEF_K), d)
+TERRAIN_JS = ROOT / 'src' / 'js' / '25-terrain.js'
+# the lines of 25-terrain.js this tool mirrors, with their numbers as groups: relief() and the scrub's smoothstep
+JS_LINES = {
+    'relief': (r'const RELIEF_A=([\d.]+),RELIEF_K=([\d.]+);', ('A', 'K')),
+    'relief_fn': (re.escape('const relief=d=>Math.sign(d)*RELIEF_A*RELIEF_K*Math.log1p(Math.abs(d)/RELIEF_K);'), ()),
+    'wild': (r'const t=Math\.max\(0,Math\.min\(1,\(m-([\d.]+)\)/([\d.]+)\)\);EW\[j\*ENX\+i\]=t\*t\*\(3-2\*t\);', ('w0', 'dw')),
+    'slope': (re.escape('s[j*ENX+i]=Math.hypot(ER[node(i+1,j)]-ER[node(i-1,j)],ER[node(i,j+1)]-ER[node(i,j-1)])/(2*ES);'), ()),
+}
+
+def formulas(src=None):
+    """The numbers of 25-terrain.js's relief() and wildAt slope threshold: {'A', 'K', 'w0', 'dw'}. Raises ValueError
+    naming the line if one is no longer written the way this tool computes it."""
+    src = src if src is not None else TERRAIN_JS.read_text()
+    out = {}
+    for name, (rx, keys) in JS_LINES.items():
+        m = re.search(rx, src)
+        if not m: raise ValueError(f'src/js/25-terrain.js: «{name}» cambió de forma; actualice tools/relieve.py (JS_LINES y lo que calcula)')
+        out.update({k: float(v) for k, v in zip(keys, m.groups())})
+    return out
+
+F = formulas()
+relief = lambda d: math.copysign(F['A'] * F['K'] * math.log1p(abs(d) / F['K']), d)
 POINTS = {'santuario del Cerro': (-3401, 118), 'cumbre norte del Cerro': (-3237, 929), 'Estación': (1500, -100),
           'Río Claro, puentes': (-1580, 525), 'Viejas Cochinas': (-1696, 788), 'Alameda (4 Norte)': (0, 540), 'Colegio De La Salle': (0, 410),
           'Ruta 5 en el Lircay': (4100, 3680), 'Ruta 5 en el Piduco': (2330, -1850)}
@@ -35,7 +62,7 @@ def wild(nx, ny, R, S):
     for j in range(ny):
         for i in range(nx):
             m = sum(s[node(i + di, j + dj)] for dj in (-1, 0, 1) for di in (-1, 0, 1)) / 9
-            t = max(0, min(1, (m - 0.04) / 0.07)); out.append(t * t * (3 - 2 * t))
+            t = max(0, min(1, (m - F['w0']) / F['dw'])); out.append(t * t * (3 - 2 * t))
     return out
 
 def main():
