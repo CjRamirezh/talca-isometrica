@@ -3,8 +3,12 @@ function chaikin(pts,it=2){for(let k=0;k<it;k++){const o=[pts[0]];for(let i=0;i<
 function ribbon(B,pts,w,y,col,joins=true){
   for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];const dx=b[0]-a[0],dy=b[1]-a[1];const L=Math.hypot(dx,dy);if(L<0.01)continue;const nx=-dy/L*w/2,ny=dx/L*w/2;
     B.quadXY([[a[0]+nx,a[1]+ny],[b[0]+nx,b[1]+ny],[b[0]-nx,b[1]-ny],[a[0]-nx,a[1]-ny]],y,col);}
-  if(joins)for(let i=1;i<pts.length-1;i++){B.flat(ngon(pts[i][0],pts[i][1],w/2,8),y,col);}
+  if(joins)for(let i=1;i<pts.length-1;i++){B.flat(ngon(pts[i][0],pts[i][1],w/2,8),y,col,octTri());}
 }
+// the round joins of ribbon() and paintRibbon(): an octagon, whose triangulation by three (what flat() would make) is
+// the same at any centre and radius (checked on 200 thousand: [[6,7,0],[0,1,2],[2,3,4],[4,5,6],[6,0,2],[2,4,6]]), so it
+// is made once instead of at each of the ~22 thousand joins
+let OCT_TRI=null;const octTri=()=>OCT_TRI||(OCT_TRI=triangulate(ngon(0,0,1,8)));
 // Rivers from OpenStreetMap (RIV[k], the rivers with DATA.area[k]): the water area, polygons with their islands,
 // where it exists, and a ribbon of the configured width on the river's axis outside it (riverRuns: the stretches
 // of the axis outside the area, each starting one point inside it). The water lies over the census blocks, which
@@ -19,7 +23,7 @@ const _runs={};
 const riverLines=k=>[DATA.water[k],...((DATA.branch||{})[k]||[])].map(l=>chaikin(dec(l),3));
 function riverRuns(k){if(_runs[k])return _runs[k];const P=RIV[k]||[],runs=[];
   for(const pts of riverLines(k)){let run=null;
-    for(let i=0;i<pts.length;i++){const out=!P.some(p=>pip(pts[i],p[0]));
+    for(let i=0;i<pts.length;i++){const out=!P.some(p=>pipXY(pts[i][0],pts[i][1],p[0]));
       if(out){if(!run){run=i?[pts[i-1]]:[];runs.push(run);}run.push(pts[i]);}else if(run){run.push(pts[i]);run=null;}}}
   return _runs[k]=runs.filter(r=>r.length>1);}
 // a strip w wide beside a polyline, from `off` to off+w on its left (side 1) or right (side -1), with fans at the bends
@@ -41,8 +45,8 @@ function riverBase(B,BW,k,[w,rb]){
   const lines=riverLines(k),o=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
   const cross=(a,b)=>lines.some(axis=>axis.some((c,i)=>i<axis.length-1&&o(a,b,c)*o(a,b,axis[i+1])<0&&o(c,axis[i+1],a)*o(c,axis[i+1],b)<0));
   const skip=(a,b)=>[XMIN,XMAX].some(v=>Math.abs(a[0]-v)<1&&Math.abs(b[0]-v)<1)||[YMIN,YMAX].some(v=>Math.abs(a[1]-v)<1&&Math.abs(b[1]-v)<1)||cross(a,b);
-  for(const P of RIV[k])P.forEach((r,j)=>{let A=0;for(let i=0;i<r.length;i++){const p=r[i],q=r[(i+1)%r.length];A+=p[0]*q[1]-q[0]*p[1];}
-    const side=(A>0?1:-1)*(j?1:-1);let run=[],cls=0;
+  for(const P of RIV[k])P.forEach((r,j)=>{
+    const side=(ringArea(r)>0?1:-1)*(j?1:-1);let run=[],cls=0;
     const inOther=(a,b)=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1])||1;return [[.5,.3],[.5,.9],[.15,.6],[.85,.6]].some(([t,f])=>{const d=rb*f/L*side;
       return wet([a[0]+(b[0]-a[0])*t-(b[1]-a[1])*d,a[1]+(b[1]-a[1])*t+(b[0]-a[0])*d]);});};
     const flush=()=>{if(run.length>1){if(cls===1)sideRibbon(B,run,side,0,rb,0.11,PAL.bank);else if(cls===2)sideRibbon(BW,run,side,0,rb,0.11,PAL.water);}run=[];};
@@ -67,7 +71,7 @@ function riversLevel(){const ks=Object.keys(RIV);if(!ks.length)return;const ch=n
     for(let i=Math.max(0,Math.ceil((x0-EX0)/ES));i<=Math.min(ENX-1,Math.floor((x1-EX0)/ES));i++)if(f(EX0+i*ES,EY0+j*ES))ch[j*ENX+i]=1;};
   const xs=[];
   for(const k of ks){const [w]=DATA.widths[k];
-    for(const [o] of RIV[k]){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of o){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
+    for(const [o] of RIV[k]){const [x0,y0,x1,y1]=bbox(o);
       for(let j=Math.max(0,Math.ceil((y0-EY0)/ES));j<=Math.min(ENY-1,Math.floor((y1-EY0)/ES));j++){pipRow(o,EY0+j*ES,xs);if(!xs.length)continue;let n=0; // pipXY, a row at a time
         for(let i=Math.max(0,Math.ceil((x0-EX0)/ES));i<=Math.min(ENX-1,Math.floor((x1-EX0)/ES));i++){const x=EX0+i*ES;while(n<xs.length&&xs[n]<=x)n++;if((xs.length-n)&1)ch[j*ENX+i]=1;}}}
     for(const run of riverRuns(k))for(let i=0;i<run.length-1;i++){const a=run[i],b=run[i+1],r=w/2;
@@ -81,12 +85,8 @@ function riversRelevel(){for(let k=0;k<EN_;k++)if(!isNaN(RIV_LEV[k]))EH[k]=RIV_L
 // no lots, trees or lamps in the rivers or on their gravel: each area (a scanline fill, even-odd for the islands),
 // a band of the strip's width along every shore and the ribbon outside the area are occupied
 function riversOcc(){for(const k in RIV){
-  for(const P of RIV[k]){const ed=[];for(const r of P)for(let i=0;i<r.length;i++)ed.push([r[i],r[(i+1)%r.length]]);
-    let y0=1e9,y1=-1e9;for(const p of P[0]){y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
-    for(let gy=Math.max(0,Math.floor((y0-YMIN)/OC));gy<=Math.min(ocH-1,Math.floor((y1-YMIN)/OC));gy++){const cy=YMIN+(gy+.5)*OC,xs=[];
-      for(const [a,b] of ed)if((a[1]>cy)!==(b[1]>cy))xs.push(a[0]+(cy-a[1])*(b[0]-a[0])/(b[1]-a[1]));
-      xs.sort((p,q)=>p-q);
-      for(let i=0;i+1<xs.length;i+=2)for(let gx=Math.max(0,Math.ceil((xs[i]-XMIN)/OC-.5));gx<=Math.min(ocW-1,Math.floor((xs[i+1]-XMIN)/OC-.5));gx++)occ.set(gx,gy,1);}}
+  for(const P of RIV[k]){const [,y0,,y1]=bbox(P[0]),xs=[];
+    for(let gy=Math.max(0,Math.floor((y0-YMIN)/OC));gy<=Math.min(ocH-1,Math.floor((y1-YMIN)/OC));gy++)rowCells(rowCross(P,YMIN+(gy+.5)*OC,xs,true),XMIN,OC,ocW,gx=>occ.set(gx,gy,1));}
   const [w,rb]=DATA.widths[k],hw=w/2+rb;
   for(const P of RIV[k])for(const r of P)for(let i=0;i<r.length;i++)occBand(r[i],r[(i+1)%r.length],rb); // the gravel strip along every shore
   for(const run of riverRuns(k))for(let i=0;i<run.length-1;i++)occBand(run[i],run[i+1],hw);

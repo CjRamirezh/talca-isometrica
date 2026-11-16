@@ -15,12 +15,12 @@ function styleFor(bi){
 // LBB keeps each lot's box: lotFree() skips the test of two whose boxes do not touch. The lots and the hulls of
 // lotBlock are convex, so two of them apart have an edge that separates them, and sepQuad() would say so too.
 const LG=40,lgW=Math.ceil((XMAX-XMIN)/LG),LOTS=[],LBB=[],lgrid=new Map(),lseen=[];let lstamp=0;
-const lotBox=q=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of q){if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1];}return [x0,y0,x1,y1];};
+const lotBox=bbox;
 function sepQuad(A,B){return sepAxes(A,A,B)||sepAxes(B,A,B);}
 function sepAxes(P,A,B){for(let i=0;i<P.length;i++){const a=P[i],b=P[(i+1)%P.length],nx=b[1]-a[1],ny=a[0]-b[0],L=Math.hypot(nx,ny)||1;
     let a0=1e9,a1=-1e9,b0=1e9,b1=-1e9;for(let j=0;j<A.length;j++){const p=A[j],d=(p[0]*nx+p[1]*ny)/L;if(d<a0)a0=d;if(d>a1)a1=d;}for(let j=0;j<B.length;j++){const p=B[j],d=(p[0]*nx+p[1]*ny)/L;if(d<b0)b0=d;if(d>b1)b1=d;}
     if(a1<=b0+.05||b1<=a0+.05)return true;}return false;}
-function lotCells(q,f){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of q){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
+function lotCells(q,f){const [x0,y0,x1,y1]=bbox(q);
   for(let gx=Math.floor((x0-XMIN)/LG);gx<=Math.floor((x1-XMIN)/LG);gx++)for(let gy=Math.floor((y0-YMIN)/LG);gy<=Math.floor((y1-YMIN)/LG);gy++)if(f(gy*lgW+gx)===false)return false;return true;}
 function lotFree(q){lstamp++;const b=lotBox(q);return lotCells(q,k=>{const c=lgrid.get(k);if(c)for(const id of c){if(lseen[id]===lstamp)continue;lseen[id]=lstamp;
   const o=LBB[id];if(o[0]>b[2]||o[2]<b[0]||o[1]>b[3]||o[3]<b[1])continue;if(!sepQuad(q,LOTS[id]))return false;}});}
@@ -94,15 +94,6 @@ function barrios(){BARS=new Map();
 function recipeOf(bi){const b=blocks[bi];if(b._rec)return b._rec;if(!BARS)barrios();const s=BARS.get(b._bar);
   const ha=b.A/1e4,big=b.t===0&&ha>=2&&b.viv/ha<8&&Math.hypot(b.cx+8,b.cy+7)>=1250;
   return b._rec={h:rng(bi*977+3)()<.14?s.alt:s.h,a:s.a,ind:big?.4:0};}
-// a hipped roof over the rectangle q (front-left, front-right, back-right, back-left) at height y, its ridge rh higher
-// along the longer side: front and back slopes in two tones, the ends a step darker. The walls are a prism of their own
-GB.prototype.hipRoof=function(q,y,rh,roof){const [A,Bq,C,D]=q,lf=Math.hypot(Bq[0]-A[0],Bq[1]-A[1]),ls=Math.hypot(D[0]-A[0],D[1]-A[1]),
-    cx=(A[0]+C[0])/2,cy=(A[1]+C[1])/2,al=lf>=ls,e=al?[(Bq[0]-A[0])/lf,(Bq[1]-A[1])/lf]:[(D[0]-A[0])/ls,(D[1]-A[1])/ls],k=Math.abs(lf-ls)/2,
-    R0=[cx-e[0]*k,cy-e[1]*k],R1=[cx+e[0]*k,cy+e[1]*k],V=(p,h)=>[p[0],h,-p[1]],t=y+rh,r2=shade(roof,.86),r3=shade(roof,.93);
-  if(al){this.face([V(A,y),V(Bq,y),V(R1,t),V(R0,t)],null,roof);this.face([V(C,y),V(D,y),V(R0,t),V(R1,t)],null,r2);
-    this.face([V(D,y),V(A,y),V(R0,t)],null,r3);this.face([V(Bq,y),V(C,y),V(R1,t)],null,r3);}
-  else{this.face([V(A,y),V(Bq,y),V(R0,t)],null,roof);this.face([V(C,y),V(D,y),V(R1,t)],null,r2);
-    this.face([V(D,y),V(A,y),V(R0,t),V(R1,t)],null,r3);this.face([V(Bq,y),V(C,y),V(R1,t),V(R0,t)],null,r3);}};
 // Helpers on a lot's frame P(u, v) (u along the street, v away from it; the street is at -v). F holds the scene normals
 // of the frame's directions: f toward the street, b away from it, l toward -u, r toward +u.
 // a vertical quad u0..u1 at v, heights y0..y1 over G.dy, facing n
@@ -158,12 +149,10 @@ function lotGable(G,P,F,v0,v1,y1,rh,parts,cl,cr){const vm=(v0+v1)/2,t=y1+rh,V=(u
 // first and the rest after it with the same result. Before October 2026 the order was the index, which has no
 // relation to the place: the streets near the plaza depended, through chains of streets competing for corner lots, on
 // a third of the city.
-const CITY_ORDER=streets.map((s,si)=>{let d=1e18;for(let i=0;i<s.pts.length-1;i++){const a=s.pts[i],b=s.pts[i+1];d=Math.min(d,segDist2(0,0,a[0],a[1],b[0],b[1]));}return [Math.sqrt(d),si];})
-  .sort((a,b)=>a[0]-b[0]||a[1]-b[1]).map(e=>e[1]);
 // CITY_DIST[si]: that distance; CITY_REACH, how far a lot of cityGen can reach from its street's axis (half the widest
 // carriageway, setback, depth and yard: ~105 m) and a margin: the lots at a point come from streets nearer than that
-const CITY_DIST=new Float64Array(streets.length),CITY_REACH=130,CITY_POS=new Int32Array(streets.length);CITY_ORDER.forEach((si,p)=>CITY_POS[si]=p);
-streets.forEach((s,si)=>{let d=1e18;for(let i=0;i<s.pts.length-1;i++){const a=s.pts[i],b=s.pts[i+1];d=Math.min(d,segDist2(0,0,a[0],a[1],b[0],b[1]));}CITY_DIST[si]=Math.sqrt(d);});
+const CITY_DIST=Float64Array.from(streets,s=>{let d=1e18;for(let i=0;i<s.pts.length-1;i++){const a=s.pts[i],b=s.pts[i+1];d=Math.min(d,segDist2(0,0,a[0],a[1],b[0],b[1]));}return Math.sqrt(d);});
+const CITY_ORDER=[...streets.keys()].sort((a,b)=>CITY_DIST[a]-CITY_DIST[b]||a-b),CITY_REACH=130,CITY_POS=new Int32Array(streets.length);CITY_ORDER.forEach((si,p)=>CITY_POS[si]=p);
 // Trees in the parks and the backyards: each block its own number, from the census alone, so that a block's trees
 // depend only on what stands in and around it. The budget MAXT holds the most the parks can take (their count before
 // the occupied points are skipped) plus the backyards, thinned all alike to what is left (YARD_K). Until October 2026
@@ -176,7 +165,7 @@ function blockTrees(bi,TR){const b=blocks[bi];if(isPark(bi)&&ALAM.has(bi))return
   if(YARD_K<0){let np=0,ny=0;blocks.forEach((c,ci)=>{if(!isPark(ci))ny+=c.A/1100;else if(!ALAM.has(ci))np+=Math.ceil(parkTrees(c));});YARD_K=Math.max(0,Math.min(1,(MAXT-np)/ny));}
   const r=rng(bi*31+5);let n=isPark(bi)?parkTrees(b):b.A/1100*YARD_K,tries=n*3;
   while(n>0&&tries-->0){const x=b.bb[0]+r()*(b.bb[2]-b.bb[0]),y=b.bb[1]+r()*(b.bb[3]-b.bb[1]);
-    if(!pip([x,y],b.r))continue;if(occAt(x,y))continue;if(nearStreet(x,y,1.2))continue;
+    if(!pipXY(x,y,b.r))continue;if(occAt(x,y))continue;if(nearStreet(x,y,1.2))continue;
     TR.push([x,y,0.8+r()*0.6,r()]);n--;}}
 // cityGen(B, Y, Z, sts, bis): the lots of the streets sts (indices, a stretch of CITY_ORDER, in its order), then the
 // trees of the blocks bis; boot calls it for the streets near the first view and again, in pieces, for the rest

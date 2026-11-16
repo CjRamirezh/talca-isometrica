@@ -12,8 +12,8 @@
 const PASEO_K={pave:hex('#B4A79D'),pave2:hex('#A39286'),planter:hex('#B7B2A8'),shrub:hex('#5C7A3E'),iron:hex('#3B4240'),lamp:hex('#F1E6C4')};
 function paseosBase(G,D){const B=draped(G),r=rng(5150);let n=0;
   // a point on another street's carriageway, or on what occupied the raster before (a landmark)
-  const cross=(x,y,si)=>{const gx=Math.floor((x-XMIN)/SG),gy=Math.floor((y-YMIN)/SG);if(gx<0||gy<0||gx>=sgW||gy>=sgH)return true;
-    for(const id of sgrid[gy*sgW+gx]){const s=segs[id];if(s[5]===si||streets[s[5]].c>=6)continue;const R=s[4]+1.5;if(segDist2(x,y,s[0],s[1],s[2],s[3])<R*R)return true;}
+  const cross=(x,y,si)=>{const ids=segsAt(x,y);if(!ids)return true;
+    for(const id of ids){const s=segs[id];if(s[5]===si||streets[s[5]].c>=6)continue;const R=s[4]+1.5;if(segDist2(x,y,s[0],s[1],s[2],s[3])<R*R)return true;}
     return occAt(x,y)===1;};
   streets.forEach((s,si)=>{if(!s.paseo)return;const hw=swOf(s)/2;
     for(let i=0;i<s.pts.length-1;i++){const a=s.pts[i],b=s.pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1)continue;

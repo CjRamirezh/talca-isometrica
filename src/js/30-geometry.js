@@ -3,20 +3,28 @@ class GB{
   constructor(cap=1<<15){this.cap=cap;this.P=new Float32Array(cap*3);this.N=new Int8Array(cap*3);this.C=new Uint8Array(cap*3);this.icap=cap*2;this.I=new Uint32Array(this.icap);this.nv=0;this.ni=0;this.dy=0;this.lk=NaN;}
   // the run log (startup): k is the key of what is being emitted, in the order of a startup at once; each change of
   // k starts a run [k, first vertex, first index] in log, so that two builders filled in two stages can be tiled
-  // together in that order (tiledParts)
+  // together in that order (tiledPartsGen)
   grow(v,i){if(this.k!==this.lk){(this.log||(this.log=[])).push(this.k||0,this.nv,this.ni);this.lk=this.k;}
     if(this.nv+v>this.cap){let c=this.cap;while(this.nv+v>c)c*=2;const P=new Float32Array(c*3);P.set(this.P);this.P=P;const N=new Int8Array(c*3);N.set(this.N);this.N=N;const C=new Uint8Array(c*3);C.set(this.C);this.C=C;this.cap=c;}
     if(this.ni+i>this.icap){let c=this.icap;while(this.ni+i>c)c*=2;const I=new Uint32Array(c);I.set(this.I);this.I=I;this.icap=c;}}
+  // a planar face (scene [x, y, z] points, a fan from the first) facing n, its points reversed if they turn the other
+  // way. n null: the face's own normal, turned up (a roof slope), or, while this._c is set (gable(), pyramid() in
+  // 45-landmarks.js: the centre [x, z] of what is being built), a near-vertical one turned away from it
   face(pts,n,col){
     const a=pts[0],b=pts[1],c=pts[2];const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
-    if(!n){n=[uy*vz-uz*vy,uz*vx-ux*vz,ux*vy-uy*vx];const L=Math.hypot(n[0],n[1],n[2])||1;n=[n[0]/L,n[1]/L,n[2]/L];}
-    else if((uy*vz-uz*vy)*n[0]+(uz*vx-ux*vz)*n[1]+(ux*vy-uy*vx)*n[2]<0)pts=pts.slice().reverse();
+    if(!n){let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const L=Math.hypot(nx,ny,nz)||1;nx/=L;ny/=L;nz/=L;
+      if(this._c){let cx=0,cz=0;pts.forEach(p=>{cx+=p[0];cz+=p[2];});cx/=pts.length;cz/=pts.length;
+        const out=nx*(cx-this._c[0])+nz*(cz-this._c[1]);
+        if((Math.abs(ny)>.2&&ny<0)||(Math.abs(ny)<=.2&&out<0)){nx=-nx;ny=-ny;nz=-nz;}}
+      else if(ny<0){nx=-nx;ny=-ny;nz=-nz;}
+      n=[nx,ny,nz];}
+    if((uy*vz-uz*vy)*n[0]+(uz*vx-ux*vz)*n[1]+(ux*vy-uy*vx)*n[2]<0)pts=pts.slice().reverse();
     this.grow(pts.length,(pts.length-2)*3);const base=this.nv;
     for(const p of pts){const k=this.nv*3;this.P[k]=p[0];this.P[k+1]=p[1]+this.dy;this.P[k+2]=p[2];this.N[k]=n[0]*127;this.N[k+1]=n[1]*127;this.N[k+2]=n[2]*127;this.C[k]=col[0];this.C[k+1]=col[1];this.C[k+2]=col[2];this.nv++;}
     for(let j=1;j<pts.length-1;j++){this.I[this.ni++]=base;this.I[this.ni++]=base+j;this.I[this.ni++]=base+j+1;}
   }
-  flat(ring,y,col){ // ring local [x,y]
-    const tris=triangulate(ring);if(!tris)return;
+  flat(ring,y,col,tris=triangulate(ring)){ // ring local [x,y]; tris: its triangulation, when it is known (OCT_TRI)
+    if(!tris)return;
     this.grow(ring.length,tris.length*3);const base=this.nv;
     for(const p of ring){const k=this.nv*3;this.P[k]=p[0];this.P[k+1]=y+this.dy;this.P[k+2]=-p[1];this.N[k]=0;this.N[k+1]=127;this.N[k+2]=0;this.C[k]=col[0];this.C[k+1]=col[1];this.C[k+2]=col[2];this.nv++;}
     for(const t of tris){const a=ring[t[0]],b=ring[t[1]],c=ring[t[2]];
@@ -36,16 +44,36 @@ class GB{
     if(top)this.face(q.map(p=>[p[0],y1,-p[1]]),[0,1,0],roof);
   }
   // gable: q = [front-left, front-right, back-right, back-left]; ridge parallel to front edge
-  gable(q,y0,y1,rh,wall,roof){
+  gable(q,y0,y1,rh,wall,roof){let cx=0,cy=0;q.forEach(p=>{cx+=p[0];cy+=p[1];});this._c=[cx/4,-cy/4]; // the gable ends face away from it
     this.prism(q,y0,y1,wall,roof,false);
     const m0=[(q[0][0]+q[3][0])/2,(q[0][1]+q[3][1])/2],m1=[(q[1][0]+q[2][0])/2,(q[1][1]+q[2][1])/2];
     const P=(p,y)=>[p[0],y,-p[1]];const r2=shade(roof,.86);
     this.face([P(q[0],y1),P(q[1],y1),P(m1,y1+rh),P(m0,y1+rh)],null,roof);
     this.face([P(q[2],y1),P(q[3],y1),P(m0,y1+rh),P(m1,y1+rh)],null,r2);
     this.face([P(q[3],y1),P(q[0],y1),P(m0,y1+rh)],null,wall);
-    this.face([P(q[1],y1),P(q[2],y1),P(m1,y1+rh)],null,wall);
+    this.face([P(q[1],y1),P(q[2],y1),P(m1,y1+rh)],null,wall);this._c=null;
   }
-  // fix orientation of null-normal faces: ensure outward (up-ish) facing
+  // convex polygon q ([x,y] grid metres) laid on the terrain, `off` metres above it, with the terrain's normals
+  onGround(q,off,col){
+    this.grow(q.length,(q.length-2)*3);const base=this.nv;
+    for(const p of q){const k=this.nv*3,n=EN(p[0],p[1]);this.P[k]=p[0];this.P[k+1]=E(p[0],p[1])+off;this.P[k+2]=-p[1];
+      this.N[k]=n[0]*127;this.N[k+1]=n[1]*127;this.N[k+2]=n[2]*127;this.C[k]=col[0];this.C[k+1]=col[1];this.C[k+2]=col[2];this.nv++;}
+    for(let j=1;j<q.length-1;j++){this.I[this.ni++]=base;this.I[this.ni++]=base+j;this.I[this.ni++]=base+j+1;}}
+  // a hipped roof over the rectangle q (front-left, front-right, back-right, back-left) at height y, its ridge rh higher
+  // along the longer side: front and back slopes in two tones, the ends a step darker. The walls are a prism of their own
+  hipRoof(q,y,rh,roof){const [A,Bq,C,D]=q,lf=Math.hypot(Bq[0]-A[0],Bq[1]-A[1]),ls=Math.hypot(D[0]-A[0],D[1]-A[1]),
+    cx=(A[0]+C[0])/2,cy=(A[1]+C[1])/2,al=lf>=ls,e=al?[(Bq[0]-A[0])/lf,(Bq[1]-A[1])/lf]:[(D[0]-A[0])/ls,(D[1]-A[1])/ls],k=Math.abs(lf-ls)/2,
+    R0=[cx-e[0]*k,cy-e[1]*k],R1=[cx+e[0]*k,cy+e[1]*k],V=(p,h)=>[p[0],h,-p[1]],t=y+rh,r2=shade(roof,.86),r3=shade(roof,.93);
+  if(al){this.face([V(A,y),V(Bq,y),V(R1,t),V(R0,t)],null,roof);this.face([V(C,y),V(D,y),V(R0,t),V(R1,t)],null,r2);
+    this.face([V(D,y),V(A,y),V(R0,t)],null,r3);this.face([V(Bq,y),V(C,y),V(R1,t)],null,r3);}
+  else{this.face([V(A,y),V(Bq,y),V(R0,t)],null,roof);this.face([V(C,y),V(D,y),V(R1,t)],null,r2);
+    this.face([V(D,y),V(A,y),V(R0,t),V(R1,t)],null,r3);this.face([V(Bq,y),V(C,y),V(R1,t),V(R0,t)],null,r3);}}
+  // a flat polygon with holes at height y (over G.dy), facing up
+  flatH(rings,y,col){const tris=triangulate(rings[0],rings.slice(1));if(!tris)return;
+  const all=[].concat(...rings);this.grow(all.length,tris.length*3);const base=this.nv;
+  for(const p of all){const k=this.nv*3;this.P[k]=p[0];this.P[k+1]=y+this.dy;this.P[k+2]=-p[1];this.N[k]=0;this.N[k+1]=127;this.N[k+2]=0;this.C[k]=col[0];this.C[k+1]=col[1];this.C[k+2]=col[2];this.nv++;}
+  for(const t of tris){const a=all[t[0]],b=all[t[1]],c=all[t[2]],up=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>=0;
+    this.I[this.ni++]=base+t[0];this.I[this.ni++]=base+(up?t[1]:t[2]);this.I[this.ni++]=base+(up?t[2]:t[1]);}}
   geo(){const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(this.P.slice(0,this.nv*3),3));g.setAttribute('normal',new T.BufferAttribute(this.N.slice(0,this.nv*3),3,true));g.setAttribute('color',new T.BufferAttribute(this.C.slice(0,this.nv*3),3,true));g.setIndex(new T.BufferAttribute(this.I.slice(0,this.ni),1));g.computeBoundingSphere();return g;}
 }
 // Tiles. A mesh over the whole commune is drawn whole in every pass (colour, normals, shadows): its bounding sphere
@@ -159,46 +187,19 @@ function* instTiledGen(geo,mat,list,set,far){
     mesh.frustumCulled=true;mesh.instanceMatrix.onUpload(dropArray);mesh.instanceColor.onUpload(dropArray);grp.add(mesh);
     if(far){const f=share(far);f.boundingSphere=g.boundingSphere;mesh.userData.lod=[g,f];LODS.push(mesh);}yield;}
   return grp;}
-// for gable faces built with n=null the computed normal must point outward & up; enforce upward y for roofs
-const _face=GB.prototype.face;
-GB.prototype.face=function(pts,n,col){
-  if(!n){const a=pts[0],b=pts[1],c=pts[2];const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
-    let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const L=Math.hypot(nx,ny,nz)||1;nx/=L;ny/=L;nz/=L;
-    // gable triangles are vertical: orient away from polygon center using stored hint
-    if(this._c){let cx=0,cz=0;pts.forEach(p=>{cx+=p[0];cz+=p[2];});cx/=pts.length;cz/=pts.length;
-      const out=nx*(cx-this._c[0])+nz*(cz-this._c[1]);
-      if((Math.abs(ny)>.2&&ny<0)||(Math.abs(ny)<=.2&&out<0)){nx=-nx;ny=-ny;nz=-nz;}}
-    else if(ny<0){nx=-nx;ny=-ny;nz=-nz;}
-    return _face.call(this,pts,[nx,ny,nz],col);}
-  return _face.call(this,pts,n,col);};
-const _gable=GB.prototype.gable;
-GB.prototype.gable=function(q,y0,y1,rh,wall,roof){let cx=0,cy=0;q.forEach(p=>{cx+=p[0];cy+=p[1];});this._c=[cx/4,-cy/4];_gable.call(this,q,y0,y1,rh,wall,roof);this._c=null;};
-// convex polygon q ([x,y] grid metres) laid on the terrain, `off` metres above it, with the terrain's normals
-GB.prototype.onGround=function(q,off,col){
-  this.grow(q.length,(q.length-2)*3);const base=this.nv;
-  for(const p of q){const k=this.nv*3,n=EN(p[0],p[1]);this.P[k]=p[0];this.P[k+1]=E(p[0],p[1])+off;this.P[k+2]=-p[1];
-    this.N[k]=n[0]*127;this.N[k+1]=n[1]*127;this.N[k+2]=n[2]*127;this.C[k]=col[0];this.C[k+1]=col[1];this.C[k+2]=col[2];this.nv++;}
-  for(let j=1;j<q.length-1;j++){this.I[this.ni++]=base;this.I[this.ni++]=base+j;this.I[this.ni++]=base+j+1;}};
 // drape(src): src holds flat ground layers (y = small layer offset). Each triangle is cut along the terrain mesh's
 // edges (x and y grid lines and the cell diagonals), so every piece lies inside one terrain triangle and, raised by
 // E(), stays coplanar with it: the layer offsets of a few centimetres keep working on any slope. A piece in a cell
 // outside the commune is dropped (rivers and roads that run past the diorama's edge), and one in a cell the limit
 // crosses is cut to the commune's part of the cell (LIMT).
-function cutAt(q,f,k){const A=[],B=[];for(let i=0;i<q.length;i++){const p=q[i],r=q[(i+1)%q.length],fp=f(p),fr=f(r);
-    if(fp<=k)A.push(p);if(fp>=k)B.push(p);
-    if((fp<k&&fr>k)||(fp>k&&fr<k)){const t=(k-fp)/(fr-fp),m=[p[0]+(r[0]-p[0])*t,p[1]+(r[1]-p[1])*t];A.push(m);B.push(m);}}
-  return [A,B];}
+function cutAt(q,f,k){const A=[],B=[];splitAt(q,q.map(f),k,A,B);return [A,B];}
 // the three cuts of drapeQ: x, y and the diagonal lines of the terrain mesh, in node units (cut 0, 1, 2)
 const cutF=(c,p)=>c===0?(p[0]-EX0)/ES:c===1?(p[1]-EY0)/ES:(p[0]-EX0+p[1]-EY0)/ES;
-// cutAt for cut c, with its values at q's points in fq (cutF), into A and B: q's part below k and above it
-function cutAtF(q,fq,c,k,A,B){for(let i=0;i<q.length;i++){const i1=i+1<q.length?i+1:0,p=q[i],r=q[i1],fp=fq[i],fr=fq[i1];
-    if(fp<=k)A.push(p);if(fp>=k)B.push(p);
-    if((fp<k&&fr>k)||(fp>k&&fr<k)){const t=(k-fp)/(fr-fp),m=[p[0]+(r[0]-p[0])*t,p[1]+(r[1]-p[1])*t];A.push(m);B.push(m);}}}
 // drapeQ(G, q, off, col): one convex polygon q (grid metres, counter-clockwise), cut the same way, into G
 function drapeQ(G,q0,off,col){let polys=[q0];
   for(let c=0;c<3;c++){const nxt=[];
     for(let q of polys){let lo=1e9,hi=-1e9;for(const p of q){const v=cutF(c,p);if(v<lo)lo=v;if(v>hi)hi=v;}
-      for(let k=Math.floor(lo)+1;k<hi;k++){const fq=q.map(p=>cutF(c,p)),A=[],B=[];cutAtF(q,fq,c,k,A,B);if(A.length>2)nxt.push(A);q=B;}
+      for(let k=Math.floor(lo)+1;k<hi;k++){const fq=q.map(p=>cutF(c,p)),A=[],B=[];splitAt(q,fq,k,A,B);if(A.length>2)nxt.push(A);q=B;}
       if(q.length>2)nxt.push(q);}
     polys=nxt;}
   for(const q of polys){let cx=0,cy=0;for(const p of q){cx+=p[0];cy+=p[1];}
@@ -209,7 +210,7 @@ function drapeQ(G,q0,off,col){let polys=[q0];
 // after the first frame. null: everything at once (outside the startup, or window.__STAGE=0 before the page loads).
 let STAGE=null;
 const boxIn=(x0,y0,x1,y1)=>!STAGE||(x1>=STAGE[0]&&x0<=STAGE[2]&&y1>=STAGE[1]&&y0<=STAGE[3]);
-const polyIn=q=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of q){if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1];}return boxIn(x0,y0,x1,y1);};
+const polyIn=q=>boxIn(...bbox(q));
 // drape(src, later): the triangles of src outside STAGE go to later (their index and run), for drapeRest(src, later,
 // out). The output's runs (GB.grow) count the switches between the two stages, in src's order: tiledParts puts the
 // two halves back in that order. out.run and out.prev carry the count on to the strips draped into it (draped)
@@ -230,8 +231,8 @@ function drapeRest(src,later,out,i0,i1){const P=src.P,C=src.C,I=src.I;
 // band: the key of a quad does not depend on what was laid before it in the startup, so a street's sidewalks can wait
 // for the second stage (walkRuns) and still come out in the order of a startup at once
 const RUN_W=1e6;
-const draped=(G,later)=>({band:0,quadXY(q,y,col){let A=0;for(let i=0;i<q.length;i++){const p=q[i],r=q[(i+1)%q.length];A+=p[0]*r[1]-r[0]*p[1];}
-  const o=A<0?q.slice().reverse():q,d=later&&!polyIn(o)?1:0;if(G.r0===undefined){G.r0=G.run||0;G.bands=new Map();}
+const draped=(G,later)=>({band:0,quadXY(q,y,col){
+  const o=toCCW(q),d=later&&!polyIn(o)?1:0;if(G.r0===undefined){G.r0=G.run||0;G.bands=new Map();}
   let b=G.bands.get(this.band);if(!b)G.bands.set(this.band,b={run:0,prev:-1});if(d!==b.prev){b.run++;b.prev=d;}const k=G.r0+this.band*RUN_W+b.run;
   if(d)later.push([o,y,col,k]);else{G.k=k;drapeQ(G,o,y,col);}}});
 

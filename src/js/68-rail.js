@@ -31,10 +31,22 @@ function railBase(B){const t0=performance.now(),R=new GB(1<<16),RX=DATA.railx||[
   const LINES=[{k:'main',i:0,d:DATA.rail,g:(DATA.rgauge||[1.676])[0],bw:4.6,bal:PAL.ballast,sl:hex('#9C9486')},
     {k:'ramal',i:1,d:DATA.ramal,g:(DATA.rgauge||[0,1])[1],bw:3.4,bal:K.earth,sl:hex('#806B55')}];
   const V=(x,y,h)=>[x,h,-y],Q=(p,off,h)=>V(p.x+p.nx*off,p.y+p.ny*off,h);
-  const near=(P,x,y,i0=0,i1=P.length-1)=>{let b=i0,bd=1e18;for(let i=i0;i<=i1;i++){const d=(P[i].x-x)**2+(P[i].y-y)**2;if(d<bd){bd=d;b=i;}}return b;};
+  // the sample of P nearest to (x, y) (the first of equals); between i0 and i1 by a pass over them, over the whole line by
+  // a grid of NG m cells searched in rings around (x, y) until no nearer one can be left (each mast and signal used to
+  // pass over the ~35 thousand samples)
+  const NG=25,grids=new WeakMap();
+  const near=(P,x,y,i0,i1)=>{let b=i0??0,bd=1e18;const D=i=>(P[i].x-x)**2+(P[i].y-y)**2;
+    if(i0!==undefined){for(let i=i0;i<=i1;i++){const d=D(i);if(d<bd){bd=d;b=i;}}return b;}
+    let g=grids.get(P);if(!g){g=new Map();P.forEach((p,i)=>{const k=Math.floor(p.x/NG)*65536+Math.floor(p.y/NG),c=g.get(k);if(c)c.push(i);else g.set(k,[i]);});grids.set(P,g);}
+    const cx=Math.floor(x/NG),cy=Math.floor(y/NG);b=-1;
+    for(let r=0;r<=2e4/NG;r++){
+      for(let gx=cx-r;gx<=cx+r;gx++)for(let gy=cy-r;gy<=cy+r;gy++){if(Math.max(Math.abs(gx-cx),Math.abs(gy-cy))!==r)continue;
+        for(const i of g.get(gx*65536+gy)||[]){const d=D(i);if(d<bd||(d===bd&&i<b)){bd=d;b=i;}}}
+      if(b>=0&&(r*NG)**2>bd)break;}
+    return b<0?0:b;};
   // the map street under a point: its direction and width
-  const streetAt=(x,y)=>{const gx=Math.floor((x-XMIN)/SG),gy=Math.floor((y-YMIN)/SG);let s=null,bd=1e18;
-    if(gx>=0&&gy>=0&&gx<sgW&&gy<sgH)for(const id of sgrid[gy*sgW+gx]){const q=segs[id],d=segDist2(x,y,q[0],q[1],q[2],q[3]);if(d<bd){bd=d;s=q;}}
+  const streetAt=(x,y)=>{let s=null,bd=1e18;
+    for(const id of segsAt(x,y)||[]){const q=segs[id],d=segDist2(x,y,q[0],q[1],q[2],q[3]);if(d<bd){bd=d;s=q;}}
     if(!s)return null;const L=Math.hypot(s[2]-s[0],s[3]-s[1])||1;return {ux:(s[2]-s[0])/L,uy:(s[3]-s[1])/L,w:s[4]*2};};
   const runs=(i0,i1,test)=>{const o=[];let a=-1;for(let i=i0;i<=i1+1;i++){const ok=i<=i1&&test(i);if(ok&&a<0)a=i;if(!ok&&a>=0){if(i-1>a)o.push([a,i-1]);a=-1;}}return o;};
   const poly=(P,a,b)=>{const o=[];for(let i=a;i<b;i+=6)o.push([P[i].x,P[i].y]);o.push([P[b].x,P[b].y]);return o;};

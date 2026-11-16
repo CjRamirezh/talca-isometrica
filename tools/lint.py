@@ -24,7 +24,9 @@ def lint():
     """[(src file, line, column, rule, message)] for the joined script."""
     r = subprocess.run(['npx', '-y', ESLINT, '-c', str(CONFIG), '-f', 'json', '--stdin', '--stdin-filename', 'app.js'],
                        input=build.script(), capture_output=True, text=True, cwd=ROOT,
-                       env={**os.environ, 'NPM_CONFIG_UPDATE_NOTIFIER': 'false'})
+                       env={**os.environ, 'NPM_CONFIG_UPDATE_NOTIFIER': 'false', 'NPM_CONFIG_PREFER_OFFLINE': 'true'})
+    # (prefer-offline: the pinned version comes from npx's cache without asking the registry; only the first run
+    # downloads it)
     try: msgs = json.loads(r.stdout)[0]['messages']
     except (ValueError, IndexError, KeyError):
         raise SystemExit(f'lint: eslint no respondió (código {r.returncode}):\n{r.stderr.strip()}')

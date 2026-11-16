@@ -2,7 +2,7 @@
 const overlay=$('#overlay');
 const pinEls=new Map();
 POIS.forEach(p=>{const b=document.createElement('button');b.className='pin';b.style.setProperty('--cc',`var(--c-${p.c})`);b.setAttribute('aria-label',p.n);
-  b.innerHTML=`<span class="coin">${icon(p.c)}</span><span class="lbl">${p.n}</span>`;b.addEventListener('click',e=>{e.stopPropagation();select(p.id,true);});overlay.appendChild(b);pinEls.set(p.id,b);});
+  b.innerHTML=`<span class="coin">${icon(p.c)}</span><span class="lbl">${esc(p.n)}</span>`;b.addEventListener('click',e=>{e.stopPropagation();select(p.id,true);});overlay.appendChild(b);pinEls.set(p.id,b);});
 // street labels
 const SL=[];
 (function(){const want=new Map();
@@ -30,37 +30,47 @@ let showStreets=true;
 const vtmp=new T.Vector3();
 function proj(x,y,h){vtmp.set(x,h,-y).project(cam);return [(vtmp.x+1)/2*VW,(1-vtmp.y)/2*VH];}
 function visibleP(p){if(enabled.has(p.c))return true;for(const c of p.cs)if(enabled.has(c))return true;return false;}
+// layout(), after every frame drawn: the pins (the selected one first, then by priority: the order is made again only
+// when the selection changes) and the street labels, each hidden where it would overlap one placed before it; the
+// compass and the scale bar. The DOM is written only where something changed (LAY: what each element was given
+// last), since a frame drawn while the map moves would otherwise write ~300 elements for nothing
+const LAY=new WeakMap(),laySt=el=>{let s=LAY.get(el);if(!s)LAY.set(el,s={});return s;};
+const layHide=(el,v)=>{const s=laySt(el);if(s.h!==v){s.h=v;el.hidden=v;}};
+const layMove=(el,t)=>{const s=laySt(el);if(s.t!==t){s.t=t;el.style.transform=t;}};
+const layClass=(el,c,on)=>{const s=laySt(el),k='c'+c;if(s[k]!==on){s[k]=on;el.classList.toggle(c,on);}};
+const PIN_MINZ=[0,0.9,1.9,3.2],PIN_LBLZ=[0.5,1.6,3.0,6],SCALES=[10,20,50,100,200,500,1000,2000,5000];
+const compassSvg=$('#compass svg'),scaleBar=$('#sc-i'),scaleTxt=$('#sc-t');
+let layList=null,laySel;
 function layout(){
   const rects=[];const hit=(r)=>{for(const q of rects)if(r[0]<q[2]&&r[2]>q[0]&&r[1]<q[3]&&r[3]>q[1])return true;return false;};
   const z=view.zoom;
-  const list=POIS.slice().sort((a,b)=>(b.id===selId)-(a.id===selId)||a.p-b.p);
-  for(const p of list){const el=pinEls.get(p.id);const m=MODELS[p.id];const h=m?m.h:E(p.x,p.y)+6;
-    const vis=visibleP(p)||p.id===selId;
-    const minZ=[0,0.9,1.9,3.2][p.p];
-    if(!vis||(z<minZ&&p.id!==selId)){el.hidden=true;continue;}
-    const s=proj(m?m.x:p.x,m?m.y:p.y,h);
-    if(s[0]<-40||s[1]<-40||s[0]>VW+40||s[1]>VH+60){el.hidden=true;continue;}
-    const small=p.p>=3&&p.id!==selId;el.classList.toggle('small',small);
+  if(!layList||laySel!==selId){layList=POIS.slice().sort((a,b)=>(b.id===selId)-(a.id===selId)||a.p-b.p);laySel=selId;}
+  for(const p of layList){const el=pinEls.get(p.id),sel=p.id===selId;
+    if(!(visibleP(p)||sel)||(z<PIN_MINZ[p.p]&&!sel)){layHide(el,true);continue;}
+    const m=MODELS[p.id],s=proj(m?m.x:p.x,m?m.y:p.y,m?m.h:E(p.x,p.y)+6);
+    if(s[0]<-40||s[1]<-40||s[0]>VW+40||s[1]>VH+60){layHide(el,true);continue;}
+    const small=p.p>=3&&!sel;layClass(el,'small',small);
     const cs=small?20:26,stem=small?10:14;
     const x=s[0]-cs/2,y=s[1]-cs-stem;
     const coinR=[x,y,x+cs,y+cs];
-    if(p.id!==selId&&hit(coinR)&&p.p>=1){el.hidden=true;continue;}
-    el.hidden=false;el.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;rects.push(coinR);
+    if(!sel&&hit(coinR)&&p.p>=1){layHide(el,true);continue;}
+    layHide(el,false);layMove(el,`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`);rects.push(coinR);
     const lw=Math.min(290,p.n.length*6.9+16);const lr=[x+cs+4,y+2,x+cs+4+lw,y+cs-2];
-    const wantL=p.id===selId||(z>=[0.5,1.6,3.0,6][p.p]);
-    if(wantL&&(p.id===selId||!hit(lr))){el.classList.remove('nolbl');rects.push(lr);}else el.classList.add('nolbl');
-    el.classList.toggle('sel',p.id===selId);
+    const wantL=sel||z>=PIN_LBLZ[p.p];
+    if(wantL&&(sel||!hit(lr))){layClass(el,'nolbl',false);rects.push(lr);}else layClass(el,'nolbl',true);
+    layClass(el,'sel',sel);
   }
   const sz=z>=2.6&&showStreets;
-  for(const l of SL){if(l.r?(z<0.45||!showStreets):(!sz&&!l.w)||(l.w&&z<0.5)){l.el.hidden=true;continue;}
-    if(l.h==null)l.h=E(l.x,l.y)+0.3;const s=proj(l.x,l.y,l.h);if(s[0]<0||s[1]<0||s[0]>VW||s[1]>VH){l.el.hidden=true;continue;}
+  for(const l of SL){if(l.r?(z<0.45||!showStreets):(!sz&&!l.w)||(l.w&&z<0.5)){layHide(l.el,true);continue;}
+    if(l.h==null)l.h=E(l.x,l.y)+0.3;const s=proj(l.x,l.y,l.h);if(s[0]<0||s[1]<0||s[0]>VW||s[1]>VH){layHide(l.el,true);continue;}
     const s2=proj(l.x+l.dx,l.y+l.dy,l.h);let ang=Math.atan2(s2[1]-s[1],s2[0]-s[0]);if(ang>Math.PI/2)ang-=Math.PI;if(ang<-Math.PI/2)ang+=Math.PI;
     const w=l.t.length*(l.w?7:l.r?6.2:6.6),hgt=14;const c=Math.abs(Math.cos(ang)),sn=Math.abs(Math.sin(ang));const bw=w*c+hgt*sn,bh=w*sn+hgt*c;
-    const r=[s[0]-bw/2,s[1]-bh/2,s[0]+bw/2,s[1]+bh/2];if(hit(r)){l.el.hidden=true;continue;}rects.push(r);
-    l.el.hidden=false;l.el.style.transform=`translate(${(s[0]-w/2).toFixed(1)}px,${(s[1]-7).toFixed(1)}px) rotate(${ang.toFixed(3)}rad)`;}
+    const r=[s[0]-bw/2,s[1]-bh/2,s[0]+bw/2,s[1]+bh/2];if(hit(r)){layHide(l.el,true);continue;}rects.push(r);
+    layHide(l.el,false);layMove(l.el,`translate(${(s[0]-w/2).toFixed(1)}px,${(s[1]-7).toFixed(1)}px) rotate(${ang.toFixed(3)}rad)`);}
   // compass
-  const n0=proj(view.tx,view.ty,0),n1=proj(view.tx,view.ty+100,0);const ca=Math.atan2(n1[0]-n0[0],-(n1[1]-n0[1]));$('#compass svg').style.transform=`rotate(${ca}rad)`;
+  const n0=proj(view.tx,view.ty,0),n1=proj(view.tx,view.ty+100,0);const ca=Math.atan2(n1[0]-n0[0],-(n1[1]-n0[1]));layMove(compassSvg,`rotate(${ca}rad)`);
   // scale bar
-  const mpp=wpp();const target=90*mpp;const nice=[10,20,50,100,200,500,1000,2000,5000].find(v=>v>=target)||5000;$('#sc-i').style.width=(nice/mpp).toFixed(0)+'px';$('#sc-t').textContent=nice>=1000?`${nice/1000} km`:`${nice} m`;
+  const mpp=wpp();const target=90*mpp;const nice=SCALES.find(v=>v>=target)||5000,bw=(nice/mpp).toFixed(0)+'px',bt=nice>=1000?`${nice/1000} km`:`${nice} m`,st=laySt(scaleBar);
+  if(st.w!==bw){st.w=bw;scaleBar.style.width=bw;}if(st.x!==bt){st.x=bt;scaleTxt.textContent=bt;}
 }
 

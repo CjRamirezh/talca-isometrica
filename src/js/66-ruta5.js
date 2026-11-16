@@ -29,8 +29,17 @@ const R5C=R5.c.map(c=>{let x=0,y=0;const raw=[],P=[];let d=0;for(let i=0;i<c.p.l
     if(!on&&r0>=0){const a=P[r0].d,b=P[Math.min(i,P.length-1)].d;for(let j=r0;j<i;j++)P[j].e=Math.max(0,Math.min(1,(P[j].d-a)/40,(b-P[j].d)/40));r0=-1;}}
   P.forEach((p,i)=>{const s=P[Math.max(0,i-1)];let mx=-s.ty-p.ty,my=s.tx+p.tx;const L=Math.hypot(mx,my)||1,cs=Math.max(.5,(-mx*p.ty+my*p.tx)/L);p.nx=mx/L/cs;p.ny=my/L/cs;});
   return {P,L:d,gaps:[]};});
-R5C.forEach((C,k)=>{const O=R5C[1-k].P;for(const p of C.P){let m=1e18;for(let i=0;i<O.length-1;i++){const a=O[i],b=O[i+1];
-  if(Math.abs(a.x-p.x)>120&&Math.abs(b.x-p.x)>120||Math.abs(a.y-p.y)>120&&Math.abs(b.y-p.y)>120)continue;m=Math.min(m,segDist2(p.x,p.y,a.x,a.y,b.x,b.y));}p.hs=Math.sqrt(m)/2;}});
+// (the other carriageway's segments by 120 m cell of their box: a point tests those of the cells its 120 m reaches,
+// with the same test as before, so the same segments; it was ~3.7 million tests of every segment against every point)
+R5C.forEach((C,k)=>{const O=R5C[1-k].P,G=120,cells=new Map(),key=(i,j)=>i*65536+j,seen=new Int32Array(O.length);
+  for(let i=0;i<O.length-1;i++){const a=O[i],b=O[i+1];
+    for(let gx=Math.floor(Math.min(a.x,b.x)/G);gx<=Math.floor(Math.max(a.x,b.x)/G);gx++)for(let gy=Math.floor(Math.min(a.y,b.y)/G);gy<=Math.floor(Math.max(a.y,b.y)/G);gy++){
+      const c=cells.get(key(gx,gy));if(c)c.push(i);else cells.set(key(gx,gy),[i]);}}
+  C.P.forEach((p,n)=>{let m=1e18;
+    for(let gx=Math.floor((p.x-G)/G);gx<=Math.floor((p.x+G)/G);gx++)for(let gy=Math.floor((p.y-G)/G);gy<=Math.floor((p.y+G)/G);gy++)
+      for(const i of cells.get(key(gx,gy))||[]){if(seen[i]===n+1)continue;seen[i]=n+1;const a=O[i],b=O[i+1];
+        if(Math.abs(a.x-p.x)>120&&Math.abs(b.x-p.x)>120||Math.abs(a.y-p.y)>120&&Math.abs(b.y-p.y)>120)continue;m=Math.min(m,segDist2(p.x,p.y,a.x,a.y,b.x,b.y));}
+    p.hs=Math.sqrt(m)/2;});});
 // carriageway k at distance d (interpolated); a point `o` metres left of its line; the right edge of its pavement
 function r5at(k,d){const P=R5C[k].P;let lo=0,hi=P.length-1;d=Math.max(0,Math.min(R5C[k].L,d));while(hi-lo>1){const m=(lo+hi)>>1;if(P[m].d<=d)lo=m;else hi=m;}
   const a=P[lo],b=P[hi],t=b.d>a.d?(d-a.d)/(b.d-a.d):0,f=(u,v)=>u+(v-u)*t;
@@ -140,9 +149,9 @@ function r5Raise(S,K,k,knots,open,o={}){
 // a cutting under its overpasses, which the 40 m relief cannot hold: the street rises instead). The map's streets that
 // lie on it are taken off the ground (s.bridge). Lamps if o.lamps.
 function r5Over(S,K,pts,hw,top,o={}){
-  const seg=[];let L=0;for(let i=0;i<pts.length-1;i++){const l=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1]);seg.push([L,l]);L+=l;}
-  const at=u=>{let i=0;while(i<seg.length-1&&u>seg[i][0]+seg[i][1])i++;const a=pts[i],b=pts[i+1],t=Math.max(0,Math.min(1,(u-seg[i][0])/seg[i][1]));
-    return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,(b[0]-a[0])/seg[i][1],(b[1]-a[1])/seg[i][1]];};
+  const path=new PolyPath(pts),L=path.L;
+  const at=u=>{const i=path.seg(u),a=pts[i],b=pts[i+1],l=path.d[i],t=Math.max(0,Math.min(1,(u-path.S[i])/l));
+    return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,(b[0]-a[0])/l,(b[1]-a[1])/l];};
   // the stretch over the motorway: where the deck's middle is on a pavement or the median between them
   let u0=1e9,u1=-1e9;for(let u=0;u<=L;u+=1){const [x,y]=at(u);for(let k=0;k<2;k++){const [d,off]=r5d(k,x,y),p=r5at(k,d);if(off>=R5R(p)-.5&&off<=Math.max(4.5,p.hs)+.5){u0=Math.min(u0,u);u1=Math.max(u1,u);}}}
   const ha=E(...pts[0])+.13,hb=E(...pts[pts.length-1])+.13,ht=Math.max(ha,hb)+top;

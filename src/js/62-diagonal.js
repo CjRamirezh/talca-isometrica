@@ -20,8 +20,8 @@ function inMedian(x,y){const [u,v]=DIAG.uv(x,y);if(v<DIAG.cw||v>16)return false;
   for(const [u0,u1] of DIAG.runs)if(u>=u0&&u<=u1)return v<=DIAG.vNE(u)-DIAG.cw;return false;}
 function diagonalBase(G,D){const B=draped(G),{P,cw,L}=DIAG,K={curb:hex('#E8E5DC'),bed:hex('#6F8748'),walk:hex('#CFC7B6'),walk2:hex('#C4BBA8'),
     shrub:hex('#4E6A36'),shrub2:hex('#5C7A3E'),iron:hex('#3B4240'),lamp:hex('#F1E6C4')},r=rng(4242);
-  const cross=([x,y])=>{const gx=Math.floor((x-XMIN)/SG),gy=Math.floor((y-YMIN)/SG);if(gx<0||gy<0||gx>=sgW||gy>=sgH)return true;
-    for(const id of sgrid[gy*sgW+gx]){const s=segs[id],st=streets[s[5]];if(st.c>=6||st.rows)continue;const R=s[4]+0.5;if(segDist2(x,y,s[0],s[1],s[2],s[3])<R*R)return true;}
+  const cross=([x,y])=>{const ids=segsAt(x,y);if(!ids)return true;
+    for(const id of ids){const s=segs[id],st=streets[s[5]];if(st.c>=6||st.rows)continue;const R=s[4]+0.5;if(segDist2(x,y,s[0],s[1],s[2],s[3])<R*R)return true;}
     return occAt(x,y)===1;};
   const ok=u=>{const v1=DIAG.vNE(u);if(v1===null||v1-2*cw<4)return false;return !cross(P(u,cw+.3))&&!cross(P(u,v1-cw-.3))&&!cross(P(u,v1/2));};
   // runs of median between the crossing streets, their ends found by bisection

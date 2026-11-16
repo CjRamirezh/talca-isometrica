@@ -112,7 +112,9 @@ function trainsInit(){if(!RAILP.main||!RAILP.ramal)return;const t0=performance.n
     carga=makeTrain('main','carga',[['loco',1],['wagon',0],['wagon',0],['wagon',0],['wagon',0],['wagon',0],['wagon',0]]);
   const LM=RAILP.main.s[RAILP.main.s.length-1],LR=RAILP.ramal.s[RAILP.ramal.s.length-1],PLAT=24;
   // the shed's middle as a distance along the line, found by its place: the line's ends move with the model's limit
-  const ST=(m=>{let k=0,bd=1e18;for(let i=0;i<m.s.length;i++){const d=(m.x[i]-1519)**2+(m.y[i]+205)**2;if(d<bd){bd=d;k=i;}}return m.s[k];})(RAILP.main);
+  // (the station's landmark gives it as MODELS.estacion.shed, [x, y]; without it, the point measured in October 2026)
+  const [SX,SY]=MODELS.estacion&&MODELS.estacion.shed||[1519,-205];
+  const ST=(m=>{let k=0,bd=1e18;for(let i=0;i<m.s.length;i++){const d=(m.x[i]-SX)**2+(m.y[i]-SY)**2;if(d<bd){bd=d;k=i;}}return m.s[k];})(RAILP.main);
   TRAIN.lines.main={i:0,t:0,live:0,clearAt:0,startAt:0,runs:[
     {t:sfb,dir:1,from:-5,stops:[[ST+sfb.len/2,25]],to:LM+sfb.len+5,vmax:28,acc:.5,after:0},
     {t:carga,dir:1,from:-5,stops:[],to:LM+carga.len+5,vmax:18,acc:.3,after:120},

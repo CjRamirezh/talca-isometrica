@@ -37,7 +37,17 @@ const segs=[]; // [ax,ay,bx,by,hw,street index,point index]
 streets.forEach((s,si)=>{const hw=swOf(s)/2;for(let i=0;i<s.pts.length-1;i++){const a=s.pts[i],b=s.pts[i+1];const id=segs.length;segs.push([a[0],a[1],b[0],b[1],hw,si,i]);
   const x0=Math.min(a[0],b[0])-hw,x1=Math.max(a[0],b[0])+hw,y0=Math.min(a[1],b[1])-hw,y1=Math.max(a[1],b[1])+hw;
   for(let gx=Math.max(0,Math.floor((x0-XMIN)/SG));gx<=Math.min(sgW-1,Math.floor((x1-XMIN)/SG));gx++)for(let gy=Math.max(0,Math.floor((y0-YMIN)/SG));gy<=Math.min(sgH-1,Math.floor((y1-YMIN)/SG));gy++){const k=gy*sgW+gx;if(sgrid[k]===NOSEG)sgrid[k]=[];sgrid[k].push(id);}}});
-function nearStreet(x,y,pad){const gx=Math.floor((x-XMIN)/SG),gy=Math.floor((y-YMIN)/SG);if(gx<0||gy<0||gx>=sgW||gy>=sgH)return false;for(const id of sgrid[gy*sgW+gx]){const s=segs[id];const r=s[4]+pad;if(segDist2(x,y,s[0],s[1],s[2],s[3])<r*r)return true;}return false;}
+// segsAt(x, y): the ids of the street segments whose box (grown by half their width) touches the 40 m cell of (x, y);
+// null outside the commune's box (each caller says what that means: no street, or one)
+const segsAt=(x,y)=>{const gx=Math.floor((x-XMIN)/SG),gy=Math.floor((y-YMIN)/SG);return gx<0||gy<0||gx>=sgW||gy>=sgH?null:sgrid[gy*sgW+gx];};
+// segsInBox(x0, y0, x1, y1, f): f(id, segment) once for every segment of the cells the box touches, cell by cell (x
+// outer, y inner, as sgrid holds them); f returning false stops it (and segsInBox returns false)
+const SEG_SEEN=new Int32Array(segs.length);let segStamp=0;
+function segsInBox(x0,y0,x1,y1,f){const st=++segStamp;
+  for(let gx=Math.max(0,Math.floor((x0-XMIN)/SG));gx<=Math.min(sgW-1,Math.floor((x1-XMIN)/SG));gx++)for(let gy=Math.max(0,Math.floor((y0-YMIN)/SG));gy<=Math.min(sgH-1,Math.floor((y1-YMIN)/SG));gy++)
+    for(const id of sgrid[gy*sgW+gx]){if(SEG_SEEN[id]===st)continue;SEG_SEEN[id]=st;if(f(id,segs[id])===false)return false;}
+  return true;}
+function nearStreet(x,y,pad){const ids=segsAt(x,y);if(!ids)return false;for(const id of ids){const s=segs[id];const r=s[4]+pad;if(segDist2(x,y,s[0],s[1],s[2],s[3])<r*r)return true;}return false;}
 /* occupancy raster */
 const OC=2.5, ocW=Math.ceil((XMAX-XMIN)/OC), ocH=Math.ceil((YMAX-YMIN)/OC);
 // The commune's box is ~8 300 × 9 500 cells and most of it stays empty, so a raster over it (occ, and the masks built
@@ -56,8 +66,7 @@ const occ=new Grid();
 const occAt=(x,y)=>{const gx=Math.floor((x-XMIN)/OC),gy=Math.floor((y-YMIN)/OC);return (gx<0||gy<0||gx>=ocW||gy>=ocH)?1:occ.get(gx,gy);};
 const occWas=(x,y)=>{const gx=Math.floor((x-XMIN)/OC),gy=Math.floor((y-YMIN)/OC);return (gx<0||gy<0||gx>=ocW||gy>=ocH)?1:occ.was(gx,gy);}; // occ at keep(true)
 function occMark(q,v=1){ // q: 4 corners [[x,y]..]; v=2: a lot of cityGen (lotFits skips those cells)
-  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of q){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
-  const xs=OM_XS; // the cells whose centre is in q (pip), a row at a time (pipRow)
+  const [x0,y0,x1,y1]=bbox(q),xs=OM_XS; // the cells whose centre is in q (pip), a row at a time (pipRow)
   for(let gy=Math.max(0,Math.floor((y0-YMIN)/OC));gy<=Math.min(ocH-1,Math.floor((y1-YMIN)/OC));gy++){pipRow(q,YMIN+(gy+.5)*OC,xs);if(!xs.length)continue;let n=0;
     for(let gx=Math.max(0,Math.floor((x0-XMIN)/OC));gx<=Math.min(ocW-1,Math.floor((x1-XMIN)/OC));gx++){const cx=XMIN+(gx+.5)*OC;while(n<xs.length&&xs[n]<=cx)n++;
       if((xs.length-n)&1&&(v===1||!occ.get(gx,gy)))occ.set(gx,gy,v);}}}

@@ -51,23 +51,17 @@ function rectClip(x0,y0,x1,y1){
   for(let k=0;k<LIM.length;k++){const a=LIM[k],b=LIM[(k+1)%LIM.length],ts=[0,...gridCuts(a,b,false),1];
     for(let m=0;m<ts.length-1;m++){const t=(ts[m]+ts[m+1])/2,c=cellOf(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);if(c>=0)CM[c]=2;}}
   // inside: a scanline through each row of cell centres
-  for(let j=0;j<ECH;j++){const y=EY0+(j+.5)*ES,xs=[];
-    for(let k=0;k<LIM.length;k++){const a=LIM[k],b=LIM[(k+1)%LIM.length];if((a[1]>y)!==(b[1]>y))xs.push(a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]));}
-    xs.sort((p,q)=>p-q);
-    for(let m=0;m+1<xs.length;m+=2)for(let i=Math.max(0,Math.ceil((xs[m]-EX0)/ES-.5));i<=Math.min(ECW-1,Math.floor((xs[m+1]-EX0)/ES-.5));i++)if(!CM[j*ECW+i])CM[j*ECW+i]=1;}
+  const xs=[];for(let j=0;j<ECH;j++)rowCells(rowCross([LIM],EY0+(j+.5)*ES,xs,true),EX0,ES,ECW,i=>{if(!CM[j*ECW+i])CM[j*ECW+i]=1;});
   for(let c=0;c<CM.length;c++){if(CM[c]!==2)continue;const i=c%ECW,j=(c-i)/ECW,x0=EX0+i*ES,y0=EY0+j*ES;
     const P=rectClip(x0,y0,x0+ES,y0+ES),tr=[];
     for(const q of P){const t=triangulate(q);if(!t)continue;
       for(const [u,v,w] of t){const A=q[u],B=q[v],D=q[w];tr.push((B[0]-A[0])*(D[1]-A[1])-(B[1]-A[1])*(D[0]-A[0])>0?[A,B,D]:[A,D,B]);}}
     if(!tr.length)CM[c]=0;else{LIMP.set(c,P);LIMT.set(c,tr);}}
 }
-const inTerrain=(x,y)=>{const c=cellOf(x,y);if(c<0)return false;const m=CM[c];return m===1||(m===2&&LIMP.get(c).some(q=>pip([x,y],q)));};
+const inTerrain=(x,y)=>{const c=cellOf(x,y);if(c<0)return false;const m=CM[c];return m===1||(m===2&&LIMP.get(c).some(q=>pipXY(x,y,q)));};
 // polygon q (any orientation) clipped to the convex counter-clockwise polygon t (Sutherland–Hodgman); q keeps its orientation
 function clipTo(q,t){let out=q;
-  for(let i=0;i<t.length&&out.length>2;i++){const a=t[i],b=t[(i+1)%t.length],inp=out;out=[];
-    const side=p=>(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]);
-    for(let k=0;k<inp.length;k++){const p=inp[k],r=inp[(k+1)%inp.length],sp=side(p),sr=side(r);if(sp>=0)out.push(p);
-      if((sp>=0)!==(sr>=0)){const u=sp/(sp-sr);out.push([p[0]+(r[0]-p[0])*u,p[1]+(r[1]-p[1])*u]);}}}
+  for(let i=0;i<t.length&&out.length>2;i++){const a=t[i],b=t[(i+1)%t.length];out=clipKeep(out,p=>(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]));}
   return out;}
 const node=(i,j)=>Math.min(ENY-1,Math.max(0,j))*ENX+Math.min(ENX-1,Math.max(0,i));
 const ENRM=new Float32Array(EN_*3);

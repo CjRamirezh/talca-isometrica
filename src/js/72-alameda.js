@@ -32,7 +32,7 @@ function alamedaPark(B,bis){const TR=[],C=hex,stone=C('#D2CAB8'),iron=C('#3B4240
       const lx=x+8,ly=cy+sd*5.5;if(lx<x1-3&&clear(lx,3)){B.dy=E(lx,ly);B.prism(rotRect(lx,ly,.3,.3),0.3,4.4,iron,iron);B.prism(rotRect(lx,ly,.9,.9),4.4,4.8,iron,C('#F1E6C4'));ALAM_LAMPS.push(lx,ly);}}
     for(const [v,o] of [[11,0],[20,4.5]])for(const sd of[-1,1])for(let x=x0+2+o;x<x1+3;x+=9){
       const tx=x+(r()-.5)*1.4,ty=cy+sd*v+(r()-.5)*1.4;
-      if(!clear(tx,4)||!pip([tx,ty],b.r)||occAt(tx,ty)||nearStreet(tx,ty,1.5))continue;
+      if(!clear(tx,4)||!pipXY(tx,ty,b.r)||occAt(tx,ty)||nearStreet(tx,ty,1.5))continue;
       TR.push([tx,ty,1.25+r()*.35,r()]);}});
   B.dy=0;return TR;
 }

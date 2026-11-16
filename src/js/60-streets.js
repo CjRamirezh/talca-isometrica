@@ -12,9 +12,9 @@ const WALK=[0,2,1.8,1.4,1.2,0.8,0,0],WALK_OUT=1.2,CURB=0.5,WALK_Y=0.16,CURB_Y=0.
 const STREET={}; // counts for __stats
 const WALKS=[]; // {si, side, pts (on the street's axis), hw, iw, bi (the block behind its middle)}
 // is (x, y) on the carriageway of a street that crosses segment k (at more than ~37 degrees, not its neighbour)?
-function onCrossing(x,y,k){const s0=segs[k],gx=Math.floor((x-XMIN)/SG),gy=Math.floor((y-YMIN)/SG);if(gx<0||gy<0||gx>=sgW||gy>=sgH)return false;
+function onCrossing(x,y,k){const s0=segs[k],ids=segsAt(x,y);if(!ids)return false;
   const L0=Math.hypot(s0[2]-s0[0],s0[3]-s0[1])||1;
-  for(const id of sgrid[gy*sgW+gx]){const s=segs[id];if(id===k)continue;const c=streets[s[5]].c;if(c>=6||streets[s[5]].bridge)continue;
+  for(const id of ids){const s=segs[id];if(id===k)continue;const c=streets[s[5]].c;if(c>=6||streets[s[5]].bridge)continue;
     if(s[5]===s0[5]&&Math.abs(s[6]-s0[6])<=1)continue;
     const L=Math.hypot(s[2]-s[0],s[3]-s[1])||1;if(Math.abs(((s[2]-s[0])*(s0[2]-s0[0])+(s[3]-s[1])*(s0[3]-s0[1]))/L/L0)>0.8)continue;
     const r=s[4]-(walkOf(streets[s[5]])||-1);if(segDist2(x,y,s[0],s[1],s[2],s[3])<r*r)return true;}
@@ -23,10 +23,8 @@ function onCrossing(x,y,k){const s0=segs[k],gx=Math.floor((x-XMIN)/SG),gy=Math.f
 let BLK=null;
 function blockMask(){BLK=new Grid();
   for(const b of blocks){if(!b.built&&b.A>=40000)continue;const r=b.r; // not the open ground of the outskirts
-    for(let gy=Math.max(0,Math.floor((b.bb[1]-YMIN)/OC));gy<=Math.min(ocH-1,Math.floor((b.bb[3]-YMIN)/OC));gy++){const cy=YMIN+(gy+.5)*OC,xs=[];
-      for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],c=r[j];if((a[1]>cy)!==(c[1]>cy))xs.push(a[0]+(cy-a[1])*(c[0]-a[0])/(c[1]-a[1]));}
-      xs.sort((p,q)=>p-q);
-      for(let i=0;i+1<xs.length;i+=2)for(let gx=Math.max(0,Math.ceil((xs[i]-XMIN)/OC-.5));gx<=Math.min(ocW-1,Math.floor((xs[i+1]-XMIN)/OC-.5));gx++)BLK.set(gx,gy,1);}}}
+    for(let gy=Math.max(0,Math.floor((b.bb[1]-YMIN)/OC));gy<=Math.min(ocH-1,Math.floor((b.bb[3]-YMIN)/OC));gy++)rowCells(pipRow(r,YMIN+(gy+.5)*OC,BM_XS),XMIN,OC,ocW,gx=>BLK.set(gx,gy,1));}}
+const BM_XS=[];
 // walkRuns(sis, occOf): the runs of the streets sis (all of them without it), in their order, appended to WALKS; occOf reads
 // occ (the startup's second stage reads it as walkBase saw it, occWas: the streets far from the first view wait, and
 // what is laid meanwhile, the Cerro's walls, must not change their runs). Each street's runs depend only on it and
@@ -59,8 +57,8 @@ function walkRuns(sis,occOf=occAt){if(!BLK)blockMask();const w0=WALKS.length;
 // the crossing street. Only on arms that go on past the crossing (a T has three).
 const CROSS_R=1000;
 function crossings(B){const seen=new Set(),zeb=hex('#E4E0D6');let n=0;
-  const arm=(x,y,tx,ty)=>{const gx=Math.floor((x-XMIN)/SG),gy=Math.floor((y-YMIN)/SG);if(gx<0||gy<0||gx>=sgW||gy>=sgH)return false;
-    for(const id of sgrid[gy*sgW+gx]){const s=segs[id],L=Math.hypot(s[2]-s[0],s[3]-s[1])||1;if(streets[s[5]].c>5)continue;
+  const arm=(x,y,tx,ty)=>{const ids=segsAt(x,y);if(!ids)return false;
+    for(const id of ids){const s=segs[id],L=Math.hypot(s[2]-s[0],s[3]-s[1])||1;if(streets[s[5]].c>5)continue;
       if(Math.abs(((s[2]-s[0])*tx+(s[3]-s[1])*ty)/L)>0.9&&segDist2(x,y,s[0],s[1],s[2],s[3])<s[4]*s[4])return true;}return false;};
   for(let cell=0;cell<sgrid.length;cell++){const ids=sgrid[cell];
     for(let p=0;p<ids.length;p++)for(let q=p+1;q<ids.length;q++){const A=segs[ids[p]],Bs=segs[ids[q]],cA=streets[A[5]].c,cB=streets[Bs[5]].c;
@@ -90,7 +88,7 @@ function paintRibbon(B,s,w,y,col,joins=true){const pts=s.pts,Z=s.paint,colAt=(px
     ts.sort((p,q)=>p-q);
     for(let k=0;k+1<ts.length;k++){const t0=ts[k],t1=ts[k+1];if(t1-t0<1e-6)continue;const p=[a[0]+dx*t0,a[1]+dy*t0],q=[a[0]+dx*t1,a[1]+dy*t1],m=(t0+t1)/2;
       B.quadXY([[p[0]+nx,p[1]+ny],[q[0]+nx,q[1]+ny],[q[0]-nx,q[1]-ny],[p[0]-nx,p[1]-ny]],y,colAt(a[0]+dx*m,a[1]+dy*m));}}
-  if(joins)for(let i=1;i<pts.length-1;i++)B.flat(ngon(pts[i][0],pts[i][1],w/2,8),y,colAt(pts[i][0],pts[i][1]));}
+  if(joins)for(let i=1;i<pts.length-1;i++)B.flat(ngon(pts[i][0],pts[i][1],w/2,8),y,colAt(pts[i][0],pts[i][1]),octTri());}
 // Lane lines on the streets a landmark marks (s.lanes: the box they are drawn in): the dashed line between the two
 // lanes of a one-way street, on its axis, 0.4 m wide (the real ones are 0.12: thinner, the pixel art loses them),
 // 3 m of line every 8 m, not within 9 m of a junction (three street ends or more) nor 5 m of a crosswalk
@@ -121,13 +119,11 @@ function streetTrees(ws){const out=[]; // the trees along the sidewalks of ws (a
     const s=streets[w.si],st=styleFor(bi),ave=s.c<=2||/^Avenida/.test(s.name||'');
     const [p,gap,slot,sc]=s.rows?[1,s.rows[0],.95,s.rows[1]]:ave?[.75,8.5,.9,.62]:st==='core'?[.3,8.5,.8,.5]:st==='house'||st==='apt'?[s.c>=5?.4:.55,11,.7,.5]:[.25,10,.7,.55];
     const r=rng(w.si*7919+(w.side>0?1:2)*104729+Math.round(w.pts[0][0]*7+w.pts[0][1]*3));if(r()>=p)continue;
-    const kind=r(),size=sc+r()*.25,off=w.hw-w.iw+0.7,P=w.pts;let L=0;
-    for(let i=0;i+1<P.length;i++)L+=Math.hypot(P[i+1][0]-P[i][0],P[i+1][1]-P[i][1]);
+    const kind=r(),size=sc+r()*.25,off=w.hw-w.iw+0.7,P=w.pts,path=new PolyPath(P),L=path.L;
     if(L<14)continue;
     const n=Math.floor((L-12)/gap),u0=(L-n*gap)/2;
-    for(let k=0,i=0,acc=0;k<=n;k++){const u=u0+k*gap;if(r()>=slot)continue;
-      while(i+2<P.length&&acc+Math.hypot(P[i+1][0]-P[i][0],P[i+1][1]-P[i][1])<u){acc+=Math.hypot(P[i+1][0]-P[i][0],P[i+1][1]-P[i][1]);i++;}
-      const a=P[i],b=P[i+1],l=Math.hypot(b[0]-a[0],b[1]-a[1])||1,tx=(b[0]-a[0])/l,ty=(b[1]-a[1])/l,nx=-ty*w.side,ny=tx*w.side,v=u-acc+(r()-.5)*1.2;
+    for(let k=0;k<=n;k++){const u=u0+k*gap;if(r()>=slot)continue;
+      const i=path.seg(u),acc=path.S[i],a=P[i],b=P[i+1],l=Math.hypot(b[0]-a[0],b[1]-a[1])||1,tx=(b[0]-a[0])/l,ty=(b[1]-a[1])/l,nx=-ty*w.side,ny=tx*w.side,v=u-acc+(r()-.5)*1.2;
       const x=a[0]+tx*v+nx*off,y=a[1]+ty*v+ny*off;
       if(occAt(x,y)===1||occAt(x+nx*2.5,y+ny*2.5)===1||occAt(x-nx*2,y-ny*2)===1||inMedian(x,y))continue;
       const t=[x,y,size*(0.9+r()*.2),(kind+r()*.12)%1];if(!inClear(x,y)&&!inClearT(x,y,s))out.push(t);}}
@@ -156,13 +152,11 @@ function parkedCars(ws){const t0=performance.now(),out=[],ZC=50;
     const m=w.pts[w.pts.length>>1],dc=Math.hypot(m[0],m[1]),st=blocks[bi].built?styleFor(bi):'park',ave=s.c<=2||/^Avenida/.test(s.name||'');
     let p=s.rows||bi===PLAZA_BI?.7:st==='core'?(dc<450?.7:.5):st==='core2'?.25:ave?.15:st==='apt'?.2:st==='house'?.12:st==='ind'?.05:.08;
     p=Math.min(.9,p*(.4+1.2*r()));
-    const a=p>.35?.85:.55,b=p*(1-a)/(1-p),g=st==='core'||s.rows?5.6:6.2,P=w.pts;let L=0;
-    for(let i=0;i+1<P.length;i++)L+=Math.hypot(P[i+1][0]-P[i][0],P[i+1][1]-P[i][1]);
+    const a=p>.35?.85:.55,b=p*(1-a)/(1-p),g=st==='core'||s.rows?5.6:6.2,P=w.pts,path=new PolyPath(P),L=path.L;
     if(L<16+g)continue;
     const n=Math.floor((L-16)/g),u0=8+(L-16-n*g)/2+g/2;let on=r()<p;
-    for(let k=0,i=0,acc=0;k<n;k++){on=r()<(on?a:b);if(!on)continue;
-      const u=u0+k*g+(r()-.5)*.5;
-      while(i+2<P.length&&acc+Math.hypot(P[i+1][0]-P[i][0],P[i+1][1]-P[i][1])<u){acc+=Math.hypot(P[i+1][0]-P[i][0],P[i+1][1]-P[i][1]);i++;}
+    for(let k=0;k<n;k++){on=r()<(on?a:b);if(!on)continue;
+      const u=u0+k*g+(r()-.5)*.5,i=path.seg(u),acc=path.S[i];
       const A=P[i],B=P[i+1],l=Math.hypot(B[0]-A[0],B[1]-A[1])||1,tx=(B[0]-A[0])/l,ty=(B[1]-A[1])/l,nx=-ty*w.side,ny=tx*w.side,v=u-acc,off=cw-.95;
       const x=A[0]+tx*v+nx*off,y=A[1]+ty*v+ny*off,van=r()<.07,len=(van?4.9:4.1+r()*.6)/4.5;
       const q=rotRect(x,y,4.5*len,1.8,Math.atan2(ty,tx));
