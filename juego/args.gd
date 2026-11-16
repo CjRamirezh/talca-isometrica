@@ -37,6 +37,7 @@ const BANDERAS := {
 	"--adelanto": ["s", "vp.gd"],
 	"--ojo": ["x,y,z", "vp.gd: el ojo fijo (sin teléfono)"],
 	"--pantalla": ["n", "vp.gd: la pantalla de la ventana"],
+	"--lan": ["", "vp.gd: abre los puertos a la red local (el teléfono sin cable); sin ella, solo 127.0.0.1"],
 }
 
 # lo que apaga --sin (y quién lo lee)

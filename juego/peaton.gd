@@ -18,6 +18,10 @@ var pie: Array[Node3D] = []
 var hombro: Array[Node3D] = []
 var codo: Array[Node3D] = []
 var mats := {}
+# los ángulos que busca cada articulación en este cuadro, por lado i (0 derecha, 1 izquierda): obj[i * 6 + j], con j en
+# M (muslo), R (rodilla), P (pie), H (hombro), HZ (hombro hacia afuera), C (codo); uno solo para todos los cuadros
+enum {M, R, P, H, HZ, C}
+var obj := PackedFloat64Array()
 
 
 func _ready() -> void:
@@ -117,7 +121,7 @@ func animar(dt: float, rapidez: float, en_suelo: bool) -> void:
 	var trote := smoothstep(2.5, 6.0, rapidez)  # 0 camina, 1 trota
 	var carrera := smoothstep(10.0, 16.0, rapidez)
 	var p := fase
-	var obj := {}
+	obj.resize(12)
 	for i in 2:
 		var q := p + PI * i  # la pierna derecha media vuelta después
 		var s := sin(q)
@@ -125,41 +129,41 @@ func animar(dt: float, rapidez: float, en_suelo: bool) -> void:
 		var amp_m := lerpf(0.42, 0.75, trote) + 0.2 * carrera
 		var th := s * amp_m
 		var kn := -(lerpf(0.06, 0.25, trote) + lerpf(0.65, 1.5, trote) * pow(max(balanceo, 0.0), 1.4))
-		obj["m%d" % i] = th * mov
-		obj["r%d" % i] = kn * mov - 0.04 * (1.0 - mov)
-		obj["p%d" % i] = -(th + kn) * 0.45 * mov
+		obj[i * 6 + M] = th * mov
+		obj[i * 6 + R] = kn * mov - 0.04 * (1.0 - mov)
+		obj[i * 6 + P] = -(th + kn) * 0.45 * mov
 		var amp_b := lerpf(0.35, 0.8, trote) + 0.2 * carrera
-		obj["h%d" % i] = -s * amp_b * mov
-		obj["hz%d" % i] = (0.07 + 0.05 * trote * mov) * (-1 if i == 0 else 1)  # hacia afuera
-		obj["c%d" % i] = (lerpf(0.2, 1.35, trote) * mov + 0.1 * (1.0 - mov) + 0.08 * sin(t * 1.3))
+		obj[i * 6 + H] = -s * amp_b * mov
+		obj[i * 6 + HZ] = (0.07 + 0.05 * trote * mov) * (-1 if i == 0 else 1)  # hacia afuera
+		obj[i * 6 + C] = (lerpf(0.2, 1.35, trote) * mov + 0.1 * (1.0 - mov) + 0.08 * sin(t * 1.3))
 	var bote := lerpf(0.03 * pow(sin(p), 2.0), 0.07 * abs(cos(p)), trote) * mov
 	var y := 0.95 - bote - 0.03 * trote * mov
 	var lean := -(0.04 + 0.16 * trote + 0.14 * carrera) * mov
 	var giro := 0.12 * sin(p) * (1.0 + trote) * mov
 	var resp := 0.012 * sin(t * 1.7) * (1.0 - mov)
 	if not en_suelo:  # en el aire: una rodilla arriba, los brazos abiertos
-		obj["m0"] = 0.75
-		obj["r0"] = -1.1
-		obj["m1"] = -0.2
-		obj["r1"] = -0.45
-		obj["p0"] = 0.2
-		obj["p1"] = 0.3
-		obj["h0"] = -0.5
-		obj["h1"] = 0.6
-		obj["hz0"] = -0.45
-		obj["hz1"] = 0.45
-		obj["c0"] = 0.6
-		obj["c1"] = 0.6
+		obj[0 + M] = 0.75
+		obj[0 + R] = -1.1
+		obj[6 + M] = -0.2
+		obj[6 + R] = -0.45
+		obj[0 + P] = 0.2
+		obj[6 + P] = 0.3
+		obj[0 + H] = -0.5
+		obj[6 + H] = 0.6
+		obj[0 + HZ] = -0.45
+		obj[6 + HZ] = 0.45
+		obj[0 + C] = 0.6
+		obj[6 + C] = 0.6
 		y = 0.95
 		lean = -0.08
 	var k := 1.0 - exp(-14.0 * dt)
 	for i in 2:
-		muslo[i].rotation.x = lerpf(muslo[i].rotation.x, obj["m%d" % i], k)
-		canilla[i].rotation.x = lerpf(canilla[i].rotation.x, obj["r%d" % i], k)
-		pie[i].rotation.x = lerpf(pie[i].rotation.x, obj["p%d" % i], k)
-		hombro[i].rotation.x = lerpf(hombro[i].rotation.x, obj["h%d" % i], k)
-		hombro[i].rotation.z = lerpf(hombro[i].rotation.z, obj["hz%d" % i], k)
-		codo[i].rotation.x = lerpf(codo[i].rotation.x, obj["c%d" % i], k)
+		muslo[i].rotation.x = lerpf(muslo[i].rotation.x, obj[i * 6 + M], k)
+		canilla[i].rotation.x = lerpf(canilla[i].rotation.x, obj[i * 6 + R], k)
+		pie[i].rotation.x = lerpf(pie[i].rotation.x, obj[i * 6 + P], k)
+		hombro[i].rotation.x = lerpf(hombro[i].rotation.x, obj[i * 6 + H], k)
+		hombro[i].rotation.z = lerpf(hombro[i].rotation.z, obj[i * 6 + HZ], k)
+		codo[i].rotation.x = lerpf(codo[i].rotation.x, obj[i * 6 + C], k)
 	cadera.position.y = lerpf(cadera.position.y, y, k)
 	torso.rotation.x = lerpf(torso.rotation.x, lean, k)
 	torso.rotation.y = lerpf(torso.rotation.y, giro, k)

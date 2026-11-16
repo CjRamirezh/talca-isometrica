@@ -183,16 +183,7 @@ func recortar(mi: MeshInstance3D, recs: Array) -> void:
 		for i in v.size():
 			w[i] = xf * v[i]
 		var pieza := _piezas(w, idx)  # por vértice: el índice de su pieza
-		var cajas := {}  # pieza -> AABB en el mundo
-		for i in idx:
-			var k: int = pieza[i]
-			cajas[k] = cajas[k].expand(w[i]) if cajas.has(k) else AABB(w[i], Vector3.ZERO)
-		var objeto := {}  # pieza (objeto) -> se quita
-		for k in cajas:
-			var bb: AABB = cajas[k]
-			if maxf(bb.size.x, bb.size.z) <= OBJETO and bb.size.y > ALTO_OBJETO:
-				var c := bb.get_center()
-				objeto[k] = _dentro(Vector2(c.x, -c.z), pols)
+		var objeto := _objetos(w, idx, pieza, pols)
 		var out := {"a": a, "base": v.size(), "nuevos": {}}  # los vértices nuevos, por atributo (Array: por referencia)
 		var keep := []
 		for t in range(0, idx.size(), 3):
@@ -230,23 +221,7 @@ func recortar(mi: MeshInstance3D, recs: Array) -> void:
 				n.quitados += 1
 				continue
 			n.cortados += 1
-			var signo := signf(_area(tri))
-			for pz in piezas:
-				var tr := PackedInt32Array([0, 1, 2]) if pz.size() == 3 else Geometry2D.triangulate_polygon(pz)
-				if tr.is_empty() and absf(_area(pz)) > 1e-4:  # no la pudo triangular: en abanico, antes que un hueco
-					push_warning("recortar: %s, una pieza de %d vértices en abanico" % [capa, pz.size()])
-					for k in range(1, pz.size() - 1):
-						tr.append_array([0, k, k + 1])
-				for k in range(0, tr.size(), 3):
-					var q0: Vector2 = pz[tr[k]]
-					var q1: Vector2 = pz[tr[k + 1]]
-					var q2: Vector2 = pz[tr[k + 2]]
-					var ar := (q1 - q0).cross(q2 - q0) / 2.0
-					if absf(ar) < 1e-6:
-						continue
-					var q := [q0, q1, q2] if signf(ar) == signo else [q0, q2, q1]
-					for p in q:
-						keep.append(_vertice(out, i0, i1, i2, tri, p))
+			_rellenar(piezas, tri, [i0, i1, i2], out, keep, capa)
 		if keep.is_empty():
 			continue
 		_juntar(a, out.nuevos)
@@ -255,6 +230,44 @@ func recortar(mi: MeshInstance3D, recs: Array) -> void:
 		nuevo.surface_set_material(nuevo.get_surface_count() - 1, am.surface_get_material(s))
 	mi.mesh = nuevo
 	print("main.gd: %s, %d triángulos quitados y %d cortados" % [capa, n.quitados, n.cortados])
+
+
+# las piezas que son objetos (chicas en planta y con alto: un árbol, un auto, un farol) -> si se quitan (el centro de su
+# planta cae en un recorte)
+func _objetos(w: PackedVector3Array, idx: PackedInt32Array, pieza: PackedInt32Array, pols: Array) -> Dictionary:
+	var cajas := {}  # pieza -> AABB en el mundo
+	for i in idx:
+		var k: int = pieza[i]
+		cajas[k] = cajas[k].expand(w[i]) if cajas.has(k) else AABB(w[i], Vector3.ZERO)
+	var objeto := {}
+	for k in cajas:
+		var bb: AABB = cajas[k]
+		if maxf(bb.size.x, bb.size.z) <= OBJETO and bb.size.y > ALTO_OBJETO:
+			var c := bb.get_center()
+			objeto[k] = _dentro(Vector2(c.x, -c.z), pols)
+	return objeto
+
+
+# las piezas que quedan de un triángulo cortado (tri: en planta; ii: sus vértices), triangulados en el orden del
+# original, con sus vértices nuevos (out) y sus índices en keep
+func _rellenar(piezas: Array, tri: PackedVector2Array, ii: Array, out: Dictionary, keep: Array, capa: String) -> void:
+	var signo := signf(_area(tri))
+	for pz in piezas:
+		var tr := PackedInt32Array([0, 1, 2]) if pz.size() == 3 else Geometry2D.triangulate_polygon(pz)
+		if tr.is_empty() and absf(_area(pz)) > 1e-4:  # no la pudo triangular: en abanico, antes que un hueco
+			push_warning("recortar: %s, una pieza de %d vértices en abanico" % [capa, pz.size()])
+			for k in range(1, pz.size() - 1):
+				tr.append_array([0, k, k + 1])
+		for k in range(0, tr.size(), 3):
+			var q0: Vector2 = pz[tr[k]]
+			var q1: Vector2 = pz[tr[k + 1]]
+			var q2: Vector2 = pz[tr[k + 2]]
+			var ar := (q1 - q0).cross(q2 - q0) / 2.0
+			if absf(ar) < 1e-6:
+				continue
+			var q := [q0, q1, q2] if signf(ar) == signo else [q0, q2, q1]
+			for p in q:
+				keep.append(_vertice(out, ii[0], ii[1], ii[2], tri, p))
 
 
 # lo que queda de un triángulo (en planta) fuera de los recortes hits: polígonos simples, sin huecos. Un recorte

@@ -365,7 +365,22 @@ func buscar_faroles() -> void:
 # Bloques bajos con techos de colores y árboles sueltos en una grilla de manzanas de ~100 m, desde el borde de la caja
 # hasta 1,5 km, sobre un suelo plano: la niebla los funde con el cielo. No tienen colisión (los muros de main.gd no dejan
 # llegar a ellos) y son inventados: solo dan la idea de que la ciudad sigue.
+const SUELO_LEJOS := -2.5  # la altura del suelo lejano
+
+
 func lejos() -> void:
+	var caja := caja_maqueta()
+	if caja.size == Vector3.ZERO:
+		return
+	suelo_lejano(caja)
+	var m := manzanas_lejanas(caja)
+	poner_casas(m["casas"], m["colores"])
+	poner_arboles(m["arboles"])
+	print("ambiente.gd: ciudad lejana, %d casas y %d árboles" % [m["casas"].size(), m["arboles"].size()])
+
+
+# la caja de lo que hay en la escena (el glb y los modelos), o una vacía
+func caja_maqueta() -> AABB:
 	var caja := AABB()
 	var primera := true
 	for n in get_parent().get_children():
@@ -375,10 +390,12 @@ func lejos() -> void:
 			var b: AABB = mi.global_transform * mi.get_aabb()
 			caja = b if primera else caja.merge(b)
 			primera = false
-	if primera:
-		return
-	var suelo_y := -2.5
-	# el suelo: un plano grande con un agujero donde está la caja (cuatro rectángulos)
+	return caja
+
+
+# el suelo: un plano grande con un agujero donde está la caja (cuatro rectángulos)
+func suelo_lejano(caja: AABB) -> void:
+	var suelo_y := SUELO_LEJOS
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var R := 6000.0
@@ -401,7 +418,11 @@ func lejos() -> void:
 	add_child(plano)
 	lejanos.append(plano)
 
-	# las casas: cajas por manzana, de 3 a 7 m (más altas cerca del centro)
+
+# las casas (cajas por manzana, de 3 a 7 m, más altas cerca del centro) y los árboles sueltos de cada manzana fuera de
+# la caja: {"casas": [Transform3D], "colores": [Color], "arboles": [Transform3D]}
+func manzanas_lejanas(caja: AABB) -> Dictionary:
+	var suelo_y := SUELO_LEJOS
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7101
 	var casas: Array[Transform3D] = []
@@ -447,6 +468,10 @@ func lejos() -> void:
 				var s := rng.randf_range(5.0, 9.0)
 				p.y = suelo_y + s * 0.75
 				arboles.append(Transform3D(Basis().scaled(Vector3(s, s * 0.9, s)), p))
+	return {"casas": casas, "colores": colores, "arboles": arboles}
+
+
+func poner_casas(casas: Array[Transform3D], colores: Array[Color]) -> void:
 	var caja_m := BoxMesh.new()
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -464,6 +489,9 @@ func lejos() -> void:
 	mmi.material_override = mat
 	add_child(mmi)
 	lejanos.append(mmi)
+
+
+func poner_arboles(arboles: Array[Transform3D]) -> void:
 	var copa := SphereMesh.new()
 	copa.radial_segments = 8
 	copa.rings = 4
@@ -481,7 +509,6 @@ func lejos() -> void:
 	ami.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ami)
 	lejanos.append(ami)
-	print("ambiente.gd: ciudad lejana, %d casas y %d árboles" % [casas.size(), arboles.size()])
 
 
 # ---------- rendimiento ----------

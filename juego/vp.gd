@@ -7,13 +7,14 @@
 # verdad): a simple vista, desde otro lugar, se ve deformado.
 #
 #   Godot --path juego -- --vp [--tele 55] [--pantalla 1] [--ancla 0,-45 --rumbo 0 --alto 1.6 --escala 1]
-#         [--lente 0.15] [--adelanto 0.05] [--ojo x,y,z --png x.png]
+#         [--lente 0.15] [--adelanto 0.05] [--ojo x,y,z --png x.png] [--lan]
 #
 # Teléfono, por USB (WebXR exige https o localhost):
 #   adb reverse tcp:8770 tcp:8770 && adb reverse tcp:8771 tcp:8771
 #   y en Chrome del teléfono: http://localhost:8770
-# Sin cable: en chrome://flags del teléfono, «Insecure origins treated as secure» con http://<ip del computador>:8770
-# (la tele muestra la dirección). La página es vp/telefono.html, que sirve este mismo script (puerto 8770; las poses
+# Sin cable (--lan: los puertos se abren a la red local; sin --lan, solo en 127.0.0.1, que basta con adb reverse): en
+# chrome://flags del teléfono, «Insecure origins treated as secure» con http://<ip del computador>:8770 (la tele
+# muestra la dirección). La página es vp/telefono.html, que sirve este mismo script (puerto 8770; las poses
 # llegan por WebSocket al 8771).
 #
 # Calibrar: pare el teléfono sobre el borde de arriba de la tele, al centro, con la cámara mirando a la pieza, y toque
@@ -123,7 +124,8 @@ func _ready() -> void:
 	capa.add_child(texto)
 
 	leer_cal()
-	if http.listen(PUERTO_HTTP) != OK or ws.listen(PUERTO_WS) != OK:
+	var donde := "*" if Args.has("--lan") else "127.0.0.1"
+	if http.listen(PUERTO_HTTP, donde) != OK or ws.listen(PUERTO_WS, donde) != OK:
 		push_error("vp.gd: no pude abrir los puertos %d y %d" % [PUERTO_HTTP, PUERTO_WS])
 	await get_tree().physics_frame
 	await get_tree().physics_frame
@@ -348,7 +350,7 @@ func estado(dt: float) -> void:
 	var l := []
 	if peers.is_empty():
 		l.append("Teléfono: Chrome en http://localhost:%d (con adb reverse tcp:%d tcp:%d y tcp:%d tcp:%d)" % [PUERTO_HTTP, PUERTO_HTTP, PUERTO_HTTP, PUERTO_WS, PUERTO_WS])
-		for ip in IP.get_local_addresses():
+		for ip in IP.get_local_addresses() if Args.has("--lan") else []:
 			if ip.count(".") == 3 and not ip.begins_with("127.") and not ip.begins_with("169.254."):
 				l.append("  o sin cable: http://%s:%d (ver chrome://flags en vp.gd)" % [ip, PUERTO_HTTP])
 	else:
