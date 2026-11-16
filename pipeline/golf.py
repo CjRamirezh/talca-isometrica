@@ -113,4 +113,7 @@ def panel():
     print('diagnostics/golf-clases.png', im.size)
 
 if __name__ == '__main__':
-    panel() if sys.argv[1:] == ['panel'] else main()
+    a = sys.argv[1:]
+    if a == ['panel']: panel()
+    elif not a: main()
+    else: raise SystemExit(__doc__)   # anything else (a typo, --help) used to rewrite data/golf.json

@@ -30,9 +30,8 @@ function sideRibbon(B,pts,side,off,w,y,col){
     if(i>0){const m=nrm(pts[i-1],a);B.quadXY([at(a,m,off),at(a,m,off+w),at(a,n,off+w),at(a,n,off)],y,col);}}}
 let riverWater=null; // the rivers' water, draped: its own mesh (matWater), drawn over coplanar layers
 function riverBase(B,BW,k,[w,rb]){
-  const V=r=>r.map(p=>new T.Vector2(p[0],p[1]));
   for(const [outer,...isl] of RIV[k]){const all=outer.concat(...isl);
-    for(const t of T.ShapeUtils.triangulateShape(V(outer),isl.map(V)))BW.face(t.map(i=>[all[i][0],0.11,-all[i][1]]),[0,1,0],PAL.water);}
+    for(const t of triangulate(outer,isl)||[])BW.face(t.map(i=>[all[i][0],0.11,-all[i][1]]),[0,1,0],PAL.water);}
   // shore strips, outside the water: right of a counter-clockwise outer ring, left of a counter-clockwise island.
   // None on ring edges the clip laid along the model's border, nor on the edge where the area ends across the river,
   // and in water colour where it would lie in another river's water, or in another piece of the same river's: the

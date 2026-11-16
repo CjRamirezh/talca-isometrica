@@ -4,5 +4,5 @@ matplotlib>=3.7
 numpy>=1.24
 # Imagen satelital (pipeline/satellite.py):
 pillow>=10
-# Capturas (tools/screenshot.py); luego: python -m playwright install chromium
-playwright>=1.40
+# Capturas (tools/); mejor sin instalar: uv run --with "playwright==1.63" python tools/… (CLAUDE.md, Comandos)
+playwright==1.63   # el Chromium de la caché (chromium_headless_shell-1243) es el de la 1.63: otra versión pide otro navegador

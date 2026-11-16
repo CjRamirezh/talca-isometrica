@@ -90,8 +90,11 @@ def validate():
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'validate'
     if cmd == 'address':
-        m = re.match(r'(\d+ \w+) (\d+)', sys.argv[2]); g, cr = geocode(m.group(1), m.group(2))
+        m = re.match(r'(\d+ \w+) (\d+)', sys.argv[2]) if len(sys.argv) > 2 else None
+        if not m: raise SystemExit('uso: python pipeline/geocode.py address "2 Norte 781"   (calle y número)')
+        g, cr = geocode(m.group(1), m.group(2))
         print('entre', cr, '->', g and unloc(*g))
     elif cmd == 'lines':
         for k, v in sorted(lines().items(), key=lambda kv: kv[1]): print(f'{k:12s} {v:8.0f}')
-    else: validate()
+    elif cmd == 'validate': validate()
+    else: raise SystemExit(__doc__)   # an unknown command used to run validate

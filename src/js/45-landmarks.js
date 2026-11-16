@@ -3,7 +3,6 @@ const MODELS={}; // id -> {x,y,h}
 const GLOW=[]; // extra night lights [x, height, y] (the stadium's masts)
 const NOLOTS=[]; // polygons (grid metres) where cityGen places no lots: fenced grounds modelled on their own
 const TREES=[]; // round trees a landmark plants where the real ones stand [x, y, scale, seed] (the Parque Río Claro's eucalyptus)
-const P2=(p)=>p;
 function rotRect(cx,cy,w,d,a=0){const c=Math.cos(a),s=Math.sin(a);return [[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]].map(([x,y])=>[cx+x*c-y*s,cy+x*s+y*c]);}
 function ngon(cx,cy,r,n,a0=0){const o=[];for(let i=0;i<n;i++){const a=a0+i/n*Math.PI*2;o.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);}return o;}
 function pyramid(B,q,y,h,col){let cx=0,cy=0;q.forEach(p=>{cx+=p[0];cy+=p[1];});cx/=q.length;cy/=q.length;B._c=[cx,-cy];for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length];B.face([[a[0],y,-a[1]],[b[0],y,-b[1]],[cx,y+h,-cy]],null,i%2?shade(col,.9):col);}B._c=null;}

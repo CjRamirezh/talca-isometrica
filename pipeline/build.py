@@ -16,7 +16,7 @@ cada uno, que la página pide con fetch apenas empieza (src/page.html, el marcad
                                                     index.html:N o (index):N para una línea de la página
 """
 import hashlib, json, re, shutil, sys
-from common import ROOT, DATA, CONFIG, require, loc
+from common import ROOT, DATA, CONFIG, require, loc, in_ring
 
 SRC = ROOT / 'src'
 DIST = ROOT / 'dist'
@@ -131,7 +131,7 @@ def land_uses(geo):
     names, out, lim = [], [], dec(geo['limit'])
     for u in usos_entries():
         r = u['poly'] if 'poly' in u else dec(geo['blocks'][u['bi']][3])
-        if sum(pip(p, lim) for p in r) < len(r) / 2: continue   # mostly outside the commune (in Maule): not drawn
+        if sum(in_ring(p, lim) for p in r) < len(r) / 2: continue   # mostly outside the commune (in Maule): not drawn (in_ring: banded edges, 30× faster than pip on the 461-vertex limit)
         if u['uso'] == 'vivienda':
             if 'poly' in u:
                 r = u['poly']; A = abs(sum(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1] for i in range(len(r))))/2
@@ -163,7 +163,10 @@ FACHADA = ('alto', 'pisos', 'color', 'zocalo', 'zocalo_alto', 'techo', 'pb', 'es
 
 
 def main():
-    if '--where' in sys.argv: return cmd_where(sys.argv[sys.argv.index('--where') + 1])
+    if '--where' in sys.argv:
+        i = sys.argv.index('--where')
+        if i + 1 == len(sys.argv): raise SystemExit(cmd_where.__doc__)
+        return cmd_where(sys.argv[i + 1])
     geo = json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data')))
     mark_built(geo['blocks'])
     land_uses(geo)

@@ -1,7 +1,7 @@
 /* =============== boot =============== */
 function loop(now){
   if(anim){anim(now);}
-  if(ring.visible){const t=((now-(ring.userData.t0||0))%1800)/1800;const s=18+t*38;ring.scale.set(s,s,s);ring.material.opacity=0.85*(1-t);dirty=true;}
+  if(ringTick(now))dirty=true; // the selection ring's pulse, at RING_FPS for a few seconds after select()
   const tr=trainsTick(now);if(tr)dirty=true; // the trains: a frame at TRAIN_FPS while one moves in the view
   // while the camera moves (a gesture, a flight: it moved since the last frame or less than MOVE_MS ago, which on a
   // slow phone is shorter than a frame) the frames leave out the normals pass of crease:'normals' (the creases from depth cost
@@ -188,7 +188,7 @@ function boot(){
       lampPts=lamps();lampPts.visible=night;scene.add(lampPts);STAGE=null;$('#more').hidden=true;shDirty=dirty=true;
       LOAD.full=Math.round(performance.now());
       const sum=a=>a.reduce((s,v)=>s+v,0);CITY.zVerts=sum(zv);
-      window.__stats={buildings:nb,lots:LOTS.length-EDS.hulls,verts:sum(bv),yards:sum(yv),ground:sum(gnd),street:STREET,trees:C.round.length,poplars:C.poplar.length,ms:Math.round(performance.now()-t0),t:TT};
+      window.__stats={buildings:nb,lots:LOTS.length-EDS.hulls,verts:sum(bv),yards:sum(yv),ground:sum(gnd),street:STREET,trees:C.round.length,poplars:C.poplar.length,triFail:TRI_FAIL,ms:Math.round(performance.now()-t0),t:TT};
       window.__stats.city=CITY;Object.defineProperty(window.__stats,'load',{get:loadTimes,enumerable:true}); // cityGen: barrios, house types, the Z mesh (procedural city)
     }),0);
   },30);

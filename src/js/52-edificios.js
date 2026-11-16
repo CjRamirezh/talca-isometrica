@@ -154,8 +154,7 @@ function insetRing(r,d){const n=r.length,o=[];
   if(n<=80)for(let i=0;i<n;i++)for(let j=i+2;j<n;j++){if(i===0&&j===n-1)continue;if(X(o[i],o[(i+1)%n],o[j],o[(j+1)%n]))return null;}
   return ringArea(o)>1?o:null;}
 // a flat polygon with holes at height y (over G.dy), facing up
-GB.prototype.flatH=function(rings,y,col){const V=a=>a.map(p=>new T.Vector2(p[0],p[1]));let tris;
-  try{tris=T.ShapeUtils.triangulateShape(V(rings[0]),rings.slice(1).map(V));}catch(e){return;}
+GB.prototype.flatH=function(rings,y,col){const tris=triangulate(rings[0],rings.slice(1));if(!tris)return;
   const all=[].concat(...rings);this.grow(all.length,tris.length*3);const base=this.nv;
   for(const p of all){const k=this.nv*3;this.P[k]=p[0];this.P[k+1]=y+this.dy;this.P[k+2]=-p[1];this.N[k]=0;this.N[k+1]=127;this.N[k+2]=0;this.C[k]=col[0];this.C[k+1]=col[1];this.C[k+2]=col[2];this.nv++;}
   for(const t of tris){const a=all[t[0]],b=all[t[1]],c=all[t[2]],up=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>=0;

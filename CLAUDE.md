@@ -31,7 +31,7 @@ make validate                   # distancia entre cada lugar y su dirección en 
 python tools/screenshot.py shots/x.png --hash corte-apelaciones [--size 390x844] [--dpr 2] [--dark] [--js "..."]
 python tools/screenshot.py shots/x.png --js "__look(-1640,533,10,Math.PI/4+Math.PI)"   # cámara en (x, y) de grilla, zoom, giro
 python tools/screenshot.py shots/ --view "plaza=__look(-60,30,14.2)" --view "giro=__look(-60,30,14.2,Math.PI/4+Math.PI/2)"   # varias vistas de una sola carga
-uv run --with playwright --with pillow python tools/variants.py shots/hoja.png --view "Plaza:__look(-60,30,14.2)" --variant "Sin pixel art:__pixelArt(null)" --variant "0,75 m:__pixelArt({m:0.75})" --reset "__pixelArt({m:0.5})" --scale 1   # vistas x variantes en una hoja
+uv run --with "playwright==1.63" --with pillow python tools/variants.py shots/hoja.png --view "Plaza:__look(-60,30,14.2)" --variant "Sin pixel art:__pixelArt(null)" --variant "0,75 m:__pixelArt({m:0.75})" --reset "__pixelArt({m:0.5})" --scale 1   # vistas x variantes en una hoja
 uv run --with "playwright==1.63" --with pillow python tools/variants.py shots/d.png --size 390x844 --dpr 2 --clip 0,0,390,844 --view "z4:__look(-60,30,4)" --variant "Antes:__pixelArt({m:0.5,crease:'normals'})" --variant "Ahora:" --diff   # % de píxeles distintos y columna Δ
 python tools/screenshot.py shots/ --view "tren=(p=__train('main',11261),__look(p[0],p[1],22))"   # un tren detenido con la cabeza en s (línea main o ramal; tipo sfb, carga, adm)
 python tools/probe.py "__trains()" "__rail.main.s.length"   # evalúa expresiones en el mapa cargado e imprime JSON (--js corre antes)

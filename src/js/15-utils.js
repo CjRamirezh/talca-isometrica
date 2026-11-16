@@ -1,5 +1,11 @@
 /* =============== utils =============== */
 function rng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+// T.ShapeUtils.triangulateShape on [x,y] rings: index triples into the ring followed by its holes, or null when it
+// throws (a degenerate ring). Every polygon dropped that way is counted in TRI_FAIL (__stats.triFail), so that it is
+// not lost in silence: tools/screenshot.py --strict (make smoke) fails when it is not 0
+let TRI_FAIL=0;
+function triangulate(ring,holes){const V=a=>a.map(p=>new T.Vector2(p[0],p[1]));
+  try{return T.ShapeUtils.triangulateShape(V(ring),holes?holes.map(V):[]);}catch(e){TRI_FAIL++;return null;}}
 const pick=(r,arr)=>arr[Math.floor(r()*arr.length)];
 const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
 const shade=(c,f)=>[Math.min(255,c[0]*f),Math.min(255,c[1]*f),Math.min(255,c[2]*f)];

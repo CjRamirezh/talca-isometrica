@@ -111,8 +111,8 @@ function usosBase(B,S,UG,list){const t0=performance.now(),C=hex;if(!OCC0)return;
     if(x1-x0<2.2&&y1-y0<2.2){let cx=0,cy=0;for(const p of q){cx+=p[0];cy+=p[1];}if(!occ0At(cx/q.length,cy/q.length))UG.onGround(q,off,col);return;}
     const f=x1-x0>y1-y0?p=>p[0]:p=>p[1],[A,Bq]=cutAt(q,f,x1-x0>y1-y0?(x0+x1)/2:(y0+y1)/2);if(A.length>2)dry(A,off,col);if(Bq.length>2)dry(Bq,off,col);};
   const PX={onGround:dry};
-  const ground=(u,col)=>{const holes=u.kids.filter(k=>!k.skip&&USO_GROUND.has(k.k)).map(k=>k.r);let t;
-    try{t=T.ShapeUtils.triangulateShape(u.r.map(p=>new T.Vector2(p[0],p[1])),holes.map(h=>h.map(p=>new T.Vector2(p[0],p[1]))));}catch(e){return;}
+  const ground=(u,col)=>{const holes=u.kids.filter(k=>!k.skip&&USO_GROUND.has(k.k)).map(k=>k.r);
+    const t=triangulate(u.r,holes);if(!t)return;
     const all=u.r.concat(...holes);for(const [a,b,c] of t)drapeQ(PX,ccwQ([all[a],all[b],all[c]]),0.11+(u.lift||0),col);};
   const flatD=(q,y,col)=>drapeQ(PX,ccwQ(q),y,col); // a small convex detail, draped (no street test)
   // a strip along u from ua to ub between v0 and v1, cut where it meets a street or what was there before

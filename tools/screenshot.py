@@ -9,7 +9,7 @@
   python tools/screenshot.py shots/ --view "plaza=__look(-60,30,14.2)" --view "giro=__look(-60,30,14.2,Math.PI/4+Math.PI/2)"
       # varias vistas de una sola carga (shots/plaza.png, shots/giro.png): genera una vez, no una por captura
   python tools/screenshot.py shots/smoke.png --strict             # termina con código 1 si hay errores de consola o la
-      # generación sale vacía (sin edificios, árboles o vértices): es `make smoke`, la prueba de humo del repo
+      # generación sale vacía (sin edificios, árboles o vértices) o perdió polígonos (__stats.triFail): es `make smoke`, la prueba de humo del repo
 
 Sirve dist/ (make build) en un puerto local (la página pide sus datos con fetch, que no funciona desde file://); todo
 lo que necesita, three.js incluido, está ahí, así que funciona sin internet salvo las fuentes de Google. Imprime las estadísticas de generación (edificios, vértices, árboles, ms) y los
@@ -110,6 +110,7 @@ async def main(a):
             bad = [l for l in logs if l.startswith(('ERROR:', 'error:'))]
             st = await pg.evaluate('window.__stats') or {}
             bad += [f'stats.{k} = {st.get(k)}' for k in ('buildings', 'trees', 'verts', 'ground') if not st.get(k)]
+            if st.get('triFail'): bad.append(f"stats.triFail = {st['triFail']} (polígonos que triangulate() no pudo dibujar)")
         await b.close()
         if bad: raise SystemExit('smoke: ' + '; '.join(bad))
         if a.strict: print('smoke: ok')

@@ -57,7 +57,7 @@ function rectClip(x0,y0,x1,y1){
     for(let m=0;m+1<xs.length;m+=2)for(let i=Math.max(0,Math.ceil((xs[m]-EX0)/ES-.5));i<=Math.min(ECW-1,Math.floor((xs[m+1]-EX0)/ES-.5));i++)if(!CM[j*ECW+i])CM[j*ECW+i]=1;}
   for(let c=0;c<CM.length;c++){if(CM[c]!==2)continue;const i=c%ECW,j=(c-i)/ECW,x0=EX0+i*ES,y0=EY0+j*ES;
     const P=rectClip(x0,y0,x0+ES,y0+ES),tr=[];
-    for(const q of P){let t;try{t=T.ShapeUtils.triangulateShape(q.map(p=>new T.Vector2(p[0],p[1])),[]);}catch(e){continue;}
+    for(const q of P){const t=triangulate(q);if(!t)continue;
       for(const [u,v,w] of t){const A=q[u],B=q[v],D=q[w];tr.push((B[0]-A[0])*(D[1]-A[1])-(B[1]-A[1])*(D[0]-A[0])>0?[A,B,D]:[A,D,B]);}}
     if(!tr.length)CM[c]=0;else{LIMP.set(c,P);LIMT.set(c,tr);}}
 }

@@ -16,7 +16,7 @@ class GB{
     for(let j=1;j<pts.length-1;j++){this.I[this.ni++]=base;this.I[this.ni++]=base+j;this.I[this.ni++]=base+j+1;}
   }
   flat(ring,y,col){ // ring local [x,y]
-    let tris;try{tris=T.ShapeUtils.triangulateShape(ring.map(p=>new T.Vector2(p[0],p[1])),[]);}catch(e){return;}
+    const tris=triangulate(ring);if(!tris)return;
     this.grow(ring.length,tris.length*3);const base=this.nv;
     for(const p of ring){const k=this.nv*3;this.P[k]=p[0];this.P[k+1]=y+this.dy;this.P[k+2]=-p[1];this.N[k]=0;this.N[k+1]=127;this.N[k+2]=0;this.C[k]=col[0];this.C[k+1]=col[1];this.C[k+2]=col[2];this.nv++;}
     for(const t of tris){const a=ring[t[0]],b=ring[t[1]],c=ring[t[2]];

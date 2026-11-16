@@ -4,7 +4,7 @@ let renderer;
 // no antialias: the scene is drawn into the pixel art's own target (without it), and the screen only gets the quad that
 // enlarges it, so a multisampled screen buffer smoothed nothing and cost a phone memory and bandwidth in every frame
 try{renderer=new T.WebGLRenderer({canvas,antialias:false,alpha:true,powerPreference:'high-performance'});}
-catch(e){$('#err').hidden=false;$('#err').textContent='Este navegador no puede mostrar gráficos WebGL, que la maqueta necesita.';return;}
+catch(e){return fail('Este navegador no puede mostrar gráficos WebGL, que la maqueta necesita.');}
 const DPR=Math.min(window.devicePixelRatio||1,2);
 renderer.setPixelRatio(DPR);renderer.setClearColor(0x000000,0);
 const scene=new T.Scene();

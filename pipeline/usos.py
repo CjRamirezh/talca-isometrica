@@ -64,7 +64,7 @@ construida, igual que config/manzanas.json).
 """
 import json, math, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # python -I pipeline/usos.py (raw/cl/ is not trusted)
-from common import ROOT, DATA, CONFIG, RAW, loc, require, comuna
+from common import ROOT, DATA, CONFIG, RAW, loc, require, comuna, in_ring
 from build import hito_ids, usos_entries, USOS_FILES
 
 USOS = ['industrial', 'cementerio', 'militar', 'educacional', 'salud', 'deportivo', 'parque', 'huerto', 'vina',
@@ -81,6 +81,10 @@ def pip(p, r):
         (x0, y0), (x1, y1) = r[i-1], r[i]
         if (y0 > p[1]) != (y1 > p[1]) and p[0] < x0 + (p[1]-y0)*(x1-x0)/(y1-y0): inside = not inside
     return inside
+
+def bbox(r): return (min(p[0] for p in r), min(p[1] for p in r), max(p[0] for p in r), max(p[1] for p in r))
+
+def apart(a, b): return a[0] > b[2] or b[0] > a[2] or a[1] > b[3] or b[1] > a[3]   # two disjoint boxes
 
 def area(r): return abs(sum(r[i-1][0]*r[i][1]-r[i][0]*r[i-1][1] for i in range(len(r))))/2
 
@@ -364,7 +368,7 @@ def cmd_check():
     g, blocks = geometry(); E = entries(g); wet = river_tests(g); bix = BlockIndex(blocks); bad = 0
     pois = {p['id']: p for p in json.load(open(DATA / 'pois.json'))['pois']}
     hitos = hito_ids()
-    tot = {}
+    tot = {}; box = [bbox(rs[0]) for _, rs in E]   # the overlap tests skip entries whose boxes are apart (O(n²) pairs)
     for k, (u, rings) in enumerate(E):
         tag = f"{k:3} {u['uso']:<11} {u.get('nombre', '')[:30]:<30}"
         miss = [f for f in ('uso', 'fuente', 'confianza') if not u.get(f)]
@@ -385,7 +389,8 @@ def cmd_check():
             if p and pip((p['x'], p['y']), rings[0]): miss.append(f'contiene el punto del hito {h}')
         for j, (v, rs) in enumerate(E[:k]):
             if {u['uso'], v['uso']} & {'eriazo', 'bosque', 'parcelas', 'vivienda'}: continue   # no ground of their own
-            n = sum(1 for p in pts if pip(p, rs[0]))
+            if apart(box[j], box[k]): continue
+            n = sum(1 for p in pts if in_ring(p, rs[0]))
             if n <= len(pts)*.02: continue
             if all(pip(p, rs[0]) for p in rings[0]) or all(pip(p, rings[0]) for p in rs[0]): continue  # nested
             miss.append(f'se superpone con la entrada {j} ({n*100//len(pts)}%)')
@@ -395,11 +400,12 @@ def cmd_check():
     big = [b for b in blocks if b['t'] == 1 and b['A'] >= 4e4]
     cov = 0
     for b in big:
-        pts = samples(b['r'], 25); n = sum(1 for p in pts if any(pip(p, rs[0]) for _, rs in E))
+        bb = bbox(b['r']); near = [rs[0] for (_, rs), bx in zip(E, box) if not apart(bb, bx)]
+        pts = samples(b['r'], 25); n = sum(1 for p in pts if any(in_ring(p, r) for r in near))
         cov += b['A']*n/len(pts)
         if n < len(pts)*.8: print(f"manzana en blanco bi {b['i']} ({b['A']/1e4:.1f} ha): cubierta {n*100//len(pts)}%")
     print(f"manzanas en blanco de 4 ha o más: {len(big)}, {sum(b['A'] for b in big)/1e4:.0f} ha, cubiertas {cov/1e4:.0f} ha")
-    if bad: print(f'\n{bad} entradas con observaciones')
+    if bad: raise SystemExit(f'\n{bad} entradas con observaciones')   # exit code 1: a check that can gate
 
 # ---------------------------------------------------------------- Chilean sources (pipeline/fuentes_cl.py)
 # Each goes to a file of its own (build.USOS_FILES), for its licence: CIREN–ODEPA (usos-ciren.json), INE Censo 2024

@@ -378,16 +378,23 @@ TOURS = {
         s=['plaza-de-armas', 'catedral', 'servicios-publicos', 'mercado-central', 'escuelas-concentradas', 'estacion',
            'teatro-regional', 'la-victoria', 'alameda', 'estadio', 'parque-rio-claro', 'cerro-la-virgen', 'parque-piduco']),
 }
-ids = {p['id'] for p in P}
-for t in TOURS.values():
-    for s in t['s']:
-        assert s in ids, s
-DATA.mkdir(exist_ok=True)
-json.dump(dict(pois=P, tours=TOURS), open(DATA / 'pois.json', 'w'), ensure_ascii=False, separators=(',', ':'))
-with open(DATA / 'pois.csv', 'w', newline='', encoding='utf-8') as f:
-    w = csv.writer(f)
-    w.writerow(['id', 'nombre', 'categoria', 'categorias_extra', 'direccion', 'lat', 'lon', 'confianza', 'modelo_3d', 'prioridad', 'descripcion', 'dato', 'instituciones', 'fuentes', 'wikidata'])
-    for p in P:
-        w.writerow([p['id'], p['n'], p['c'], ';'.join(p['cs']), p['a'], p['lat'], p['lon'], p['conf'], p['m'] or '', p['p'], p['d'], p['f'] or '',
-                    ' | '.join(p['sub'] or []), ' | '.join(f'{a} <{b}>' for a, b in p['src']), p.get('wd', '')])
-print(len(P), 'lugares ->', DATA / 'pois.json', 'y pois.csv')
+
+
+def main():
+    """Checks the tours and writes data/pois.json and data/pois.csv (make pois); importing the module writes nothing."""
+    ids = {p['id'] for p in P}
+    for t in TOURS.values():
+        for s in t['s']:
+            assert s in ids, s
+    DATA.mkdir(exist_ok=True)
+    json.dump(dict(pois=P, tours=TOURS), open(DATA / 'pois.json', 'w'), ensure_ascii=False, separators=(',', ':'))
+    with open(DATA / 'pois.csv', 'w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['id', 'nombre', 'categoria', 'categorias_extra', 'direccion', 'lat', 'lon', 'confianza', 'modelo_3d', 'prioridad', 'descripcion', 'dato', 'instituciones', 'fuentes', 'wikidata'])
+        for p in P:
+            w.writerow([p['id'], p['n'], p['c'], ';'.join(p['cs']), p['a'], p['lat'], p['lon'], p['conf'], p['m'] or '', p['p'], p['d'], p['f'] or '',
+                        ' | '.join(p['sub'] or []), ' | '.join(f'{a} <{b}>' for a, b in p['src']), p.get('wd', '')])
+    print(len(P), 'lugares ->', DATA / 'pois.json', 'y pois.csv')
+
+if __name__ == '__main__':
+    main()

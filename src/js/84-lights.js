@@ -18,4 +18,12 @@ function glowMat(){const c=document.createElement('canvas');c.width=c.height=32;
 /* =============== selection ring =============== */
 const ring=new T.Mesh(new T.RingGeometry(0.8,1,48),new T.MeshBasicMaterial({color:0x7A1F3D,transparent:true,opacity:.9,depthWrite:false}));
 ring.rotation.x=-Math.PI/2;ring.visible=false;ring.renderOrder=5;scene.add(ring);
+// the pulse: RING_PULSES rings that grow and fade after select() (it sets userData.t0), then the ring hides. Every pulse
+// frame redraws the whole scene (the pixel-art pass), so ringTick() asks for one at RING_FPS, like trainsTick(), and
+// only while it pulses: an open card used to keep the map drawing at the display's rate for as long as it stayed open
+const RING_MS=1800,RING_PULSES=3,RING_FPS=18;
+function ringTick(now){if(!ring.visible)return false;const u=ring.userData,e=now-(u.t0||0);
+  if(e>=RING_MS*RING_PULSES){ring.visible=false;return true;}
+  const t=(e%RING_MS)/RING_MS,s=18+t*38;ring.scale.set(s,s,s);ring.material.opacity=0.85*(1-t);
+  if(now-(u.drawn||0)<1000/RING_FPS-2)return false;u.drawn=now;return true;}
 

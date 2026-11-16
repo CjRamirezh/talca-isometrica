@@ -1,10 +1,10 @@
 """Hoja de comparación: varias vistas por varias variantes de render, en una sola carga del mapa.
 
-  uv run --with playwright --with pillow python tools/variants.py shots/hoja.png \\
+  uv run --with "playwright==1.63" --with pillow python tools/variants.py shots/hoja.png \\
       --view "Plaza:__look(-40,20,14.2)" --view "Barrio:__look(1300,-700,14.2)" \\
       --variant "0,5 m:" --variant "Sin contorno:__pixelArt({m:0.5,outline:0})" --variant "Sin pixel art:__pixelArt(null)" \\
       --reset "__pixelArt({m:0.5})" [--clip 380,0,1060,900] [--scale 0.5] [--no-labels]
-  uv run --with playwright --with pillow python tools/variants.py shots/pliegues.png --size 390x844 --dpr 2 --clip 0,0,390,844 \\
+  uv run --with "playwright==1.63" --with pillow python tools/variants.py shots/pliegues.png --size 390x844 --dpr 2 --clip 0,0,390,844 \\
       --view "Plaza:__look(-60,30,4)" --variant "Normales:__pixelArt({m:0.5,crease:'normals'})" --variant "Profundidad:" --diff
 
 Cada fila es una vista (JS que mueve la cámara) y cada columna una variante (JS que cambia el render);
