@@ -62,4 +62,5 @@
     RAIL_YARD.push({pts:Gs([[33.5,-130],[33.5,120]]),g:1.676},{pts:Gs([[38.5,-110],[38.5,110]]),g:1.676});
     for(const [u,v,w] of [[33.5,-130.4,2.2],[33.5,120.4,2.2],[38.5,-110.4,2.2],[38.5,110.4,2.2],[8.6,-29.5,1.6]])piece(v,v,()=>box(u-w/2,v-.4,u+w/2,v+.4,0.3,1.4,K.buffer,K.white));
     for(let v=-242;v<S0-1e-6;v+=24){const e=Math.min(S0,v+24);piece(v,e,(a,b)=>{box(10,a,17.4,b,0.3,1.0,K.plat,K.plat);S.quadXY(R(17.4,a,18,b),1.0,K.edge);box(17.4,a,18,b,0.3,0.99,K.plat,K.plat,false);});}
-    const mc=G(10,8);MODELS.estacion={x:mc[0],y:mc[1],h:16};S.dy=0;}
+    // shed: the middle of the train shed, where the trains stop (70-trains.js)
+    const mc=G(10,8);MODELS.estacion={x:mc[0],y:mc[1],h:16,shed:G((SU0+SU1)/2,(S0+S1)/2)};S.dy=0;}
