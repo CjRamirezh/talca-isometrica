@@ -22,7 +22,7 @@
       car:['#E8E6E0','#2F3133','#9A9DA0','#B4372C','#3E6D9C','#CFCBC1','#6E7276'].map(C),cab:['#B4372C','#3E6D9C','#2F3133'].map(C)};
     const r=rng(9411);
     // walls of a counter-clockwise ring, a white cornice, a flat roof; the hvac boxes on the roof are placed by n and spacing
-    const slab=(ring,h,wall,roof,hv=0)=>{ring=ccwRing(ring);
+    const slab=(ring,h,wall,roof,hv=0)=>{ring=toCCW(ring);
       for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.01)continue;
         const nx=(b[1]-a[1])/L,ny=-(b[0]-a[0])/L,P=(p,y)=>[p[0],y,-p[1]],N=[nx,0,-ny];
         S.face([P(a,.3),P(b,.3),P(b,h-.5),P(a,h-.5)],N,i%2?wall:shade(wall,.93));S.face([P(a,h-.5),P(b,h-.5),P(b,h),P(a,h)],N,K.white);}
@@ -36,12 +36,12 @@
     // and its paved lot
     const pad=padAt(3120,1175,3335,1632);S.dy=pad;
     const LOT=[[3112,1330],[3127,1375],[3147,1433],[3212,1616],[3220,1619],[3238,1630],[3360,1611],[3333,1443],[3320,1335]];
-    S.flat(ccwRing(LOT),.3,K.pave);
-    S.flat(ccwRing([[3150,1170],[3290,1165],[3296,1300],[3168,1305]]),.3,K.pave);                                        // the paving around Plant 4
-    S.flat(ccwRing([[3265,1593],[3322,1572],[3331,1543],[3329,1524],[3313,1508],[3286,1508],[3267,1528]]),.33,K.dirt);   // the truck yard's oval loop (bare earth)
-    S.flat(ccwRing([[3226,1426],[3290,1422],[3288,1382],[3249,1352],[3231,1360]]),.33,K.asph);                           // the dark asphalt yard
-    S.flat(ccwRing([[3158,1617],[3191,1617],[3189,1594],[3180,1576],[3178,1552],[3159,1535],[3152,1518],[3142,1483],[3132,1448],[3126,1416],[3118,1415],[3120,1449],[3132,1487],[3145,1527],[3157,1550],[3164,1572],[3166,1592]]),.33,K.wet);
-    S.flat(ccwRing([[3143,1438],[3182,1441],[3186,1421],[3184,1387],[3143,1384]]),.33,K.park);                           // the staff car park
+    S.flat(toCCW(LOT),.3,K.pave);
+    S.flat(toCCW([[3150,1170],[3290,1165],[3296,1300],[3168,1305]]),.3,K.pave);                                        // the paving around Plant 4
+    S.flat(toCCW([[3265,1593],[3322,1572],[3331,1543],[3329,1524],[3313,1508],[3286,1508],[3267,1528]]),.33,K.dirt);   // the truck yard's oval loop (bare earth)
+    S.flat(toCCW([[3226,1426],[3290,1422],[3288,1382],[3249,1352],[3231,1360]]),.33,K.asph);                           // the dark asphalt yard
+    S.flat(toCCW([[3158,1617],[3191,1617],[3189,1594],[3180,1576],[3178,1552],[3159,1535],[3152,1518],[3142,1483],[3132,1448],[3126,1416],[3118,1415],[3120,1449],[3132,1487],[3145,1527],[3157,1550],[3164,1572],[3166,1592]]),.33,K.wet);
+    S.flat(toCCW([[3143,1438],[3182,1441],[3186,1421],[3184,1387],[3143,1384]]),.33,K.park);                           // the staff car park
     for(let y=1389;y<1437;y+=4.6)for(const x of [3148,3152.2,3156.4,3160.6,3170,3174.2,3178.4]){if(r()<.28)continue;
       const q=[[x-.95,y-2.1],[x+.95,y-2.1],[x+.95,y+2.1],[x-.95,y+2.1]],c=K.car[Math.floor(r()*K.car.length)];S.prism(q,.34,1.5,c,c);}
     // the halls (OSM's long hall, then the hand-traced ones): [ring, height, wall, roof, hvac boxes]
@@ -59,7 +59,7 @@
     // the long hall (w853342226), its roof in bands of two tones across its length
     {const A=[[3177,1340],[3211,1485]],BQ=[[3213,1331],[3247,1477]],n=22,at=(e,t)=>[e[0][0]+(e[1][0]-e[0][0])*t,e[0][1]+(e[1][1]-e[0][1])*t];
       slab([[3211,1485],[3247,1477],[3213,1331],[3177,1340]],13,K.wall,K.roof,0);
-      for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n;S.quadXY(ccwRing([at(A,t0),at(BQ,t0),at(BQ,t1),at(A,t1)]),13.03,k%2?K.roof2:K.roof);}
+      for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n;S.quadXY(toCCW([at(A,t0),at(BQ,t0),at(BQ,t1),at(A,t1)]),13.03,k%2?K.roof2:K.roof);}
       for(const t of [.25,.55,.8]){const m=[(at(A,t)[0]+at(BQ,t)[0])/2,(at(A,t)[1]+at(BQ,t)[1])/2];S.prism([[m[0]-3,m[1]-1.5],[m[0]+3,m[1]-1.5],[m[0]+3,m[1]+1.5],[m[0]-3,m[1]+1.5]],13,14.4,K.hvac,K.wall2);}}
     // the tanks (four yellow cylinders, drawn as boxes), the trailers and the small buildings; the north block's tower is above
     for(let k=0;k<4;k++){const x=3267+k*2.7;S.prism([[x-1,1556-4.5],[x+1,1556-4.5],[x+1,1556+4.5],[x-1,1556+4.5]],.34,2.4,K.tank,K.tank);}
@@ -68,7 +68,7 @@
       const L=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t],W=[3156,1197],Ee=[3257,1175],W2=[3173,1276],E2=[3281,1281];
       for(let k=0;k<24;k++){const q=[L(W,Ee,k/24),L(W,Ee,(k+1)/24),L(W2,E2,(k+1)/24),L(W2,E2,k/24)],c=[(q[0][0]+q[2][0])/2,(q[0][1]+q[2][1])/2],
           qs=q.map(p=>[c[0]+(p[0]-c[0])*.97,c[1]+(p[1]-c[1])*.9]);
-        if(qs.every(p=>pipXY(p[0],p[1],P4)))S.quadXY(ccwRing(qs),14.03,k%2?K.roof2:K.roof);}}
+        if(qs.every(p=>pipXY(p[0],p[1],P4)))S.quadXY(toCCW(qs),14.03,k%2?K.roof2:K.roof);}}
     for(const [x,y] of [[3220,1335],[3225,1335],[3229,1334],[3234,1333],[3239,1333],[3244,1333],[3249,1332]]){const q=[[x-1.3,y-15],[x+1.3,y-15],[x+1.3,y-1],[x-1.3,y-1]];
       S.prism(q,.5,3.6,K.trailer,K.trailer);const cq=[[x-1.25,y-18],[x+1.25,y-18],[x+1.25,y-15.2],[x-1.25,y-15.2]];S.prism(cq,.5,3.1,K.cab[Math.floor(r()*3)],K.white);}
     for(const q of [[[3277,1324],[3291,1324],[3291,1313],[3278,1312]],[[3134,1359],[3147,1358],[3148,1346],[3134,1347]],[[3131,1341],[3144,1343],[3144,1331],[3132,1329]]]){S.prism(q,.32,5,K.wall,K.roof2);}

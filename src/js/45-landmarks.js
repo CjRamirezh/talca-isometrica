@@ -121,10 +121,9 @@ const KH=Object.freeze({brick:hex('#A04B34'),brick2:hex('#8F4330'),white:hex('#E
   iron:hex('#3A3A3A'),mast:hex('#707070'),grass:hex('#5F9840'),grass2:hex('#72AC4D'),step:hex('#D9D3C5'),step2:hex('#C6BFAF'),
   palmTrunk:hex('#6E5B48'),palmCrown:hex('#4E7A3C'),palmFrond:hex('#5F8C45'),palmFrond2:hex('#4E7A3A'),
   pole:hex('#D9D9D6'),flagRed:hex('#C8322B'),flagBlue:hex('#2B4C8C'),flagWhite:hex('#F2F0EA')});
-// polygon tools for the landmarks (with ringArea, insetRing and clipHalf of 52-edificios.js): pairs() turns a flat
-// list [x0,y0,x1,y1,…] (how the long outlines are written) into points, ccwRing() gives a ring counter-clockwise
+// polygon tools for the landmarks (with ringArea, toCCW and convexHull of 15-utils.js, insetRing and clipHalf of
+// 52-edificios.js): pairs() turns a flat list [x0,y0,x1,y1,…] (how the long outlines are written) into points
 const pairs=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push([a[i],a[i+1]]);return o;};
-const ccwRing=r=>ringArea(r)<0?r.slice().reverse():r;
 // A walled ground's own furniture (the Cementerio, the Regimiento, the colleges, the gym, the casino), in (u,v) of its
 // frame. keepOut(m0): the boxes its random graves and trees keep off, {all, bl, has, hits}: bl(u0,v0,u1,v1,m=m0) adds one
 // grown by m, has(u,v) says if a point is strictly inside one, hits(u0,v0,u1,v1) if a rectangle overlaps one; indexed in

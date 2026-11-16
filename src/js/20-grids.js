@@ -71,5 +71,4 @@ function occMark(q,v=1){ // q: 4 corners [[x,y]..]; v=2: a lot of cityGen (lotFi
     for(let gx=Math.max(0,Math.floor((x0-XMIN)/OC));gx<=Math.min(ocW-1,Math.floor((x1-XMIN)/OC));gx++){const cx=XMIN+(gx+.5)*OC;while(n<xs.length&&xs[n]<=cx)n++;
       if((xs.length-n)&1&&(v===1||!occ.get(gx,gy)))occ.set(gx,gy,v);}}}
 const OM_XS=[];
-function rectOcc(cx,cy,w,d){const q=[[cx-w/2,cy-d/2],[cx+w/2,cy-d/2],[cx+w/2,cy+d/2],[cx-w/2,cy+d/2]];occMark(q);}
 

@@ -221,6 +221,7 @@ function drapeQ(G,q0,off,col){
 // at that step. The details over a land use go up in 1 cm steps from uso (uso+.01: a pitch, +.02: rows, +.03: lines).
 const Y_LAYER={field:.02,bankGreen:.03,bank:.05,waterRibbon:.07,block:.1,alamEdge:.107,uso:.11,water:.11,alamGravel:.114,
   street:.12,street_step:.004,paseo:.124,mixedYard:.135,walk:.16,r5:.16,curb:.172,edWalk:.18,edSlab:.2,rail:.2};
+// eslint-disable-next-line no-unused-vars -- Y_STEP and Y_OVER are read by tools/check.py (layer_heights), not by the page
 const Y_STEP=.007,Y_OVER=[['bankGreen','field'],['bank','bankGreen'],['waterRibbon','bank'],['block','field'],['alamEdge','block'],
   ['alamGravel','alamEdge'],['uso','block'],['water','block'],['street','water'],['street','uso'],['paseo','block'],['mixedYard','block'],
   ['walk','street_top'],['r5','street_top'],['curb','walk'],['edWalk','block'],['edSlab','edWalk'],['rail','street_top']];

@@ -34,7 +34,7 @@
         if(o.signs)rect(wp,s0+.3,s1-.3,o.top+.25,o.top+1.25,K.sign[(k*3+(o.sd||0))%K.sign.length]);}
       for(let k=0;k<=n;k++)rect(wp,Math.max(0,k*bw-.3),Math.min(L,k*bw+.3),.3,o.cor-.5,K.white);};
     // the site (OSM's outline, simplified), its pad, the ground
-    const SITE=ccwRing([[-13,-51],[19,-51],[20,-52],[53,-52],[74,-51],[75,7],[74,62],[24,61],[-13,61]]);
+    const SITE=toCCW([[-13,-51],[19,-51],[20,-52],[53,-52],[74,-51],[75,7],[74,62],[24,61],[-13,61]]);
     const site=Gs(SITE);NOLOTS.push(site);occMark(site);
     const pad=padAt(Math.min(...site.map(p=>p[0])),Math.min(...site.map(p=>p[1])),Math.max(...site.map(p=>p[0])),Math.max(...site.map(p=>p[1])));S.dy=pad;
     S.flat(site,.3,K.asph);
@@ -60,7 +60,7 @@
     box(9,53,14,60,.3,3,K.wall2,K.light);box(24,58,28,61,.3,3,K.wall,K.roof);box(29,58,34,61,.3,3,K.wall,K.roof);box(36,57,47,61,.3,3.2,K.wall,K.roof);
     // the south-west block: the market-like shops (OSM's outline), walls with awnings, a roof of zinc bays in tones, the
     // passages' roofs (OSM's corridors, lit) paler
-    const SWING=ccwRing([[20,-52],[20,-34],[17,-34],[17,-12],[50,-12],[50,-8],[62,-8],[62,0],[75,0],[74,-14],[70,-14],[70,-22],[74,-22],[74,-33],[71,-35],[71,-37],[74,-37],[74,-51],[53,-52]]);
+    const SWING=toCCW([[20,-52],[20,-34],[17,-34],[17,-12],[50,-12],[50,-8],[62,-8],[62,0],[75,0],[74,-14],[70,-14],[70,-22],[74,-22],[74,-33],[71,-35],[71,-37],[74,-37],[74,-51],[53,-52]]);
     walls(SWING,.3,4.8,i=>i%2?K.wall:K.wall2);S.flat(Gs(SWING),4.8,K.roof2);
     // the market passages' awnings (u 20-36, OSM's lit corridors), zinc gable roofs over the sheds east of them
     for(let v=-52,k=0;v<-12;v+=3.2,k++)S.quadXY(R(20,v,36,Math.min(-12,v+3.2)),4.86,K.aw[k%K.aw.length]);
