@@ -293,26 +293,20 @@ function edRaster(Y,bk,bb){const C=bk.ml?2:1,FRONT=3.2,{bi,mix,surf}=bk,xs=ED_XS
     pc=eds.map(e=>e.t==='techo'||e.t==='galpon'||(mix&&e.t!=='casa'&&e.t!=='otro')?pick(r,CP.paved):yb||pick(r,yc)),
     colOf=v=>v===-2?ED_K.walk:v===-4?PASEO_K.pave:v===1?(mix?null:PAL.backlot[bi%3]):v>=100?pc[v-100]:v>=10?ED_K.surf[surf[v-10].k]:null;
   const laid=(i,j)=>{if(i<0||j<0||i>=nx||j>=ny)return false;const v=own[j*nx+i];return v>0||v===-2||v===-4;};
-  // a whole block: the tops of the rectangles lie on one plane fitted to its ground (least squares over a 5 m grid of
-  // it, raised to clear the highest point by o): with a top per rectangle at its own height, the few millimetres
-  // between neighbours were outlined by the pixel art, and tops following the terrain left cracks at the T-junctions
-  let qa=0,qb=0,qc=E(X0+nx/2,Y0+ny/2),lift=0;
-  if(!mix){let n=0,sx=0,sy=0,sz=0,sxx=0,syy=0,sxy=0,sxz=0,syz=0;
-    for(let j=0;j<ny;j+=5)for(let i=0;i<nx;i+=5){if(!laid(i,j))continue;const x=i-nx/2,y=j-ny/2,z=E(X0+i+.5,Y0+j+.5);n++;sx+=x;sy+=y;sz+=z;sxx+=x*x;syy+=y*y;sxy+=x*y;sxz+=x*z;syz+=y*z;}
-    if(n>=3){const mx=sx/n,my=sy/n,mz=sz/n,cxx=sxx/n-mx*mx,cyy=syy/n-my*my,cxy=sxy/n-mx*my,cxz=sxz/n-mx*mz,cyz=syz/n-my*mz,det=cxx*cyy-cxy*cxy;
-      if(Math.abs(det)>1e-9){qa=(cxz*cyy-cyz*cxy)/det;qb=(cyz*cxx-cxz*cxy)/det;}qc=mz-qa*mx-qb*my;}
-    for(let j=0;j<ny;j+=2)for(let i=0;i<nx;i+=2){if(!laid(i,j))continue;lift=Math.max(lift,E(X0+i+.5,Y0+j+.5)-(qa*(i+.5-nx/2)+qb*(j+.5-ny/2)+qc));}}
-  const plane=(x,y)=>qa*(x-X0-nx/2)+qb*(y-Y0-ny/2)+qc+Math.min(lift,.6);
+  // the rectangles lie on the ground (drapeQ: cut at the terrain mesh's triangles, so neighbours share its surface,
+  // no cracks at the T-junctions and no millimetres between them for the pixel art to outline), at .135 in a mixed
+  // block, under its lots' slabs; at .2 in a whole one (.18 its strip of sidewalk to the facades, -2, and a paseo's,
+  // -4). Until November 2026 a whole block's lay on one plane fitted to its ground by least squares: most blocks'
+  // ground is not a plane (the plaza's pad and the city rising to the east), and 103 of 128 rose more than 0.5 m
+  // above it somewhere (the strip along 1 Sur, south of the plaza, up to 2.5 m) or sank under it
   let open=new Map();const emit=(x0,x1,y0,y1,v)=>{const col=colOf(v);if(!col)return;const q=[[X0+x0*C,Y0+y0*C],[X0+x1*C,Y0+y0*C],[X0+x1*C,Y0+y1*C],[X0+x0*C,Y0+y1*C]];EDS.rects++;
     if(mix){drapeQ(Y,q,.135,col);return;}
-    const o=v===-2||v===-4?.18:.2,sd=shade(col,.82);Y.dy=0;const tp=q.map(p=>[p[0],plane(p[0],p[1])+o,-p[1]]);Y.face(tp,[0,1,0],col);
-    const out=[[(x0+x1)/2,y0-.5,0,-1],[x1+.5,(y0+y1)/2,1,0],[(x0+x1)/2,y1+.5,0,1],[x0-.5,(y0+y1)/2,-1,0]];
+    const o=v===-2||v===-4?.18:.2;Y.dy=0;drapeQ(Y,q,o,col);
     // an underlay 3 cm lower, wider by 0.25 m on the sides with a laid neighbour: the raster leaves pixel gaps at the
     // T-junctions between rectangles, and they show it, in the same colour, instead of the ground (an outlined dot)
-    const g=out.map(([ci,cj])=>laid(Math.floor(ci),Math.floor(cj))?.25:0),u=[[X0+x0-g[3],Y0+y0-g[0]],[X0+x1+g[1],Y0+y0-g[0]],[X0+x1+g[1],Y0+y1+g[2]],[X0+x0-g[3],Y0+y1+g[2]]];
-    if(g.some(v=>v))Y.face(u.map(p=>[p[0],plane(p[0],p[1])+o-.03,-p[1]]),[0,1,0],col);
-    for(let k=0;k<4;k++){const [ci,cj,nx_,ny_]=out[k];if(laid(Math.floor(ci),Math.floor(cj)))continue;const a=tp[k],b=tp[(k+1)%4];
-      Y.face([[a[0],E(q[k][0],q[k][1])-.4,a[2]],[b[0],E(q[(k+1)%4][0],q[(k+1)%4][1])-.4,b[2]],b,a],[nx_,0,-ny_],sd);}};
+    const out=[[(x0+x1)/2,y0-.5],[x1+.5,(y0+y1)/2],[(x0+x1)/2,y1+.5],[x0-.5,(y0+y1)/2]];
+    const g=out.map(([ci,cj])=>laid(Math.floor(ci),Math.floor(cj))?.25:0);
+    if(g.some(v=>v))drapeQ(Y,[[X0+x0-g[3],Y0+y0-g[0]],[X0+x1+g[1],Y0+y0-g[0]],[X0+x1+g[1],Y0+y1+g[2]],[X0+x0-g[3],Y0+y1+g[2]]],o-.03,col);};
   const cid=new Map(),same=bk.ml?(v=>{const c=colOf(v);if(!c)return -1e9;let k=cid.get(c);if(k===undefined)cid.set(c,k=cid.size);return k;}):(v=>v);
   for(let j=0;j<=ny;j++){const cur=new Map();
     if(j<ny)for(let i=0;i<nx;){const v=own[j*nx+i],sv=same(v);let e=i+1;while(e<nx&&same(own[j*nx+e])===sv)e++;if(colOf(v)){EDS[mix?'cellsX':'cells']+=(e-i)*C*C;const k=i+','+e+','+sv,o=open.get(k);cur.set(k,o?o:[i,e,j,v]);open.delete(k);}i=e;}
