@@ -40,8 +40,8 @@ async def main(a):
         await cdp.send('HeapProfiler.startSampling', {'samplingInterval': a.intervalo,
             'includeObjectsCollectedByMajorGC': not a.vivo, 'includeObjectsCollectedByMinorGC': not a.vivo})
         await pg.goto(serve())
-        await pg.wait_for_function('window.__stats&&window.__mem', timeout=300000)
-        mem = await pg.evaluate('JSON.stringify(window.__mem)')
+        await pg.wait_for_function('window.__stats', timeout=300000)
+        mem = await pg.evaluate('JSON.stringify(window.__mem||null)')  # null: a version from before window.__mem
         before = await cdp.send('Runtime.getHeapUsage')
         if a.vivo: await cdp.send('HeapProfiler.collectGarbage')
         prof = (await cdp.send('HeapProfiler.getSamplingProfile'))['profile']
@@ -49,7 +49,7 @@ async def main(a):
         if not a.vivo: await cdp.send('HeapProfiler.collectGarbage')
         after = await cdp.send('Runtime.getHeapUsage')
         await b.close()
-    print('montón por fase (MB, window.__mem):', mem)
+    print('montón por fase (MB, window.__mem):', mem if mem != 'null' else '(esta versión no lo tiene)')
     print(f"al terminar: {before['usedSize']/2**20:.0f} MB; después de un GC: {after['usedSize']/2**20:.0f} MB")
     F = by_function(prof); total = sum(F.values())
     print(f"\n{'lo que sigue vivo después del GC' if a.vivo else 'asignado durante la carga'}: {total/2**20:.0f} MB (muestreado), por función:")
