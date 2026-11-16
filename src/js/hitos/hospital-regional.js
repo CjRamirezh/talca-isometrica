@@ -12,7 +12,7 @@
   // ~10 m), the end walls' lattice (drawn as a window grid), the north and west blocks' elevations (a 2005 photo of the
   // yellow annex), the green roof's paths. Night: a few lit windows on the tower (the hospital works around the clock).
   {const F=localFrame(1770,150,Math.PI/2),{G,Gs,V,N3,R}=F;
-    const K={white:C('#EEEDE8'),white2:C('#DADAD4'),roof:C('#C9C9C4'),glass:C('#4D5D66'),glass2:C('#3B4653'),red:C('#B4372C'),
+    const K={...KH,white:C('#EEEDE8'),white2:C('#DADAD4'),roof:C('#C9C9C4'),glass:C('#4D5D66'),glass2:C('#3B4653'),red:C('#B4372C'),
       green:C('#7E9B5A'),green2:C('#8FA85A'),path:C('#E3E0D6'),padc:C('#B9B8B2'),yellow:C('#D3AE5E'),yroof:C('#BCA562'),roof2:C('#B5B8AE'),solar:C('#3E4A5C'),
       orange:C('#C8693E'),grey:C('#E3E1DA'),groof:C('#B9BCBC'),tile:C('#C9C9C4'),tile2:C('#B9B9B4')};
     const {box,WL,WV,WU,rect}=facade(S,F,K);

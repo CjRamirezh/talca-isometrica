@@ -11,26 +11,20 @@
   // (date unknown). Approximate: heights (two storeys, ~10 m; scaled from the 2024 photo with the door), the side
   // and inner façades (drawn like the front), the new range's look (no photos), the courts' roofs.
   {const F=localFrame(597.6,583.4,90.7*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={white:C('#ECE7DC'),whiteSh:C('#D9D3C6'),cream:C('#E0CDA4'),cream2:C('#D2BD90'),plinth:C('#C9C3B6'),
-      glass:C('#3B4653'),glass2:C('#2C3540'),door:C('#5A4636'),roof:C('#ADABA4'),roof2:C('#9D9B94'),flat:C('#8F8A82'),
+    const K={...KH,whiteSh:C('#D9D3C6'),cream:C('#E0CDA4'),cream2:C('#D2BD90'),
+      roof:C('#ADABA4'),roof2:C('#9D9B94'),
       newWall:C('#E4E0D6'),newBand:C('#B65A3C'),court:C('#B7C7A4'),court2:C('#A7B994'),hall:C('#E8E6E0'),
-      pave:C('#D8D1C1'),pave2:C('#CCC4B2'),pitch:C('#7D8E8C'),line:C('#F3F0E6'),iron:C('#3A3A3A'),mast:C('#707070'),
+      pave:C('#D8D1C1'),pave2:C('#CCC4B2'),pitch:C('#7D8E8C'),line:C('#F3F0E6'),
       red:C('#C8312A'),blue:C('#2C4A8C'),stone:C('#7F8A80'),stone2:C('#6F7A71'),bronze:C('#3C4540'),bronze2:C('#2F3632'),
       tile:C('#ADABA4'),tile2:C('#9D9B94')};
-    const {box,WL,WV,WU,rect,arch}=facade(S,F,K);
+    const {box,WL,WV,WU,rect,arch,hipped}=facade(S,F,K);
     // the grounds: no procedural lots inside the school's fence; level pad under all of it
     const site=Gs([[-40,-30],[-36,-33],[8,-33],[9,-31],[10,-29],[20,-29],[22,-31],[22,-33],[69,-34],[73,-30],[71,92],[68,95],[-41,94]]);
     NOLOTS.push(site);
     S.dy=padAt(Math.min(...site.map(p=>p[0])),Math.min(...site.map(p=>p[1]))-3,Math.max(...site.map(p=>p[0])),Math.max(...site.map(p=>p[1])));
     const bld=(u0,v0,u1,v1)=>occMark(R(u0,v0,u1,v1));
     // hipped roof over a rectangle, eaves at h (0.4 m overhang), ridge rh higher, along its longer side
-    const hip=(u0,v0,u1,v1,h,rh,o=.4)=>{u0-=o;v0-=o;u1+=o;v1+=o;const alU=u1-u0>=v1-v0,hw=(alU?v1-v0:u1-u0)/2;
-      if(alU){const vm=(v0+v1)/2,a=Math.min(u0+hw,(u0+u1)/2),b=Math.max(u1-hw,(u0+u1)/2);
-        S.face([V(u0,v0,h),V(u1,v0,h),V(b,vm,h+rh),V(a,vm,h+rh)],null,K.roof);S.face([V(u1,v1,h),V(u0,v1,h),V(a,vm,h+rh),V(b,vm,h+rh)],null,K.roof2);
-        S.face([V(u0,v1,h),V(u0,v0,h),V(a,vm,h+rh)],null,K.roof2);S.face([V(u1,v0,h),V(u1,v1,h),V(b,vm,h+rh)],null,K.roof);}
-      else{const um=(u0+u1)/2,a=Math.min(v0+hw,(v0+v1)/2),b=Math.max(v1-hw,(v0+v1)/2);
-        S.face([V(u0,v1,h),V(u0,v0,h),V(um,a,h+rh),V(um,b,h+rh)],null,K.roof2);S.face([V(u1,v0,h),V(u1,v1,h),V(um,b,h+rh),V(um,a,h+rh)],null,K.roof);
-        S.face([V(u0,v0,h),V(u1,v0,h),V(um,a,h+rh)],null,K.roof);S.face([V(u1,v1,h),V(u0,v1,h),V(um,b,h+rh)],null,K.roof2);}};
+    const hip=(u0,v0,u1,v1,h,rh,o=.4)=>hipped(u0,v0,u1,v1,h,rh,K.roof,K.roof2,{o});
     // the historic façade: white wall, cream piers between bays, plinth and cornice; a window below and an arched
     // one above in each bay. mk(o) gives the wall at offset o; s0..s1 along it
     const H=10;

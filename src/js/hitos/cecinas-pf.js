@@ -16,9 +16,9 @@
   // the hvac boxes on every roof are generic. The whole plant stands on one levelled pad (the real one is graded;
   // the terrain falls 13 m from Plant 4 to the north end); the construction site south of the north block and the sports pitches
   // east of the lot are not drawn (the generic «industrial» use, entry 101, is skipped under the whole lot). No lights: none documented.
-  {const K={wall:C('#D9D6CE'),wall2:C('#C9C6BD'),white:C('#ECE7DC'),roof:C('#E1DED5'),roof2:C('#CFCCC3'),roof3:C('#BDBAB2'),slate:C('#5E6E74'),slate2:C('#566569'),
+  {const K={...KH,wall:C('#D9D6CE'),wall2:C('#C9C6BD'),roof:C('#E1DED5'),roof2:C('#CFCCC3'),roof3:C('#BDBAB2'),slate:C('#5E6E74'),slate2:C('#566569'),
       pave:C('#A39F97'),dirt:C('#BDAF93'),dirt2:C('#B3A585'),asph:C('#6C6864'),park:C('#77736E'),wet:C('#5C7C45'),wet2:C('#4E6E3A'),tank:C('#E2B33C'),silo:C('#D7D3CA'),
-      trailer:C('#E6E4DE'),hvac:C('#8F8C86'),glass:C('#3B4653'),
+      trailer:C('#E6E4DE'),hvac:C('#8F8C86'),
       car:['#E8E6E0','#2F3133','#9A9DA0','#B4372C','#3E6D9C','#CFCBC1','#6E7276'].map(C),cab:['#B4372C','#3E6D9C','#2F3133'].map(C)};
     const r=rng(9411);
     // walls of a counter-clockwise ring, a white cornice, a flat roof; the hvac boxes on the roof are placed by n and spacing

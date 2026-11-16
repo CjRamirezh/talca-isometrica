@@ -14,18 +14,17 @@
   // gates' widths, and above all the buses: where they stand changes every minute; here, rows of the kind the imagery
   // shows (nose-in under the office canopy; along the island and the south platform). No lights: none documented.
   {const F=localFrame(1718.2,-235.7,0.8*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={wall:C('#D6CFBF'),wall2:C('#C4BDAD'),base:C('#A8A196'),white:C('#ECE7DC'),roof:C('#6F7173'),roof2:C('#65686A'),
-      light:C('#B4B6B2'),sky:C('#A8B1B3'),glass:C('#3B4653'),glass2:C('#2C3540'),door:C('#5A4636'),
+    const K={...KH,wall:C('#D6CFBF'),wall2:C('#C4BDAD'),base:C('#A8A196'),roof:C('#6F7173'),roof2:C('#65686A'),
+      light:C('#B4B6B2'),sky:C('#A8B1B3'),
       can:C('#A9AEAE'),can2:C('#979C9D'),col:C('#4A4A4A'),asph:C('#65615D'),bays:C('#716D68'),line:C('#E8E4DA'),
       plat:C('#C8C2B4'),edge:C('#E2B33C'),fence:C('#B9B3A6'),hvac:C('#8F8C86'),tyre:C('#2E2D2C'),
-      aw:[C('#E8E4DA'),C('#8DA7BC'),C('#E8E4DA'),C('#C9BFA8')],sign:[C('#3F8F4B'),C('#3C5FA8'),C('#B23B2E'),C('#E2B33C'),C('#2F7A8F')]};
-    const BUS=[['#E8C23A','#3F8F4B'],['#E9E7E1','#3C5FA8'],['#E9E7E1','#B23B2E'],['#3C5FA8','#E9E7E1'],['#E9E7E1','#2F7A4F'],['#D8742B','#E9E7E1'],['#E9E7E1','#6B4C93'],['#E8C23A','#E9E7E1']].map(p=>p.map(C));
-    const {box,WL,rect}=facade(S,F,K);
+      aw:[C('#E8E4DA'),C('#8DA7BC'),C('#E8E4DA'),C('#C9BFA8')],sign:[C('#3F8F4B'),C('#3C5FA8'),C('#B23B2E'),C('#E2B33C'),C('#2F7A8F')],
+      // the buses' liveries [body, stripe] (Talca's companies) and the blue city micros
+      bus:[['#E8C23A','#3F8F4B'],['#E9E7E1','#3C5FA8'],['#E9E7E1','#B23B2E'],['#3C5FA8','#E9E7E1'],['#E9E7E1','#2F7A4F'],['#D8742B','#E9E7E1'],['#E9E7E1','#6B4C93'],['#E8C23A','#E9E7E1']].map(p=>p.map(C)),
+      micro:[C('#3C5FA8'),C('#E9E7E1')]};
+    const {box,WL,rect,walls}=facade(S,F,K);
     const r=rng(8531);
     // walls of a counter-clockwise (u,v) ring from h0 to h1; col(i) picks each side's colour, a white cornice on top
-    const walls=(ring,h0,h1,col,cor=true)=>{for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);
-      if(L<.01)continue;const w=WL(a,b,[(b[1]-a[1])/L,-(b[0]-a[0])/L],0),c=typeof col==='function'?col(i):col;
-      S.face([w.q(0,h0),w.q(L,h0),w.q(L,cor?h1-.5:h1),w.q(0,cor?h1-.5:h1)],w.n,c);if(cor)S.face([w.q(0,h1-.5),w.q(L,h1-.5),w.q(L,h1),w.q(0,h1)],w.n,K.white);}};
     // a facade of bays on the wall a->b (out: its outward direction): a plinth band, a window per bay between white
     // pilasters, a sign over each (storefronts), an upper ribbon of glass; bay: its width, sg: the signs' colours or 0
     const front=(a,b,out,o)=>{const w=WL(a,b,out,.06),wb=WL(a,b,out,.09),wp=WL(a,b,out,.12),L=w.L,n=Math.max(1,Math.round(L/(o.bay||4.5))),bw=L/n;
@@ -95,9 +94,9 @@
     const bus=(cu,cv,len,th,p,h=3.3)=>{const c=Math.cos(th),s=Math.sin(th),hl=len/2,q=(l,w)=>Gs([[-l,-w],[l,-w],[l,w],[-l,w]].map(([a,b])=>[cu+a*c-b*s,cv+a*s+b*c]));
       S.prism(q(hl-.5,1),.32,.9,K.tyre,K.tyre,false);S.prism(q(hl,1.3),.9,h,p[0],K.white);
       S.prism(q(hl+.04,1.34),1.0,1.5,p[1],p[1],false);S.prism(q(hl+.04,1.34),1.8,2.7,K.glass,K.glass,false);};
-    const pickBus=()=>BUS[Math.floor(r()*BUS.length)];
+    const pickBus=()=>K.bus[Math.floor(r()*K.bus.length)];
     for(let v=-13.2;v<=50;v+=3.6){if(r()<.22)continue;const len=r()<.3?9.4:11.8;bus(10.6+len/2+(r()<.5?0:.6),v+(r()-.5)*.5,len,(r()-.5)*.1,pickBus());}
     for(const [u,th,vs] of [[28.6,Math.PI/2-.12,[9,23,37,50]],[46.2,Math.PI/2+.12,[8,22,36,50]],[60,Math.PI/2-.08,[14,29,44]]])
       for(const v of vs){if(r()<.2)continue;bus(u,v+(r()-.5)*2,r()<.25?9.4:11.8,th+(r()-.5)*.06,pickBus());}
-    for(const [u,v] of [[23,-44],[29,-44],[35,-46]])bus(u,v,6.8,Math.PI/2,[C('#3C5FA8'),C('#E9E7E1')],2.9);   // blue micros waiting at the west gate
+    for(const [u,v] of [[23,-44],[29,-44],[35,-46]])bus(u,v,6.8,Math.PI/2,K.micro,2.9);   // blue micros waiting at the west gate
     const c=G(31,5);MODELS['terminal-buses']={x:c[0],y:c[1],h:12};S.dy=0;}

@@ -27,12 +27,12 @@
   // inside the grounds (class 7, ~3 m off the lanes seen on the imagery) are replaced by the access road and the
   // gravel yards. No lights: nothing documents them.
   {const F=localFrame(6400,-2400,77.7*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={soil:C('#B9A47E'),gravel:C('#C9BA97'),gravel2:C('#B3A68C'),asph:C('#7D7B76'),asph2:C('#8E8B86'),path:C('#D6CFBE'),plaza:C('#CFC6B2'),
+    const K={...KH,soil:C('#B9A47E'),gravel:C('#C9BA97'),gravel2:C('#B3A68C'),asph:C('#7D7B76'),asph2:C('#8E8B86'),path:C('#D6CFBE'),plaza:C('#CFC6B2'),
       lawn:C('#6F9D4A'),lawn2:C('#7DAA55'),field:C('#5E8E47'),field2:C('#69994F'),turf:C('#468239'),turf2:C('#4F8C41'),track:C('#B5573F'),line:C('#F1EEE4'),
       court:C('#C4BCAF'),
-      cream:C('#E6DFCE'),cream2:C('#D9D1BD'),white:C('#ECE7DC'),plinth:C('#C9C3B6'),
+      cream:C('#E6DFCE'),cream2:C('#D9D1BD'),
       zinc:C('#CDC8BE'),zincP:C('#CFC2B6'),zinc2:C('#B7B6B1'),flat:C('#A8A59E'),memb:C('#E6E4DD'),blue:C('#7894AA'),redR:C('#A5503A'),
-      glass:C('#3B4653'),glass2:C('#2C3540'),dark:C('#5A4636'),post:C('#8E8B86'),
+      dark:C('#5A4636'),post:C('#8E8B86'),
       car:['#E8E8E4','#E8E8E4','#E8E8E4','#BBBFC0','#BBBFC0','#3A3D42','#3A3D42','#A8453D','#4F6D8C'].map(C),carGl:C('#2C3540')};
     const {WV,WU,rect}=facade(S,F,{tile:K.zinc,tile2:K.zinc2,white:K.white,glass:K.glass,glass2:K.glass2,gable:K.cream});
     const RING=[[6301,-2409],[6331,-2302],[6359,-2129],[6477,-2165],[6490,-2071],[6551,-2092],[6537,-2138],[6508,-2195],[6488,-2226],[6491,-2266],[6534,-2309],[6434,-2723],[6252,-2632],[6247,-2609],[6272,-2477]];
@@ -41,9 +41,8 @@
     // (76-usos.js) go on counting them, or buildBase would lay farmland parcels here and move its shared rng for every parcel east of it
     for(const u of USOS){let cx=0,cy=0;for(const p of u.r){cx+=p[0];cy+=p[1];}if(pip([cx/u.r.length,cy/u.r.length],RING))u.keep=true;}
     // the map's own tracks inside the grounds are drawn here (s.bridge: a street a landmark draws)
-    streets.forEach(s=>{if(s.c===7&&s.pts.filter(p=>pip(p,RING)).length*2>=s.pts.length)s.bridge=true;});
-    const rr=rng(7129),BL=[],bl=(u0,v0,u1,v1,m=2)=>{BL.push([u0-m,v0-m,u1+m,v1+m]);};
-    const inBL=(u,v)=>BL.some(o=>u>o[0]&&u<o[2]&&v>o[1]&&v<o[3]);
+    ownTracks(RING);
+    const rr=rng(7129),{bl,has:inBL}=keepOut();
     const UV=RING.map(p=>[(p[0]-6400)*Math.sin(77.7*Math.PI/180)-(p[1]+2400)*Math.cos(77.7*Math.PI/180),(p[0]-6400)*Math.cos(77.7*Math.PI/180)+(p[1]+2400)*Math.sin(77.7*Math.PI/180)]);
     const inR=(u,v)=>pip([u,v],UV);
     // ---- ground. Layers, each 1 cm above the last: dry soil under all (0.11); the gravel yards and parking (0.12); lawns,
@@ -142,10 +141,10 @@
       for(let v=-56;v>-102;v-=2.8)if(rr()<.7)car(88,v,true);
       for(const [u,v] of [[-12,-60],[-6,-60],[2,-63],[12,-78],[16,-78],[-10,-78],[-20,-84],[4,-84],[20,-95],[-30,-70]])if(rr()<.8)car(u,v,rr()<.5);}
     // ---- trees: rows between the blocks, the west court, the forest strips along the south, east and west sides, the avenue's poplars
-    {const t=(u,v,s)=>{const p=G(u,v);if(inR(u,v)&&!inBL(u,v)&&inTerrain(p[0],p[1]))TREES.push([p[0],p[1],s,rr()]);},
+    {const t=treeAt(F,(u,v)=>inR(u,v)&&!inBL(u,v),rr),
         field=(u0,v0,u1,v1,n,s0)=>{for(let i=0;i<n;i++)t(u0+rr()*(u1-u0),v0+rr()*(v1-v0),s0+rr()*.5);},
         row=(u0,u1,v,n,s0)=>{for(let i=0;i<n;i++)TREES_RAW(u0+(u1-u0)*(i+.5)/n+(rr()-.5)*2,v+(rr()-.5)*3,s0+rr()*.3);},
-        TREES_RAW=(u,v,s)=>{const p=G(u,v);if(inR(u,v)&&inTerrain(p[0],p[1]))TREES.push([p[0],p[1],s,rr()]);};
+        TREES_RAW=treeAt(F,inR,rr);
       row(-30,26,-116,10,1.1);row(-28,26,-149,10,1.1);row(-28,26,-181,10,1.1);row(-28,25,-210,9,1.1);
       for(const [u,v] of [[-86,-110],[-88,-122],[-80,-130],[-92,-124],[-76,-118],[-70,-138],[-82,-140],[-74,-128],[-68,-124],[-62,-132]])TREES_RAW(u,v,1.2+rr()*.3);
       for(let v=-155;v>-185;v-=7)TREES_RAW(-38,v,1.2);

@@ -13,7 +13,7 @@
   // stretched along the whole east edge, with MODELS['trifolia'] on it. On the plaza's level
   // (MODELS[...].pad), with walls 10 m deep. Method: docs/METODOLOGIA.md §9.
   {const F=localFrame(0,0,Math.PI/2),{V,N3}=F,H=MODELS['plaza-de-armas'].pad;
-    const K={wall:C('#ECE7DC'),white:C('#F4F0E6'),glass:C('#3B4653'),glass2:C('#2C3540'),grey:C('#9C9E9B'),roof:C('#A35C42'),
+    const K={...KH,wall:C('#ECE7DC'),white:C('#F4F0E6'),grey:C('#9C9E9B'),roof:C('#A35C42'),
       red:C('#B04A3C'),red2:C('#93402F'),frame:C('#B9B7B0'),board:C('#D8D6CE'),metal:C('#707070')};
     const {box,WL,WU,WV,rect}=facade(S,F,K),TOP=37.2;
     const fp=[[152.6,-25.8],[168.6,-25.8],[168.6,-13.2],[167.6,-13.2],[167.6,-5.2],[155.2,-5.2],[155.2,-16.2],[152.6,-16.2]];

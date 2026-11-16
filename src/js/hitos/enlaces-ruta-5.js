@@ -35,7 +35,7 @@
   // ramps joining a few metres away, gets dark openings on both sides. Footbridges at their real height (5.6 m), on
   // columns, with their ramps and stairs. Approximate: every height, ramp and embankment length, the decks' widths
   // (the map's streets'), the piers.
-  {const K={asph:R5K.asph,line:R5K.line,par:C('#D9D3C5'),old:C('#D9D3C5'),walk:C('#C9C3B6'),red:C('#C8503A'),beam:C('#B3AEA4'),wall:C('#C4BEB1'),
+  {const K={...KH,asph:R5K.asph,line:R5K.line,par:C('#D9D3C5'),old:C('#D9D3C5'),walk:C('#C9C3B6'),red:C('#C8503A'),beam:C('#B3AEA4'),wall:C('#C4BEB1'),
       void:C('#2B3036'),metal:C('#8A8F92'),lamp:R5K.lamp,fill:C('#93A35B'),fill2:C('#86964F'),foot:C('#CFC8B8'),foot2:C('#BDB6A6')};
     // overpasses: deck polyline (the map's street, ends at the junctions beyond the bridge), half width, rise
     for(const [pts,hw,top] of [

@@ -14,23 +14,17 @@
   // entrance block's place along the front, the sheds on the west side (not in OSM), heights (OSM levels). The
   // towers' night lights are licence. Method: docs/METODOLOGIA.md §9.
   {const F=localFrame(-253.1,409.9,89.2*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={wall:C('#D5C79E'),pil:C('#BDB6A3'),wire:C('#4A4C4E'),tower:C('#B7B2A6'),tower2:C('#5A5E62'),win:C('#3B4653'),
-      green:C('#7DB85C'),green2:C('#4F8545'),upper:C('#AEB8A8'),white:C('#ECE7DC'),door:C('#4A3F3A'),
+    const K={...KH,wall:C('#D5C79E'),pil:C('#BDB6A3'),wire:C('#4A4C4E'),tower:C('#B7B2A6'),tower2:C('#5A5E62'),win:C('#3B4653'),
+      green:C('#7DB85C'),green2:C('#4F8545'),upper:C('#AEB8A8'),door:C('#4A3F3A'),
       tile:C('#B6BBBA'),tile2:C('#A5AAA9'),rust:C('#94634A'),rust2:C('#835841'),metal:C('#9EA3A3'),metal2:C('#8D9292'),
       blue:C('#8FAEC4'),blue2:C('#7F9EB5'),conc:C('#CFC8B8'),yard:C('#CDBF9F'),pave:C('#BDB7AB'),gable:C('#CFC8B8')};
-    const {box,WL,WV,WU,rect}=facade(S,F,K);
+    const {box,WL,WV,WU,rect,hipped}=facade(S,F,K);
     const U0=-49.5,U1=53,V0=-58,VN=38.5,VF=61; // walls west/east/south/north; the frontage runs to the sidewalk
     const site=Gs([[U0,V0],[U1,V0],[U1,VF],[U0,VF]]);
     occMark(site);NOLOTS.push(site);
     S.dy=padAt(Math.min(...site.map(p=>p[0])),Math.min(...site.map(p=>p[1])),Math.max(...site.map(p=>p[0])),Math.max(...site.map(p=>p[1])));
     // hipped roof over an axis-aligned (u,v) rectangle, eaves at h, ridge rh higher, in two tones
-    const hip=(u0,v0,u1,v1,h,rh,c1,c2)=>{const o=.4;u0-=o;v0-=o;u1+=o;v1+=o;const h0=h-.25;
-      if(u1-u0>=v1-v0){const d=(v1-v0)/2,vm=(v0+v1)/2;
-        S.face([V(u0,v0,h0),V(u1,v0,h0),V(u1-d,vm,h+rh),V(u0+d,vm,h+rh)],null,c1);S.face([V(u1,v1,h0),V(u0,v1,h0),V(u0+d,vm,h+rh),V(u1-d,vm,h+rh)],null,c1);
-        S.face([V(u0,v1,h0),V(u0,v0,h0),V(u0+d,vm,h+rh)],null,c2);S.face([V(u1,v0,h0),V(u1,v1,h0),V(u1-d,vm,h+rh)],null,c2);}
-      else{const d=(u1-u0)/2,um=(u0+u1)/2;
-        S.face([V(u0,v1,h0),V(u0,v0,h0),V(um,v0+d,h+rh),V(um,v1-d,h+rh)],null,c1);S.face([V(u1,v0,h0),V(u1,v1,h0),V(um,v1-d,h+rh),V(um,v0+d,h+rh)],null,c1);
-        S.face([V(u0,v0,h0),V(u1,v0,h0),V(um,v0+d,h+rh)],null,c2);S.face([V(u1,v1,h0),V(u0,v1,h0),V(um,v1-d,h+rh)],null,c2);}};
+    const hip=(u0,v0,u1,v1,h,rh,c1,c2)=>hipped(u0,v0,u1,v1,h,rh,c1,c2,{drop:.25,clamp:false,ends:true});
     // gable roof with the ridge along v (sheds and pavilions): bays in two tones, gable ends in concrete
     const shed=(u0,v0,u1,v1,h,rh,c1,c2)=>{const um=(u0+u1)/2,o=.4;for(let v=v0,k=0;v<v1-1e-6;v+=6,k++){const e=Math.min(v+6,v1),c=k%2?c2:c1;
         S.face([V(u0-o,v,h-.2),V(u0-o,e,h-.2),V(um,e,h+rh),V(um,v,h+rh)],null,c);S.face([V(u1+o,e,h-.2),V(u1+o,v,h-.2),V(um,v,h+rh),V(um,e,h+rh)],null,c);}

@@ -30,11 +30,11 @@
   // does it again), every building stands on the final ground in steps of up to ~2.5 m (the step's gable in the darker
   // wall tone; the cross wing and the stairs take the east wing's step), and the ground is draped on it.
   onFinalTerrain(()=>{const F=localFrame(0,0,Math.PI/2),{G,Gs,V,N3,R}=F;
-    const K={wall:C('#EEE7D3'),wall2:C('#E0D7C0'),plinth:C('#B9B2A2'),dado:C('#D98E70'),maroon:C('#80504A'),white:C('#F3EEE2'),glass:C('#3B4653'),glass2:C('#2C3540'),door:C('#5A4636'),
+    const K={...KH,wall:C('#EEE7D3'),wall2:C('#E0D7C0'),plinth:C('#B9B2A2'),dado:C('#D98E70'),maroon:C('#80504A'),white:C('#F3EEE2'),
       blue:C('#2F4F8F'),tile:C('#B4BABC'),tile2:C('#A2A9AC'),flat:C('#A9ACAA'),greenR:C('#5F8A64'),greenR2:C('#7FA37A'),skylight:C('#A9C3C6'),
       gym:C('#E4E0D6'),asph:C('#8E9399'),line:C('#F3F0E6'),cblue:C('#33559F'),cred:C('#C0483A'),cred2:C('#A53A30'),deck:C('#C9B58C'),pool:C('#8EC3CB'),pave:C('#D8D1C1'),pave2:C('#CCC4B2'),sand:C('#D6C59A'),
-      lawn:C('#8FA85A'),lawn2:C('#7FA14F'),iron:C('#3A3A3A'),mast:C('#707070'),steel:C('#BFC4C5'),steel2:C('#A5ABAD'),rail:C('#D3D7D7'),stone:C('#CDBFA6'),ring:C('#D8662A'),lamp:C('#F4E3A6')};
-    const {WV,WU,rect,roof}=facade(S,F,{...K,gable:K.wall}),roofG=facade(S,F,{...K,tile:K.greenR,tile2:K.greenR2,gable:K.wall2}).roof;
+      lawn:C('#8FA85A'),lawn2:C('#7FA14F'),steel:C('#BFC4C5'),steel2:C('#A5ABAD'),rail:C('#D3D7D7'),stone:C('#CDBFA6'),ring:C('#D8662A'),lamp:C('#F4E3A6')};
+    const {WV,WU,rect,roof,hipped}=facade(S,F,{...K,gable:K.wall}),roofG=facade(S,F,{...K,tile:K.greenR,tile2:K.greenR2,gable:K.wall2}).roof;
     const SITE=[[-60,470],[-58,350],[-10,348],[-10,347],[46,346],[52,350],[52,468],[49,471]];
     NOLOTS.push(Gs(SITE));occFill(Gs(SITE),2.5);
     // ground: paving under all (0.11), the asphalt yard with its courts, the garden on the Alameda, lawns and the
@@ -86,9 +86,7 @@
           if(sides.includes('W')&&(ax==='v'||i===0))win(WU(U0,-1),V0+.6,V1-.6,H,nst,3.8,pc('W'));if(sides.includes('E')&&(ax==='v'||i===n-1))win(WU(U1,1),V0+.6,V1-.6,H,nst,3.8,pc('E'));}}
       return {cuts,dys};};
     // hipped roof over a rectangle (as the Liceo's), eaves at h, ridge rh higher, along its longer side
-    const hip=(u0,v0,u1,v1,h,rh,o=.4)=>{u0-=o;v0-=o;u1+=o;v1+=o;const hw=(u1-u0)/2,um=(u0+u1)/2,a=v0+hw,b=v1-hw;
-      S.face([V(u0,v1,h),V(u0,v0,h),V(um,a,h+rh),V(um,b,h+rh)],null,K.tile2);S.face([V(u1,v0,h),V(u1,v1,h),V(um,b,h+rh),V(um,a,h+rh)],null,K.tile);
-      S.face([V(u0,v0,h),V(u1,v0,h),V(um,a,h+rh)],null,K.tile);S.face([V(u1,v1,h),V(u0,v1,h),V(um,b,h+rh)],null,K.tile2);};
+    const hip=(u0,v0,u1,v1,h,rh,o=.4)=>hipped(u0,v0,u1,v1,h,rh,K.tile,K.tile2,{o,ax:'v',clamp:false});
     const H2=7.6;
     // the courtyard's ranges: south wing (to 3 Norte), east wing (to 1 Oriente, with the entrance), the cross wing
     // into the yard, the west wing and the thin north wing; zinc gable roofs, two storeys. The yard faces have the

@@ -17,7 +17,7 @@
   // programme lists an amphitheater; its place is a guess), the number of cars, the trees outside the circle (from the
   // Esri imagery of 2020, before the works). Frame: origin at the circle's centre, u east and v north (A = 90°).
   {const X=-1051,Y=744,F=localFrame(X,Y,Math.PI/2),{G,Gs,V,N3}=F; // G(u,v) = [X + u, Y + v]
-    const K={meadow:C('#AEAA6C'),lawn:C('#8FA552'),lawn2:C('#869B4C'),pave:C('#D6CDB8'),pave2:C('#C9BFA8'),asph:C('#5E5B57'),
+    const K={...KH,meadow:C('#AEAA6C'),lawn:C('#8FA552'),lawn2:C('#869B4C'),pave:C('#D6CDB8'),pave2:C('#C9BFA8'),asph:C('#5E5B57'),
       bay:C('#67645D'),bay2:C('#5A5752'),line:C('#E9E4D6'),gravel:C('#D8C69C'),water:C('#4F86A8'),rim:C('#E6E1D4'),jet:C('#DCEEF4'),
       wood:C('#A5673F'),wood2:C('#8B5333'),wood3:C('#C08552'),deck:C('#9A7A5C'),slab:C('#C9C3B6'),dark:C('#2E2B28'),
       glass:C('#4D5D66'),glass2:C('#3B4653'),roof:C('#4E4F52'),roof2:C('#5D5E61'),hvac:C('#A9ABAD'),sign:C('#F3E3B8'),
@@ -39,7 +39,7 @@
     const DISPLAY=rect(-160,20,-125,75); // the farm machinery's lawn
     // reserve the whole lot: no generated houses or trees inside it; the map's tracks in it are this landmark's
     occFill(RES,2.5);
-    streets.forEach(s=>{if(s.c===7&&s.pts.filter(p=>pip(p,RES)).length*2>=s.pts.length)s.bridge=true;});
+    ownTracks(RES);
     const inAxis=(u,v)=>u<-30&&Math.abs(v)<9.5,inDrive=(u,v)=>u>-95&&u<4&&Math.abs(v-50)<6.5,
       nearRoad=(u,v,d)=>[SROAD,EROAD,NROAD,NDRIVE].some(p=>{for(let i=0;i+1<p.length;i++)if(segDist2(u,v,...p[i],...p[i+1])<d*d)return true;return false;}),
       free=(u,v)=>!inAxis(u,v)&&!nearRoad(u,v,7.5); // a lawn's or a bay's piece that leaves the axis and the roads alone
@@ -158,8 +158,7 @@
     // edges (south, north, east), the north-east corner; none on the roads, the display or the circle
     {const t=(x,y,s)=>{if(inTerrain(x,y))TREES.push([x,y,s,rr()]);},uv=(x,y)=>[x-X,y-Y],
         ok=(x,y)=>{const [u,v]=uv(x,y);return pip([x,y],RES)&&Math.hypot(u,v)>RO+3&&!(v>VMAX-2&&Math.hypot(u,v)<RO)&&!nearRoad(u,v,8)&&!pip([u,v],DISPLAY)&&!inAxis(u,v);};
-      const grove=(poly,n,s0)=>{let k=0,bb=[1e9,1e9,-1e9,-1e9];for(const p of poly)bb=[Math.min(bb[0],p[0]),Math.min(bb[1],p[1]),Math.max(bb[2],p[0]),Math.max(bb[3],p[1])];
-        for(let g=0;g<n*40&&k<n;g++){const x=bb[0]+rr()*(bb[2]-bb[0]),y=bb[1]+rr()*(bb[3]-bb[1]);if(pip([x,y],poly)&&ok(x,y)){t(x,y,s0+rr()*.5);k++;}}};
+      const grove=(poly,n,s0)=>scatterTrees(rr,poly,n,s0,ok,t);
       const edge=(a,b,step,off)=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1]),tx=(b[0]-a[0])/L,ty=(b[1]-a[1])/L;
         for(let s=step/2;s<L;s+=step){if(rr()<.2)continue;const x=a[0]+tx*s-ty*off+(rr()-.5)*2,y=a[1]+ty*s+tx*off+(rr()-.5)*2;if(ok(x,y))t(x,y,1.1+rr()*.4);}};
       grove([[-1255,640],[-1190,628],[-1175,660],[-1172,745],[-1212,760],[-1262,690]],70,1.3);

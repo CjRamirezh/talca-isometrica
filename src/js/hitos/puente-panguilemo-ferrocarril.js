@@ -18,7 +18,7 @@
   // does not have): the old top 5.6 m over the water, the new deck 3.2 m over it, so that the line rises to it on a
   // short embankment (railBase). Approximate: the arches' place along OSM's way, the approach's length (8 m), the truss's
   // panels and the colours.
-  {const K={ballast:PAL.ballast,par:C('#C2AF72'),old:C('#BDBBB4'),old2:C('#A9A7A0'),beam:C('#A9A7A0'),steel:C('#D6C487'),steel2:C('#C2AF72'),stone:C('#BDBBB4'),stone2:C('#A9A7A0')};
+  {const K={...KH,ballast:PAL.ballast,par:C('#C2AF72'),old:C('#BDBBB4'),old2:C('#A9A7A0'),beam:C('#A9A7A0'),steel:C('#D6C487'),steel2:C('#C2AF72'),stone:C('#BDBBB4'),stone2:C('#A9A7A0')};
     const KV={brick:C('#9A5B44'),brick2:C('#84493A'),stucco:C('#B9A68E'),stucco2:C('#A8957E'),top:C('#8E8A62')};
     const a=[7523.1,8820.4],b=[7531.0,8842.5]; // b: the middle of OSM's bridge, ~3 m inside the limit
     const da=[(b[0]-a[0])/Math.hypot(b[0]-a[0],b[1]-a[1]),(b[1]-a[1])/Math.hypot(b[0]-a[0],b[1]-a[1])],a0=[a[0]-da[0]*8,a[1]-da[1]*8];

@@ -11,16 +11,13 @@
   // mall, a 2-storey façade; vault and dome from the imagery's shadows; the hotel's slab ~24 m, five floors of rooms
   // on the casino), the dome's size, the hotel's split between slab and podium, the anchors' façades (no photos).
   {const F=localFrame(3328.2,-322.5,74.7*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={clad:C('#D9D5CC'),clad2:C('#C9C5BC'),white:C('#ECE7DC'),roof:C('#B3AFA6'),roof2:C('#A8A49A'),roof3:C('#C4BFB3'),
+    const K={...KH,clad:C('#D9D5CC'),clad2:C('#C9C5BC'),roof:C('#B3AFA6'),roof2:C('#A8A49A'),roof3:C('#C4BFB3'),
       brick:C('#B07552'),band:C('#9A9A96'),glass:C('#4D5D66'),glass2:C('#3B4653'),vault:C('#D8D6CE'),vault2:C('#C6C3BA'),
       dome:C('#3E6F80'),dome2:C('#4A8396'),hvac:C('#8F8C86'),asph:C('#65615D'),stall:C('#716D68'),line:C('#E8E4DA'),
       pool:C('#4E8FA6'),hotel:C('#E3E1DA'),podium:C('#8C8A86'),grass:C('#7FA05A'),
       logo:[C('#3A7FC1'),C('#7DB343'),C('#F2C230'),C('#E0533A')]};
-    const {box,WL,rect}=facade(S,F,K);
+    const {box,WL,rect,walls}=facade(S,F,K);
     // walls of a counter-clockwise (u,v) ring from h0 to h1, a white coping on top; col(i) picks each side's colour
-    const walls=(ring,h0,h1,col)=>{for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);
-      if(L<.01)continue;const w=WL(a,b,[(b[1]-a[1])/L,-(b[0]-a[0])/L],0),c=typeof col==='function'?col(i):col;
-      S.face([w.q(0,h0),w.q(L,h0),w.q(L,h1-.5),w.q(0,h1-.5)],w.n,c);S.face([w.q(0,h1-.5),w.q(L,h1-.5),w.q(L,h1),w.q(0,h1)],w.n,K.white);}};
     const slab=(ring,h0,h1,col,top)=>{walls(ring,h0,h1,col);S.flat(Gs(ring),h1,top);};
     const SITE=[[-97,113],[-99,6],[-82,6],[-90,-208],[95,-213],[96,-97],[96,-79],[98,113]].reverse();
     const site=Gs(SITE);NOLOTS.push(site);occMark(site);

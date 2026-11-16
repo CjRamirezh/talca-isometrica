@@ -13,15 +13,15 @@
   // the satellite image and the usual look of Chilean army barracks (cream walls, red tile, rust zinc); the two floors
   // of the barracks, the windows, the number and size of the trees and the dry-grass colours are approximate, and the
   // imagery may be years old. The parade ground has no flagpole: nothing shows one. No lights: nothing documents them.
-  {const F=localFrame(150,1480,Math.PI/2),{G,Gs,V,R}=F,{WV,WU,rect}=facade(S,F,{tile:C('#A8482F'),tile2:C('#8E4F3A'),white:C('#ECE7DC'),glass:C('#3B4653'),glass2:C('#2C3540'),gable:C('#D9CDB0'),brick:C('#D9CDB0')});
-    const K={soil:C('#B8A27C'),dry:C('#B7A57E'),dry2:C('#B3A07A'),lawn:C('#7FA14F'),lawn2:C('#8FAE58'),asph:C('#7D7B76'),asph2:C('#6E6C68'),yard:C('#9A988F'),track:C('#C49A72'),pitch:C('#9DA66A'),pitch2:C('#8E9A5E'),line:C('#F1EEE4'),road:C('#CDB88F'),
+  {const F=localFrame(150,1480,Math.PI/2),{G,Gs,V,R}=F;
+    const K={...KH,soil:C('#B8A27C'),dry:C('#B7A57E'),dry2:C('#B3A07A'),lawn:C('#7FA14F'),lawn2:C('#8FAE58'),asph:C('#7D7B76'),asph2:C('#6E6C68'),yard:C('#9A988F'),track:C('#C49A72'),pitch:C('#9DA66A'),pitch2:C('#8E9A5E'),line:C('#F1EEE4'),road:C('#CDB88F'),
       cream:C('#E6D8B4'),cream2:C('#D9CDB0'),rustR:C('#8F5240'),rustR2:C('#7F4636'),teja:C('#B3412E'),teja2:C('#9A3828'),olive:C('#7C7860'),olive2:C('#6C6853'),zinc:C('#B8BAB6'),zinc2:C('#A5A8A4'),metal:C('#E4E4DE'),metal2:C('#D2D3CD'),
-      wall:C('#DDD3BA'),white:C('#ECE7DC'),glass:C('#3B4653'),pool:C('#5BB0D6'),poolE:C('#E6E2D6'),dark:C('#5A4636')};
+      wall:C('#DDD3BA'),pool:C('#5BB0D6'),poolE:C('#E6E2D6'),dark:C('#5A4636')};
+    const {WV,WU,rect}=facade(S,F,{...K,tile:C('#A8482F'),gable:K.cream2,brick:K.cream2});
     const RING=[143,-224,60,-225,60,-229,36,-249,25,-266,21,-286,-6,-329,-85,-303,-88,-225,-86,-133,-162,-111,-131,113,-112,145,-85,194,-38,248,7,323,141,290,145,286,145,116,141,40,142,-14,142,-98];
     const UV=pairs(RING);const GR=Gs(UV),inR=(u,v)=>pip([u,v],UV);
     occFill(GR,2.5);
-    const BL=[],bl=(u0,v0,u1,v1,m=2)=>{BL.push([u0-m,v0-m,u1+m,v1+m]);};
-    const inBL=(u,v)=>BL.some(o=>u>o[0]&&u<o[2]&&v>o[1]&&v<o[3]);
+    const {bl,has:inBL}=keepOut();
     // ---- ground: dry soil under all (0.11); the stadium's track and pitch, the lawns, the aprons and the parade ground
     // (0.12–0.14), draped on the terrain (no pad)
     {const {G:Lg,lay,done}=groundLayer(S,1<<14),rc=(u0,v0,u1,v1)=>[[u0,v0],[u1,v0],[u1,v1],[u0,v1]];
@@ -82,7 +82,7 @@
     {const c=G(99,-210),o=ngon(c[0],c[1],4.6,8);S.dy=groundMin(o);S.prism(o,.3,3.2,K.cream2,K.cream2,false);pyramid(S,ngon(c[0],c[1],5.2,8),3.2,2.6,K.teja2);bl(94,-216,105,-204);S.dy=0;}
     {const c=G(27,-95),o=ngon(c[0],c[1],4.6,8);S.dy=groundMin(o);S.prism(o,.3,3.2,K.cream2,K.cream2,false);pyramid(S,ngon(c[0],c[1],5.2,8),3.2,2.6,K.teja2);bl(22,-100,33,-89);S.dy=0;}
     // ---- trees: the forest of the west and the east, the lines along the barracks
-    {const rr=rng(4417),t=(u,v,s)=>{const p=G(u,v);if(inR(u,v)&&!inBL(u,v)&&inTerrain(p[0],p[1]))TREES.push([p[0],p[1],s,rr()]);},
+    {const rr=rng(4417),t=treeAt(F,(u,v)=>inR(u,v)&&!inBL(u,v),rr),
         field=(u0,v0,u1,v1,n,s0)=>{for(let i=0;i<n;i++)t(u0+rr()*(u1-u0),v0+rr()*(v1-v0),s0+rr()*.5);};
       field(-146,-125,-52,125,340,1.4);field(-60,-30,12,130,50,1.2);field(46,-110,142,-40,80,1.4);field(80,50,142,130,80,1.3);field(46,-250,142,-225,14,1.1);
       field(-60,-125,60,-30,24,1.1);field(20,-100,60,-60,16,1.4);field(-90,-310,40,-170,12,1.1);field(-20,130,110,250,14,1.0);

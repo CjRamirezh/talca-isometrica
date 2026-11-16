@@ -13,10 +13,10 @@
   // all heights (no measured elevation), the hall's walls and its roof's current state (fire damage unknown), the
   // Oriente pavilions' position and the inner courtyard. No night lights: the building is closed.
   {const F=localFrame(502,-16,Math.PI/2),{G,Gs,V,N3,R}=F;
-    const K={wall:C('#DCD5C6'),wallIn:C('#CBC4B5'),white:C('#EFEAE0'),whiteSh:C('#D3CDC0'),plinth:C('#BDB6A8'),
-      tile:C('#8A5E48'),tile2:C('#79523F'),gable:C('#DCD5C6'),flat:C('#8F8A82'),shed:C('#C9C9C1'),shed2:C('#B5B7B0'),
-      hall:C('#CFC8BA'),lantern:C('#DCD6BF'),slope:C('#AEB5A6'),slope2:C('#9DA597'),glass:C('#3B4653'),glass2:C('#2C3540'),
-      shutter:C('#5E5A55'),door:C('#5A4636'),iron:C('#3A3A3A'),yard:C('#BDB197'),
+    const K={...KH,wall:C('#DCD5C6'),wallIn:C('#CBC4B5'),white:C('#EFEAE0'),whiteSh:C('#D3CDC0'),plinth:C('#BDB6A8'),
+      tile:C('#8A5E48'),tile2:C('#79523F'),gable:C('#DCD5C6'),shed:C('#C9C9C1'),shed2:C('#B5B7B0'),
+      hall:C('#CFC8BA'),lantern:C('#DCD6BF'),slope:C('#AEB5A6'),slope2:C('#9DA597'),
+      shutter:C('#5E5A55'),yard:C('#BDB197'),
       mural:['#C8553D','#E2B33C','#4F8A8B','#7A9A3B','#B4372C','#3E6D9C','#E9DDC6','#D9822B'].map(C)};
     const {box,WL,WV,WU,rect,arch,roof}=facade(S,F,K),shedRoof=facade(S,F,{...K,tile:K.shed,tile2:K.shed2}).roof;
     const fp=Gs([[-54,-40],[-49,-44],[51,-44],[54,-41],[54,62],[-54,62]]);

@@ -8,8 +8,8 @@
   // (drawn like the east), the podium's windows. It stands on the plaza's level (MODELS[...].pad) with walls 10 m
   // deep: the Catedral's lower pad tilts the ground under its west side. Method: docs/METODOLOGIA.md §9.
   {const F=localFrame(0,0,Math.PI/2),H=MODELS['plaza-de-armas'].pad;
-    const K={wall:C('#C6C8C4'),wall2:C('#B5B8B4'),core:C('#A3A7A6'),groove:C('#8E9291'),glass:C('#6A8DAB'),glass2:C('#5C7F9E'),
-      white:C('#E8E6E0'),flat:C('#8F8A82'),plant:C('#A7AAA7'),dark:C('#3B4653')};
+    const K={...KH,wall:C('#C6C8C4'),wall2:C('#B5B8B4'),core:C('#A3A7A6'),groove:C('#8E9291'),glass:C('#6A8DAB'),glass2:C('#5C7F9E'),
+      white:C('#E8E6E0'),plant:C('#A7AAA7'),dark:C('#3B4653')};
     const {box,WU,WV,rect}=facade(S,F,K);
     occMark([[-55.9,69.2],[-27.3,69.1],[-27.3,81.6],[-29.6,81.6],[-29.5,109.9],[-55.7,110]]);PADS.push([-55.9,69.1,-27.3,110,H]);S.dy=H;
     // podium: three floors with ribbon windows, a flat roof behind a white edge

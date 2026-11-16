@@ -17,9 +17,9 @@
   // of the interior), the roofs' colours, the pavilion and the dome (only seen from above), the yard's sheds and the
   // rubble. No lights: nothing says the cemetery is lit.
   {const F=localFrame(-4,2120,75.3*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={soil:C('#BBA680'),field:C('#B39A74'),path:C('#DCD0B4'),wall:C('#DDC768'),wall2:C('#C9B25A'),white:C('#ECE7DC'),white2:C('#D3CDC0'),plinth:C('#C9C3B6'),
+    const K={...KH,soil:C('#BBA680'),field:C('#B39A74'),path:C('#DCD0B4'),wall:C('#DDC768'),wall2:C('#C9B25A'),
       grave:['#E8E4DA','#D3CFC5','#BDB8AE','#CFC2B2','#A8A49C'].map(C),niche:C('#D4CFC3'),niche2:C('#BFBAAE'),tile:C('#7E5240'),tile2:C('#6C4636'),
-      zinc:C('#B5B8B5'),zinc2:C('#A3A7A5'),dark:C('#2C3540'),glass:C('#3B4653'),glass2:C('#2C3540'),cu:C('#3F6B5A'),cu2:C('#4D7C68'),
+      zinc:C('#B5B8B5'),zinc2:C('#A3A7A5'),dark:C('#2C3540'),cu:C('#3F6B5A'),cu2:C('#4D7C68'),
       red:C('#A8453D'),red2:C('#92382F'),stone:C('#D4BC94'),stone2:C('#C2A87F'),pink:C('#C99C8E'),copper:C('#6B4A3A'),brick:C('#D9BC74'),
       rubble:C('#9E9484'),scrub:C('#8A8456'),dirt:C('#A98D66')};
     K.gable=K.white2;
@@ -30,10 +30,13 @@
     occFill(GR,2.5);
     // the map's own tracks inside the walls (class 7, the cicloconecta graph: ~3 m off the paths seen on the imagery) are
     // drawn here as paths, not as asphalt (s.bridge: a street a landmark draws)
-    streets.forEach(s=>{if(s.c===7&&s.pts.filter(p=>pip(p,GR)).length*2>=s.pts.length)s.bridge=true;});
+    ownTracks(GR);
     // ---- obstacles for the graves: [u0, v0, u1, v1]; free(): a rectangle inside the ring and off every obstacle
-    const OB=[],ob=(u0,v0,u1,v1,m=0)=>{OB.push([u0-m,v0-m,u1+m,v1+m]);};
-    const free=(u0,v0,u1,v1)=>inR(u0,v0)&&inR(u1,v0)&&inR(u1,v1)&&inR(u0,v1)&&!OB.some(o=>u0<o[2]&&u1>o[0]&&v0<o[3]&&v1>o[1]);
+    const {bl:ob,has:inOB,hits:onOB}=keepOut(0);
+    // free(): a rectangle inside the ring and off every obstacle; the graves ask it along rows of the same v, so the
+    // ring's crossings at each v are kept (pipRow: the same answers as pip)
+    const ROWS=new Map(),inRow=(u,v)=>{let xs=ROWS.get(v);if(!xs)ROWS.set(v,xs=pipRow(UV,v,[]));let n=0;for(const x of xs)if(u<x)n++;return n%2===1;};
+    const free=(u0,v0,u1,v1)=>inRow(u0,v0)&&inRow(u1,v0)&&inRow(u1,v1)&&inRow(u0,v1)&&!onOB(u0,v0,u1,v1);
     const rr=rng(8611);
     // ---- the ground: soil under all (0.11), the empty field (0.12), the paths (0.13); draped on the terrain (no pad)
     // main avenue, cross avenues and the paths along the walls (u, v): the map's own tracks lie on them (class 7)
@@ -140,7 +143,7 @@
     tomb(-124,-106,94,58,401,3,.96);                 // the dense field
     tomb(-124,-237,96,-109,402,3,.66);                // the south wing, among its buildings
     // ---- trees: masses of big round ones among the graves, cypresses (columnar, the poplars' model) along the avenue
-    {const t=(u,v,s)=>{const p=G(u,v);if(inR(u,v)&&inTerrain(p[0],p[1])&&!OB.some(o=>u>o[0]&&u<o[2]&&v>o[1]&&v<o[3]))TREES.push([p[0],p[1],s,rr()]);};
+    {const t=treeAt(F,(u,v)=>inR(u,v)&&!inOB(u,v),rr);
       const mass=(cu,cv,rad,n,s0)=>{for(let i=0;i<n;i++){const a=rr()*Math.PI*2,d=Math.sqrt(rr())*rad;t(cu+Math.cos(a)*d,cv+Math.sin(a)*d,s0+rr()*.5);}};
       const field=(u0,v0,u1,v1,n,s0)=>{for(let i=0;i<n;i++)t(u0+rr()*(u1-u0),v0+rr()*(v1-v0),s0+rr()*.5);};
       mass(-20,-127,8,9,1.4);mass(-67,-172,12,16,1.4);mass(-37,-211,5,5,1.3);mass(25,-112,6,5,1.3);

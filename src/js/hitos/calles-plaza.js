@@ -14,7 +14,7 @@
   // last in ORDER.
   onFinalTerrain(()=>{
     const Z0=132,inZ=(x,y)=>Math.abs(x)<=Z0&&Math.abs(y)<=Z0,ZONE=[[-Z0,-Z0],[Z0,-Z0],[Z0,Z0],[-Z0,Z0]];
-    const K={concrete:C('#8E8C86'),iron:C('#24322B'),iron2:C('#2E3E35'),lantern:C('#E6DDB8'),grey:C('#3A3C3C'),black:C('#1D1D1D'),red:C('#D8452F')};
+    const K={...KH,concrete:C('#8E8C86'),iron:C('#24322B'),iron2:C('#2E3E35'),lantern:C('#E6DDB8'),grey:C('#3A3C3C'),black:C('#1D1D1D'),red:C('#D8452F')};
     const NAMES=/^(Calle 1 Norte|Calle 1 Sur|Calle 1 Oriente|Cardenal Raúl Silva Henríquez)$/;
     const near=s=>s.pts.some(p=>inZ(p[0],p[1]));
     const sts=streets.filter(s=>s.c<=5&&!s.bridge&&NAMES.test(s.name||'')&&near(s));

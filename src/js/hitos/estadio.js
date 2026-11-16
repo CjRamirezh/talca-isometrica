@@ -8,10 +8,10 @@
   // them. Approximate: the north end's height and the black seats' pattern. Method: docs/METODOLOGIA.md §9.
   {const X=-780.8,Y=684.8,A=64.8*Math.PI/180,HL=42.9; // HL: half the track's straight
     const {G,Gs,V,N3,R}=localFrame(X,Y,A);
-    const K={apron:C('#86A35A'),track:C('#B9573B'),lane:C('#E9DDC6'),infield:C('#6B9B45'),grassA:C('#5F9840'),grassB:C('#72AC4D'),
+    const K={...KH,apron:C('#86A35A'),track:C('#B9573B'),lane:C('#E9DDC6'),infield:C('#6B9B45'),grassA:C('#5F9840'),grassB:C('#72AC4D'),
       line:C('#F3F0E6'),seat:C('#B4372C'),seat2:C('#2F2B2B'),riser:C('#B9B2A3'),aisle:C('#E2B33C'),
-      wall:C('#D9D2C2'),rim:C('#EEE8DA'),door:C('#4A3F3A'),roof:C('#F0EFE9'),rib:C('#D8D6CE'),truss:C('#7A5B48'),
-      glass:C('#4D5D66'),mast:C('#707070'),panel:C('#3E3C3A'),lamp:C('#FFF4C8'),hockey:C('#3E6D9C')};
+      wall:C('#D9D2C2'),door:C('#4A3F3A'),roof:C('#F0EFE9'),rib:C('#D8D6CE'),truss:C('#7A5B48'),
+      glass:C('#4D5D66'),panel:C('#3E3C3A'),lamp:C('#FFF4C8'),hockey:C('#3E6D9C')};
     // oval of the track's shape: semicircles of radius r centred at v=±HL
     const oval=(r,n=24)=>{const o=[];for(let i=0;i<=n;i++){const t=Math.PI*i/n;o.push([r*Math.cos(t),HL+r*Math.sin(t)]);}
       for(let i=0;i<=n;i++){const t=Math.PI+Math.PI*i/n;o.push([r*Math.cos(t),-HL+r*Math.sin(t)]);}return o;};

@@ -17,7 +17,7 @@
   // the number and depth of the glazed bays, the wings' function and height, the kiosks' use. No lights: nothing says
   // the site is lit. Method: docs/METODOLOGIA.md §9.
   {const X=2358.41,Y=198.42,F=localFrame(X,Y,Math.PI/2),{G,Gs,V,N3}=F; // A = 90°: G(u,v) = [X + u, Y + v]
-    const K={asph:C('#65615D'),asph2:C('#57534F'),lawn:C('#97AA5E'),lawn2:C('#8DA056'),gravel:C('#D8C69C'),sand:C('#C9B38A'),pad:C('#CFC7B0'),
+    const K={...KH,asph:C('#65615D'),asph2:C('#57534F'),lawn:C('#97AA5E'),lawn2:C('#8DA056'),gravel:C('#D8C69C'),sand:C('#C9B38A'),pad:C('#CFC7B0'),
       wall:C('#D8D3C6'),pil:C('#C4BEB0'),zoc:C('#B9B3A5'),plinth:C('#BDB7AA'),plinthT:C('#D3CDBF'),white:C('#EFEBE0'),
       glass:C('#4D5D66'),glass2:C('#3B4653'),roofA:C('#566A8A'),roofB:C('#465878'),hub:C('#D9D6CE'),hubT:C('#ECEAE3'),
       wing:C('#E7E2D6'),door:C('#4A3F3A'),kiosk:C('#B5524A'),kioskT:C('#9F4540'),shed:C('#6F6B64'),shedT:C('#3F4448')};
@@ -40,7 +40,7 @@
     const ring=SITE; // grid metres
     // the footprint: the whole site is reserved (the generic sports layer is skipped), the pavement and the building marked
     occFill(ring,2.5);
-    streets.forEach(s=>{if(s.c===7&&s.pts.filter(p=>pip(p,ring)).length*2>=s.pts.length)s.bridge=true;});
+    ownTracks(ring);
     const gOUT=Gs(OUT);occMark(Gs(RING));occMark(Gs(LOT));occMark(gOUT);
     // level the ground under the building and its wings (nodes every 40 m: the ring road lies on the plateau); the pad is
     // applied while this block is drawn so that drape() and the lot see the final terrain, and undone after (applyPads
@@ -98,10 +98,9 @@
     // east gate: two white piers
     for(const o of [-3.4,3.4]){const g=[2423+0,200+o];S.prism(rotRect(g[0],g[1],1,1,0),HF,3.2,K.white,K.white);}
     // ---- trees where the imagery shows them: the lot's islands, the east and south-east belts, a few on the lawns
-    {const rr=rng(7141),inR=(u,v)=>pip(G(u,v),ring)&&!pip([u,v],RING)&&!pip([u,v],LOT),t=(u,v,s)=>{const p=G(u,v);if(inTerrain(p[0],p[1]))TREES.push([p[0],p[1],s,rr()]);};
+    {const rr=rng(7141),inR=(u,v)=>pip(G(u,v),ring)&&!pip([u,v],RING)&&!pip([u,v],LOT),t=treeAt(F,()=>true,rr);
       for(const [u,v] of [[-34.5,122.5],[-19,115.5],[-42,102.5],[-26,95.5],[-4,108],[-11,91],[29.5,94],[22.5,77.5]])t(u,v,1.0+rr()*.25);
-      const grove=(poly,n,s0)=>{let k=0,bb=[1e9,1e9,-1e9,-1e9];for(const p of poly){bb=[Math.min(bb[0],p[0]),Math.min(bb[1],p[1]),Math.max(bb[2],p[0]),Math.max(bb[3],p[1])];}
-        for(let g=0;g<n*40&&k<n;g++){const u=bb[0]+rr()*(bb[2]-bb[0]),v=bb[1]+rr()*(bb[3]-bb[1]);if(pip([u,v],poly)&&inR(u,v)){t(u,v,s0+rr()*.5);k++;}}};
+      const grove=(poly,n,s0)=>scatterTrees(rr,poly,n,s0,inR,t);
       grove([[60,105],[88,80],[86,50],[76,35],[64,45],[58,70]],26,1.4);
       grove([[52,-8],[62,-4],[58,-25],[44,-52],[34,-60],[36,-40],[48,-20]],14,1.4);
       grove([[-80,-10],[-72,-14],[-40,-50],[-34,-62],[-44,-60],[-70,-30]],8,1.3);

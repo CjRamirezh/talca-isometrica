@@ -8,7 +8,7 @@
   // narrower, a balustrade on deep beams over wall piers. Approximate: the decks' heights (straight between the banks,
   // never under the terrain plus 0.3 m; the relief is exaggerated), the piers' spacing (25 and 20 m), the lamps' (35 m).
   // The new bridge's lamps glow (it is a lit road); the old one has none.
-  {const K={asph:C('#57534F'),walk:C('#C9C3B6'),beam:C('#B3AEA4'),par:C('#D9D3C5'),red:C('#C8503A'),metal:C('#707070'),lamp:C('#F1E6C4'),
+  {const K={...KH,asph:C('#57534F'),walk:C('#C9C3B6'),beam:C('#B3AEA4'),par:C('#D9D3C5'),red:C('#C8503A'),metal:C('#707070'),lamp:C('#F1E6C4'),
       old:C('#BDB8AD'),old2:C('#8F8A82'),oldBeam:C('#9C978E')};
     const bridge=(pts,hw,hAt,o)=>deckBridge(S,K,pts,hw,hAt,o);
     // the Ruta K-60-J bridge, 13 m (the map's carriageway): 9 m of road, sidewalks, parapets

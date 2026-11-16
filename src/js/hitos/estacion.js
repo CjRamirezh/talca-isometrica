@@ -15,9 +15,9 @@
   // proportions), the roofs' colours (Esri imagery), the annex.
   // The pavilion's wall lamps (seen in the photos) glow at night.
   {const F=localFrame(1498.8,-217,89.3*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={white:C('#ECE7DC'),grey:C('#A4A9AA'),grey2:C('#8E9394'),wood:C('#8A4A2E'),glass:C('#3B4653'),glass2:C('#2C3540'),
+    const K={...KH,grey:C('#A4A9AA'),grey2:C('#8E9394'),wood:C('#8A4A2E'),
       tile:C('#9CA1A3'),tile2:C('#8D9294'),gable:C('#ECE7DC'),conc:C('#B9B4AA'),conc2:C('#CAC5BB'),void:C('#45423E'),
-      sroof:C('#767A7C'),sroof2:C('#6A6E70'),pave:C('#CFC7B0'),step:C('#D9D3C5'),step2:C('#C6BFAF'),plat:C('#C8C2B4'),
+      sroof:C('#767A7C'),sroof2:C('#6A6E70'),pave:C('#CFC7B0'),plat:C('#C8C2B4'),
       edge:C('#E2B33C'),ballast:PAL.ballast,rail:PAL.rail,buffer:C('#B4372C')};
     const {box,WL,WV,WU,rect,arch,roof}=facade(S,F,K);
     const shed=facade(S,F,{...K,tile:K.sroof,tile2:K.sroof2,gable:K.conc,white:K.conc2});

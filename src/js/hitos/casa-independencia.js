@@ -8,7 +8,7 @@
   // as on the imagery. Approximate: the wings' widths (±1 m), the eave height (~4.4 m), the 1 Norte front and the
   // courtyard walls (no photos: the side's rhythm), the trees in the courtyards. Method: docs/METODOLOGIA.md §9.
   {const F=localFrame(147.1,70.5,90.92*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={wall:C('#A23B32'),wall2:C('#8F332B'),plinth:C('#7A2B25'),rafter:C('#4A2E26'),tile:C('#AE6446'),tile2:C('#97573D'),
+    const K={...KH,wall:C('#A23B32'),wall2:C('#8F332B'),plinth:C('#7A2B25'),rafter:C('#4A2E26'),tile:C('#AE6446'),tile2:C('#97573D'),
       vano:C('#2E2C2B'),door:C('#4A3426'),patio:C('#CDBB9C'),grass:C('#6E9A48'),trunk:C('#6E5B48'),leaf:C('#5A8A3E'),leaf2:C('#4C7835')};
     const {box,WU,WV,rect}=facade(S,F,K);
     const fp=[[147.1,70.5],[184.3,71.1],[183.7,113.5],[163.1,113.2],[162.9,125],[147.2,124.8],[147.3,114.6],[152.6,114.7],[152.8,98.8],

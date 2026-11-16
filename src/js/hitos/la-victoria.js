@@ -10,9 +10,9 @@
   // raised (laurel crown and sword). Approximate: every measure (±1 m), the niches' carving, which way the Victory
   // faces (drawn facing south), the island's paving pattern (satellite: pale paving, no lawn).
   {const F=localFrame(57.4,509.6,90.3*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={pave:C('#DDD6C6'),pave2:C('#D0C8B6'),curb:C('#C9C3B6'),stone:C('#9E9B93'),stone2:C('#8F8C84'),stoneLt:C('#B3AFA6'),
+    const K={...KH,pave:C('#DDD6C6'),pave2:C('#D0C8B6'),curb:C('#C9C3B6'),stone:C('#9E9B93'),stone2:C('#8F8C84'),stoneLt:C('#B3AFA6'),
       marble:C('#F0ECE2'),niche:C('#5E5C57'),bronze:C('#3C4540'),bronze2:C('#2F3632'),iron:C('#3B4240'),lamp:C('#F1E6C4'),
-      white:C('#ECE7DC'),glass:C('#3B4653'),glass2:C('#2C3540'),tile:C('#8F8A82'),tile2:C('#8F8A82')};
+      tile:C('#8F8A82'),tile2:C('#8F8A82')};
     const {WL,rect,arch}=facade(S,F,K);
     // the island between the carriageways as the map draws them (west edge u=-3.6, east 4.9; the Alameda's lanes
     // at v -23 and +25); its north end narrows where the two branches of 1 Oriente meet

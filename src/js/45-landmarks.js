@@ -18,11 +18,20 @@ function localFrame(X,Y,A){const sa=Math.sin(A),ca=Math.cos(A),G=(u,v)=>[X+u*sa+
 function facade(S,F,K){const {V,N3,R}=F;
   const box=(u0,v0,u1,v1,h0,h1,wall,top,lid=true)=>S.prism(R(u0,v0,u1,v1),h0,h1,wall,top,lid);
   // a wall from (u,v) a to b with outward direction `out`; details are drawn `o` metres in front of it, s runs
-  // along the wall from a (so on a wall parallel to u, s is u itself)
+  // along the wall from a (so on a wall parallel to u, s is u itself). The wall keeps a, b and out, and w.at(o2) is
+  // the same wall with its details o2 in front (a second layer over the first: a sill, a mullion)
   const WL=(a,b,out,o=.06)=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1]),du=(b[0]-a[0])/L,dv=(b[1]-a[1])/L;
-    return {L,q:(s,h)=>V(a[0]+du*s+out[0]*o,a[1]+dv*s+out[1]*o,h),n:N3(out[0],out[1])};};
+    return {L,a,b,out,at:o2=>WL(a,b,out,o2),q:(s,h)=>V(a[0]+du*s+out[0]*o,a[1]+dv*s+out[1]*o,h),n:N3(out[0],out[1])};};
+  // the unit normal of the edge a→b in (u,v) on its [dv, -du] side (sg=-1: the other side): the outward direction of
+  // the edges of a ring that runs clockwise in (u,v) (sg=1) or counter-clockwise (sg=-1)
+  const outOf=(a,b,sg=1)=>{const du=b[0]-a[0],dv=b[1]-a[1],L=Math.hypot(du,dv);return [sg*dv/L,-sg*du/L];};
   const WV=(v,sg,o)=>WL([0,v],[1,v],[0,sg],o),WU=(u,sg,o)=>WL([u,0],[u,1],[sg,0],o);
   const rect=(w,s0,s1,h0,h1,col)=>S.face([w.q(s0,h0),w.q(s1,h0),w.q(s1,h1),w.q(s0,h1)],w.n,col);
+  // the walls of a (u,v) ring (outOf(a,b) outward) from h0 to h1, their top 0.5 m a coping band in cop (null: none);
+  // col a colour or a function of the edge's index. Edges under 1 cm are skipped
+  const walls=(ring,h0,h1,col,cop=K.white)=>{for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);
+      if(L<.01)continue;const w=WL(a,b,outOf(a,b),0),c=typeof col==='function'?col(i):col,top=cop?h1-.5:h1;
+      S.face([w.q(0,h0),w.q(L,h0),w.q(L,top),w.q(0,top)],w.n,c);if(cop)S.face([w.q(0,h1-.5),w.q(L,h1-.5),w.q(L,h1),w.q(0,h1)],w.n,cop);}};
   // pixel arch: a rectangle under two narrower steps
   const arch=(w,sc,wd,h0,h1,col)=>{const r=wd*.45;rect(w,sc-wd/2,sc+wd/2,h0,h1-r,col);rect(w,sc-wd*.36,sc+wd*.36,h1-r,h1-r*.4,col);rect(w,sc-wd*.18,sc+wd*.18,h1-r*.4,h1,col);};
   // stained glass: leaded bands in two tones
@@ -39,7 +48,20 @@ function facade(S,F,K){const {V,N3,R}=F;
       S.face([P(s,t0,h),P(s,t1,h),P(s,tm,h+rh)],n,K.gable||K.brick);
       S.face([P(f,t0-o,h-dr-.45),P(f,tm,h+rh-.45),P(f,tm,h+rh+.05),P(f,t0-o,h-dr+.05)],n,K.white);
       S.face([P(f,t1+o,h-dr-.45),P(f,tm,h+rh-.45),P(f,tm,h+rh+.05),P(f,t1+o,h-dr+.05)],n,K.white);});};
-  return {box,WL,WV,WU,rect,arch,glass,roof};}
+  // hipped roof over an axis-aligned (u,v) rectangle: eaves o out and `drop` under h, the ridge rh over h along the
+  // longer side (ax 'u' or 'v' forces it), its ends kept at the middle when clamp (a square gets a point, not a cross).
+  // Tones: the slopes facing +u and -v in t1, the others in t2 (sun-lit and shaded, the Liceo, the Colegio De La
+  // Salle); with ends, the two long slopes in t1 and the hips in t2 (the Ex Cárcel). GB.hipRoof (50-city.js) is the
+  // city's: one tone and any convex quad
+  const hipped=(u0,v0,u1,v1,h,rh,t1,t2,{o=.4,drop=0,ax,clamp=true,ends=false}={})=>{u0-=o;v0-=o;u1+=o;v1+=o;
+    const he=h-drop,hr=h+rh,alU=ax?ax==='u':u1-u0>=v1-v0,hw=(alU?v1-v0:u1-u0)/2,f=(q,c)=>S.face(q,null,c);
+    if(alU){const vm=(v0+v1)/2,a=clamp?Math.min(u0+hw,(u0+u1)/2):u0+hw,b=clamp?Math.max(u1-hw,(u0+u1)/2):u1-hw;
+      f([V(u0,v0,he),V(u1,v0,he),V(b,vm,hr),V(a,vm,hr)],t1);f([V(u1,v1,he),V(u0,v1,he),V(a,vm,hr),V(b,vm,hr)],ends?t1:t2);
+      f([V(u0,v1,he),V(u0,v0,he),V(a,vm,hr)],t2);f([V(u1,v0,he),V(u1,v1,he),V(b,vm,hr)],ends?t2:t1);}
+    else{const um=(u0+u1)/2,a=clamp?Math.min(v0+hw,(v0+v1)/2):v0+hw,b=clamp?Math.max(v1-hw,(v0+v1)/2):v1-hw;
+      f([V(u0,v1,he),V(u0,v0,he),V(um,a,hr),V(um,b,hr)],ends?t1:t2);f([V(u1,v0,he),V(u1,v1,he),V(um,b,hr),V(um,a,hr)],t1);
+      f([V(u0,v0,he),V(u1,v0,he),V(um,a,hr)],ends?t2:t1);f([V(u1,v1,he),V(u0,v1,he),V(um,b,hr)],t2);}};
+  return {box,WL,WV,WU,rect,arch,glass,roof,outOf,walls,hipped};}
 // A road or rail deck on piers, for any bridge (the Río Claro ones, puentes-rio-claro): pts the deck's polyline in grid
 // metres, hw half its width, hAt(p) its height along the span (never under the terrain plus 0.3 m), o its parts:
 // walk (half the roadway: asphalt, sidewalks and parapets) or deck (a plain top colour) with balus (balustrade in two
@@ -103,6 +125,26 @@ const KH=Object.freeze({brick:hex('#A04B34'),brick2:hex('#8F4330'),white:hex('#E
 // list [x0,y0,x1,y1,…] (how the long outlines are written) into points, ccwRing() gives a ring counter-clockwise
 const pairs=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push([a[i],a[i+1]]);return o;};
 const ccwRing=r=>ringArea(r)<0?r.slice().reverse():r;
+// A walled ground's own furniture (the Cementerio, the Regimiento, the colleges, the gym, the casino), in (u,v) of its
+// frame. keepOut(m0): the boxes its random graves and trees keep off, {all, bl, has, hits}: bl(u0,v0,u1,v1,m=m0) adds one
+// grown by m, has(u,v) says if a point is strictly inside one, hits(u0,v0,u1,v1) if a rectangle overlaps one; indexed in
+// cells of 16 m (the Cementerio asks ~30 000 times)
+function keepOut(m0=2){const cells=new Map(),C=16,key=(i,j)=>i*65536+j,all=[];
+  return {all,bl:(u0,v0,u1,v1,m=m0)=>{const o=[u0-m,v0-m,u1+m,v1+m];all.push(o);
+      for(let i=Math.floor(o[0]/C);i<=Math.floor(o[2]/C);i++)for(let j=Math.floor(o[1]/C);j<=Math.floor(o[3]/C);j++){const k=key(i,j);let c=cells.get(k);if(!c)cells.set(k,c=[]);c.push(o);}},
+    has:(u,v)=>{const c=cells.get(key(Math.floor(u/C),Math.floor(v/C)));return !!c&&c.some(o=>u>o[0]&&u<o[2]&&v>o[1]&&v<o[3]);},
+    hits:(u0,v0,u1,v1)=>{for(let i=Math.floor(u0/C);i<=Math.floor(u1/C);i++)for(let j=Math.floor(v0/C);j<=Math.floor(v1/C);j++){
+      const c=cells.get(key(i,j));if(c&&c.some(o=>u0<o[2]&&u1>o[0]&&v0<o[3]&&v1>o[1]))return true;}return false;}};}
+// treeAt(F, ok, rr): plant(u, v, s), a round tree of scale s (TREES) at (u,v) of frame F where ok(u,v) and the point
+// is in the commune; its seed is rr(), drawn only for a tree that is planted
+function treeAt(F,ok,rr){return (u,v,s)=>{const p=F.G(u,v);if(ok(u,v)&&inTerrain(p[0],p[1]))TREES.push([p[0],p[1],s,rr()]);};}
+// scatterTrees(rr, poly, n, s0, ok, plant): a grove of up to n trees of scale s0..s0+0.5 at random points of poly
+// (its box, then pip) where ok(x,y), at most 40 n tries
+function scatterTrees(rr,poly,n,s0,ok,plant){let k=0,bb=[1e9,1e9,-1e9,-1e9];for(const p of poly)bb=[Math.min(bb[0],p[0]),Math.min(bb[1],p[1]),Math.max(bb[2],p[0]),Math.max(bb[3],p[1])];
+  for(let g=0;g<n*40&&k<n;g++){const x=bb[0]+rr()*(bb[2]-bb[0]),y=bb[1]+rr()*(bb[3]-bb[1]);if(pip([x,y],poly)&&ok(x,y)){plant(x,y,s0+rr()*.5);k++;}}}
+// ownTracks(ring): the map's tracks (class 7, the cicloconecta graph) with half their points or more inside the ring
+// of grid metres become the landmark's own (s.bridge: the map does not draw them), for a ground that draws its paths
+function ownTracks(ring){for(const s of streets)if(s.c===7){let k=0;for(const p of s.pts)if(inRing(p[0],p[1],ring))k++;if(k*2>=s.pts.length)s.bridge=true;}}
 // occFill(ring, margin): marks the ring's cells in occ (1, like occMark), leaving margin m free along the map's streets
 // (usosPlan's rule: the sidewalks, street trees and parked cars stay). A landmark that covers a land use with it makes
 // usosPlan skip that use (CLAUDE.md, trap «Un hito sobre un uso de suelo lo saca entero»)

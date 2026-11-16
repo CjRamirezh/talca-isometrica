@@ -8,8 +8,8 @@
   // approximate, and the model stays a plain block with the plan, height and roof of the imagery. On a pad, though it
   // is on the bank: its 40 m cell takes river nodes, and riversRelevel() puts them back. No lights.
   {const F=localFrame(-1696,788,72*Math.PI/180),{G,Gs,R}=F;
-    const K={wall:C('#E3D9C4'),wall2:C('#D3CDC0'),tile:C('#C9CBC8'),tile2:C('#B3B6B3'),white:C('#ECE7DC'),gable:C('#E3D9C4'),
-      door:C('#5A4636'),glass:C('#3B4653'),glass2:C('#2C3540'),brick:C('#8F4330'),gravel:C('#CDB98F')};
+    const K={...KH,wall:C('#E3D9C4'),wall2:C('#D3CDC0'),tile:C('#C9CBC8'),tile2:C('#B3B6B3'),gable:C('#E3D9C4'),
+      brick:C('#8F4330'),gravel:C('#CDB98F')};
     const {box,WU,WV,rect,roof}=facade(S,F,K),red=facade(S,F,{...K,tile:C('#A35C42'),tile2:C('#8E4F3A'),gable:K.wall2});
     occMark(R(-5.8,-19.3,10.3,19.3));NOLOTS.push(R(-8,-26,30,16));
     // the pad (riversRelevel() puts the river's nodes back after it) and the gravel yard on it

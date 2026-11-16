@@ -12,9 +12,9 @@
   // blue-grey with plant boxes (Esri imagery). Approximate: the rear and east faces (no photos; windows drawn like the
   // west side's), the depth of the portal and the glass box, the stone's coursing. Method: docs/METODOLOGIA.md §9.
   {const F=localFrame(-167.1,592.6,91.3*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={stone:C('#ECE8DF'),stone2:C('#E0DBD0'),plinth:C('#ABA9A3'),white:C('#EEEBE3'),roof:C('#8D97A0'),plant:C('#B9B7B1'),
+    const K={...KH,stone:C('#ECE8DF'),stone2:C('#E0DBD0'),plinth:C('#ABA9A3'),white:C('#EEEBE3'),roof:C('#8D97A0'),plant:C('#B9B7B1'),
       glass:C('#4C6B78'),glass2:C('#405D69'),mull:C('#8C9CA3'),boxg:C('#6A8B92'),boxg2:C('#5D7D85'),louv:C('#C8D2D0'),
-      door:C('#2E3A40'),win:C('#3B4653'),pave:C('#D9D3C5'),pave2:C('#C6BFAF'),mast:C('#707070'),red:C('#C8352B'),blue:C('#2D4F9A'),fw:C('#F1EEE6')};
+      door:C('#2E3A40'),win:C('#3B4653'),pave:C('#D9D3C5'),pave2:C('#C6BFAF'),red:C('#C8352B'),blue:C('#2D4F9A'),fw:C('#F1EEE6')};
     const {box,WL,WV,WU,rect}=facade(S,F,K);
     const H=24,HT=H-.03,FL=[0.3,4.3,7.9,11.5,15.1,18.7]; // roof line (walls stop 3 cm under the roof: no seams); floor levels (ground floor 4 m, then 3.6 m)
     // footprint (OSM) plus the paved forecourt to the Alameda's sidewalk: levels the ground and keeps the city off it
@@ -22,8 +22,7 @@
     occMark(fp);S.dy=padAt(Math.min(...fp.map(p=>p[0])),Math.min(...fp.map(p=>p[1])),Math.max(...fp.map(p=>p[0])),Math.max(...fp.map(p=>p[1])));
     // stone walls in courses of two tones (one band per half floor), a white coping, a roof with plant boxes
     const courses=(w,s0,s1,h0=4.3,h1=H-.45)=>{for(let h=h0,k=0;h<h1-1e-6;h+=1.8,k++)if(k%2)rect(w,s0,s1,h,Math.min(h+1.8,h1),K.stone2);};
-    const windows=(w,ss,wd=1.2)=>{for(const f of FL.slice(1))for(const s of ss)rect(WL(w.a,w.b,w.out,.09),s-wd/2,s+wd/2,f+1,f+2.5,K.win);};
-    const wall=(a,b,out)=>Object.assign(WL(a,b,out),{a,b,out});
+    const windows=(w,ss,wd=1.2)=>{for(const f of FL.slice(1))for(const s of ss)rect(w.at(.09),s-wd/2,s+wd/2,f+1,f+2.5,K.win);};
     // forecourt: paving in strips, two steps up to the Corte's door
     for(let v=-43,k=0;v<-16.1-1e-6;v+=3,k++)S.quadXY(R(-16.6,v,v<-31.9?18.2:5,Math.min(v+3,v<-31.9?-31.9:-16.1)),0.33,k%2?K.pave2:K.pave);
     box(-12.6,-18.4,4.8,-17.2,0.3,0.55,K.pave2,K.pave);box(-12.6,-17.2,4.8,-16.1,0.3,0.8,K.pave2,K.pave);
@@ -48,8 +47,8 @@
     {const w=WU(-16.6,-1),w2=WU(-16.6,-1,.09),w3=WU(-16.6,-1,.12);rect(w,-16.1,4.7,0.3,4.3,K.plinth);courses(w,-16.1,-9.5);courses(w,1.5,4.7);
       rect(w2,-9.5,1.5,4.3,H-1.2,K.glass);for(let h=5.5;h<H-1.5;h+=1.2)rect(w3,-9.5,1.5,h,h+.4,K.louv);rect(WU(-16.6,-1,.09),-16.1,4.7,H-.45,H,K.white);}
     // Corte rear faces: windows a floor (approximate)
-    {const wv=wall([-13.7,17.8],[0.5,18],[0,1]);rect(wv,0,wv.L,0.3,4.3,K.plinth);windows(wv,[2.5,6.5,10.5]);
-      const e=wall([5,8],[0.5,7.8],[0,1]);windows(e,[1.5,3.5]);}
+    {const wv=WL([-13.7,17.8],[0.5,18],[0,1]);rect(wv,0,wv.L,0.3,4.3,K.plinth);windows(wv,[2.5,6.5,10.5]);
+      const e=WL([5,8],[0.5,7.8],[0,1]);windows(e,[1.5,3.5]);}
     // Juzgados wing
     {const u0=5,u1=18.2,v0=-31.9,v1=17.3;box(u0,v0,u1,v1,0.3,HT,K.stone,K.roof,false);
       const s=WV(v0,-1),s2=WV(v0,-1,.09),s3=WV(v0,-1,.12);rect(s,u0,u1,0.3,4.3,K.plinth);courses(s,9.6,13.6);courses(s,15.3,u1);courses(s,u0,5.8);
@@ -58,11 +57,11 @@
       FL.forEach((f,k)=>{const t=k<5?FL[k+1]:H-1;rect(s2,5.8,9.6,f,t,k%2?K.glass2:K.glass);rect(s2,13.6,15.3,Math.max(f,4.3),t,k%2?K.glass:K.glass2);});
       rect(s3,6.2,9.2,0.3,3.2,K.door);box(5.6,v0-1.6,9.8,v0,3.7,4.1,K.white,K.white);
       // west side (seen from 2 Poniente): plinth, courses, a column of small windows per floor; east and rear
-      const w=wall([u0,v0],[u0,-16.2],[-1,0]),ws=WU(u0,-1);rect(ws,v0,-16.2,0.3,4.3,K.plinth);courses(ws,v0,-16.2);
+      const w=WL([u0,v0],[u0,-16.2],[-1,0]),ws=WU(u0,-1);rect(ws,v0,-16.2,0.3,4.3,K.plinth);courses(ws,v0,-16.2);
       rect(WU(u0,-1,.09),v0,-16.2,H-.45,H,K.white);windows(w,[4,10],1);
-      const e=wall([u1,v0],[u1,v1],[1,0]),es=WU(u1,1);rect(es,v0,v1,0.3,4.3,K.plinth);courses(es,v0,v1);rect(WU(u1,1,.09),v0,v1,H-.45,H,K.white);
+      const e=WL([u1,v0],[u1,v1],[1,0]),es=WU(u1,1);rect(es,v0,v1,0.3,4.3,K.plinth);courses(es,v0,v1);rect(WU(u1,1,.09),v0,v1,H-.45,H,K.white);
       windows(e,[4,10,16,22,28,34,40,45]);
-      const n=wall([u0+.8,v1],[u1,v1],[0,1]);rect(WV(v1,1),u0+.8,u1,0.3,4.3,K.plinth);windows(n,[3,6.5,10]);}
+      const n=WL([u0+.8,v1],[u1,v1],[0,1]);rect(WV(v1,1),u0+.8,u1,0.3,4.3,K.plinth);windows(n,[3,6.5,10]);}
     // one flat roof over the whole outline (OSM), with plant boxes
     S.flat(Gs([[-16.6,-16.1],[-16.7,4.7],[-11.5,4.7],[-13.7,17.8],[0.5,18],[0.5,7.8],[5,8],[5,17.3],[18.2,17.3],[18.2,-31.9],[5,-31.9],[5,-16.1]]),H,K.roof);
     box(-9,0,-3,6,H,H+1.6,K.plant,K.plant);box(-1,-6,3,-2,H,H+1.2,K.plant,K.plant);box(8,-8,15,-2,H,H+1.8,K.plant,K.plant);

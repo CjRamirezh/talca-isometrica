@@ -9,8 +9,8 @@
   // south sides (no photos), the brown box by the cylinder (2017 photo). The timber soffits can't be seen from
   // above, so the visor's roof edge carries a band of their colour (licence); the lobby's night glow is licence too.
   {const F=localFrame(97.9,442.2,1.4*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={wall:C('#E2D2A6'),wall2:C('#CDBB8E'),tower:C('#ECE5D1'),roof:C('#C8C5BC'),roof2:C('#B5B2A9'),white:C('#F1EEE6'),
-      wood:C('#B0663A'),louvre:C('#C49A6C'),glass:C('#3B4653'),glass2:C('#2C3540'),brown:C('#6E4B3A'),step:C('#D9D3C5'),step2:C('#C6BFAF'),
+    const K={...KH,wall:C('#E2D2A6'),wall2:C('#CDBB8E'),tower:C('#ECE5D1'),roof:C('#C8C5BC'),roof2:C('#B5B2A9'),white:C('#F1EEE6'),
+      wood:C('#B0663A'),louvre:C('#C49A6C'),brown:C('#6E4B3A'),
       plant:C('#B9B4A8'),tile:C('#D9D6CC'),tile2:C('#D9D6CC')};
     const {box,WV,WU,rect}=facade(S,F,K);
     const fp=Gs([[7,-33],[7,10],[13,10],[13,23],[-20.5,23],[-20.5,-33]]);occMark(fp);occMark(Gs([[-29,-34],[-20.5,-34],[-20.5,23],[-29,23]])); // the forecourt on the Alameda stays clear

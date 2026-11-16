@@ -14,10 +14,10 @@
   // licence): the buildings' heights, walls and roofs, the play equipment, the jetties' height over the water, the
   // number and colours of the boats; the eucalyptus wood is planted in TREES over the south part (the census marks
   // that block as built, so the city would only give it yard trees). No lights: there is no source for them.
-  {const K={ground:C('#A3B06C'),grass:C('#5F9840'),grass2:C('#72AC4D'),bloom:C('#C77D8E'),
+  {const K={...KH,ground:C('#A3B06C'),bloom:C('#C77D8E'),
       pave:C('#D6CDBD'),plates:C('#C9C3B6'),dirt:C('#CDB98F'),cycle:C('#B3AEA4'),asph:C('#6E6A65'),line:C('#ECE7DC'),
       rubber:C('#B9573B'),rubber2:C('#4F7FA8'),splash:C('#D9D3C5'),wet:C('#7FB0C4'),jet:C('#E3EEF0'),stone:C('#C6BFAF'),water:C('#4F86B5'),
-      wall:C('#D9D2C2'),wall2:C('#C9C3B6'),roof:C('#8F8A82'),white:C('#ECE7DC'),door:C('#5A4636'),glass:C('#3B4653'),
+      wall:C('#D9D2C2'),wall2:C('#C9C3B6'),roof:C('#8F8A82'),
       wood:C('#9A7A55'),wood2:C('#86684A'),edge:C('#5E4732'),post:C('#3A3A3A'),steel:C('#707070'),red:C('#B8483A'),yellow:C('#D9A93B'),table:C('#3F6E5A')};
     const shrink=(q,f)=>{const c=q.reduce((s,p)=>[s[0]+p[0]/q.length,s[1]+p[1]/q.length],[0,0]);return q.map(p=>[c[0]+(p[0]-c[0])*f,c[1]+(p[1]-c[1])*f]);};
     // the park's ground stops 8 m short of the water: the gravel strip along the shore lies at the same height (0.11)

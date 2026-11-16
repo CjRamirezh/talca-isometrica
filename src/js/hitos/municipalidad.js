@@ -8,8 +8,8 @@
   // satellite); a Canary palm and the flag in front. Approximate: the heights (~15 m to the eave, measured against the
   // front's width), the side and rear windows (no photos). On the plaza's level (MODELS[...].pad). Method: §9.
   {const F=localFrame(43.7,89.4,88.85*Math.PI/180),{G,R}=F,H=MODELS['plaza-de-armas'].pad;
-    const K={white:C('#ECE9E2'),white2:C('#D9D5CB'),stone:C('#86827A'),stone2:C('#9A958B'),glass:C('#3B4653'),glass2:C('#2C3540'),
-      door:C('#4D5D66'),roof:C('#C3C5C2'),step:C('#D9D3C5'),pave:C('#D3CABA'),band:C('#BFB4A2')};
+    const K={...KH,white:C('#ECE9E2'),white2:C('#D9D5CB'),stone:C('#86827A'),stone2:C('#9A958B'),
+      door:C('#4D5D66'),roof:C('#C3C5C2'),pave:C('#D3CABA'),band:C('#BFB4A2')};
     const {box,WU,WV,rect}=facade(S,F,K);
     occMark(R(-12.6,-12.5,12.6,12.5));occMark(R(-16,-21.5,15.8,-12.5));PADS.push([27.6,66,59.5,102.2,H]);S.dy=H;
     // forecourt: paving with darker bands, the stone terrace and its steps

@@ -13,14 +13,11 @@
   // buildings' hull, a little wider). Each building stands on its lowest corner (no pads); the ground layers are
   // draped on the terrain, the lawn under the streets.
   {const F=localFrame(2589.6,2788.6,51.8*Math.PI/180),{G,Gs,V}=F;
-    const K={beige:C('#E3D9C4'),white:C('#ECE7DC'),glass:C('#4D5D66'),glass2:C('#3B4653'),blue:C('#2F4FA0'),orange:C('#D2642F'),
+    const K={...KH,beige:C('#E3D9C4'),glass:C('#4D5D66'),glass2:C('#3B4653'),blue:C('#2F4FA0'),orange:C('#D2642F'),
       lawn:C('#93A85E'),asph:C('#6E6A65'),track:C('#B9573B'),field:C('#6B9B45'),line:C('#F3F0E6'),clay:C('#A8553A'),
       W:C('#D8D6CE'),G:C('#C4BFB3'),D:C('#6A6E72'),B:C('#8E6E5E'),R:C('#9C5A44'),LB:C('#9CC3D6'),GR:C('#8FA68B'),OL:C('#9EA36E'),BL:C('#5B78A8')};
-    const {WL,rect,arch}=facade(S,F,K);
-    const walls=(ring,h0,h1,col,cop=K.white)=>{for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);
-      if(L<.01)continue;const w=WL(a,b,[(b[1]-a[1])/L,-(b[0]-a[0])/L],0);
-      S.face([w.q(0,h0),w.q(L,h0),w.q(L,h1-.5),w.q(0,h1-.5)],w.n,col);S.face([w.q(0,h1-.5),w.q(L,h1-.5),w.q(L,h1),w.q(0,h1)],w.n,cop);}};
-    const sides=ring=>ring.map((a,i)=>{const b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]),out=[(b[1]-a[1])/L,-(b[0]-a[0])/L];return {L,a,b,out,w:WL(a,b,out)};});
+    const {WL,rect,arch,walls,outOf}=facade(S,F,K);
+    const sides=ring=>ring.map((a,i)=>{const b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]),out=outOf(a,b);return {L,a,b,out,w:WL(a,b,out)};});
     // ground: lawn between the blocks (0.10) and the streets (0.12+), lots, the stadium's track and pitches, tennis
     {const {pl:lay,done}=groundLayer(S,1<<13,F);
       lay([[-232.5,-394],[-230,-425.5],[-225,-453.5],[-94,-491.5],[44.5,-452.5],[59.5,-445.5],[293,-327],[375.5,126.5],[355.5,173],[272,328],[239,361.5],[226.5,358.5],[26,269.5],[-69.5,225.5],[-80,214.5],[-85.5,201.5]],.11,K.lawn);

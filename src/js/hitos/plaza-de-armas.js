@@ -12,7 +12,7 @@
   // fountains (no photos: drawn as plain basins), the bands' grid, which trees are palms (only the four entrance
   // pairs are drawn), the kiosk's steps. The lamps' glow is real (the plaza is lit), their positions are not.
   // Method: docs/METODOLOGIA.md §9; style: docs/ESTETICA.md.
-  {const K={pave:C('#D6CDBD'),band:C('#C2B6A3'),sett:C('#ACA497'),curb:C('#ECE7DC'),grass:C('#5F9840'),grass2:C('#72AC4D'),
+  {const K={...KH,pave:C('#D6CDBD'),band:C('#C2B6A3'),sett:C('#ACA497'),curb:C('#ECE7DC'),
       bed:C('#4E7A3C'),bloom:C('#C77D8E'),stone:C('#A9A49A'),stone2:C('#BDB8AD'),water:C('#4F86B5'),iron:C('#2F2D2C'),
       green:C('#33544A'),zinc:C('#A9ADAB'),granite:C('#B3AEA4'),marble:C('#E4E0D6'),
       lamp:C('#F1E6C4')};

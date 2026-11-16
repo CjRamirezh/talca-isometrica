@@ -10,9 +10,9 @@
   // the transept ends, apse and sacristy (no photos of the west side), the roofs' pitch. Night glow in the façade
   // windows is licence. Method: docs/METODOLOGIA.md §9; style: docs/ESTETICA.md.
   {const F=localFrame(-102.9,32.3,179.3*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={brick:C('#A65640'),brick2:C('#97503B'),white:C('#ECE7DC'),whiteSh:C('#D3CDC0'),plinth:C('#C9C3B6'),
-      tile:C('#7D5A4A'),tile2:C('#6E4F41'),flat:C('#8F8A82'),glass:C('#3B4653'),glass2:C('#2C3540'),door:C('#5A4636'),
-      bell:C('#2E2C2B'),spire:C('#50695A'),iron:C('#3A3A3A'),step:C('#D9D3C5'),step2:C('#C6BFAF')};
+    const K={...KH,brick:C('#A65640'),brick2:C('#97503B'),whiteSh:C('#D3CDC0'),
+      tile:C('#7D5A4A'),tile2:C('#6E4F41'),
+      bell:C('#2E2C2B'),spire:C('#50695A')};
     const {box,WL,WV,WU,rect,arch,glass,roof}=facade(S,F,K);
     // footprint (OSM church + tower + steps); it levels the ground and keeps the city off it. The pad takes the plaza's
     // level: pads within ~80 m share terrain nodes and the last one registered wins, which tilted the plaza's west side

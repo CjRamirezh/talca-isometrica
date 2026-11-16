@@ -7,8 +7,8 @@
   // walls, a glazed ground floor, window bands between piers on the five upper floors, a low glazed entrance in
   // the cut corner), so colours, rhythm and the entrance are approximate; the height is OSM's six levels at ~3 m.
   {const F=localFrame(528.5,309.4,90.8*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={wall:C('#D9D2C2'),rim:C('#EEE8DA'),glass:C('#4D5D66'),glass2:C('#3B4653'),roof:C('#4A6496'),roof2:C('#3F5684'),
-      flat:C('#8F8A82'),door:C('#5A4636'),white:C('#EEE8DA'),tile:C('#4A6496'),tile2:C('#3F5684')};
+    const K={...KH,wall:C('#D9D2C2'),glass:C('#4D5D66'),glass2:C('#3B4653'),roof:C('#4A6496'),roof2:C('#3F5684'),
+      white:C('#EEE8DA'),tile:C('#4A6496'),tile2:C('#3F5684')};
     const {box,WL,rect}=facade(S,F,K);
     const P=[[-11.37,-17.52],[9.36,-17.45],[8.46,3.14],[2.66,7.46],[2.43,12.19],[-11.36,12.26]];
     const fp=Gs(P);occMark(fp);

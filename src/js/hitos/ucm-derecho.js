@@ -14,17 +14,14 @@
   // size. Each building stands on its lowest corner (no pads: the campus slopes ~5 m in the model), and the lawns,
   // lots and track are draped on the terrain (the lawn just under the streets).
   {const F=localFrame(4106.6,-654.0,74.2*Math.PI/180),{G,Gs,V,N3,R}=F;
-    const K={block:C('#B9B4A8'),block2:C('#ABA699'),plinth:C('#A9503B'),tile:C('#A35C42'),tile2:C('#8E4F3A'),wood:C('#6B5444'),
-      white:C('#ECE7DC'),cream:C('#E6E1D3'),light:C('#E3E1DA'),grey:C('#C9C5BC'),glass:C('#4D5D66'),glass2:C('#3B4653'),dark:C('#2E2C2B'),
+    const K={...KH,block:C('#B9B4A8'),block2:C('#ABA699'),plinth:C('#A9503B'),wood:C('#6B5444'),
+      cream:C('#E6E1D3'),light:C('#E3E1DA'),grey:C('#C9C5BC'),glass:C('#4D5D66'),glass2:C('#3B4653'),dark:C('#2E2C2B'),
       roof:C('#C4BFB3'),roofW:C('#D8D6CE'),roofD:C('#5F6468'),roofB:C('#8A6A55'),metal:C('#9AA3A6'),metal2:C('#8C959A'),
       hall:C('#C3C9CB'),hall2:C('#AEB8BE'),red:C('#B5443A'),red2:C('#A23D34'),blue:C('#3E5C9A'),dome:C('#B8BDBF'),dome2:C('#A3A9AC'),
       beige:C('#D8CC9F'),atrium:C('#6F95B8'),green:C('#4F8A5E'),lawn:C('#8FA85A'),asph:C('#6E6A65'),track:C('#B9573B'),
       field:C('#6B9B45'),court:C('#4F7FA8')};
-    const {box,WL,WV,WU,rect,roof}=facade(S,F,{...K,gable:K.wood}),roofM=facade(S,F,{...K,tile:K.hall,tile2:K.hall2,gable:K.grey}).roof;
+    const {box,WL,WV,WU,rect,roof,walls}=facade(S,F,{...K,gable:K.wood}),roofM=facade(S,F,{...K,tile:K.hall,tile2:K.hall2,gable:K.grey}).roof;
     // walls of a counter-clockwise (u,v) ring, a white coping on top; slab adds the flat roof
-    const walls=(ring,h0,h1,col,cop=K.white)=>{for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);
-      if(L<.01)continue;const w=WL(a,b,[(b[1]-a[1])/L,-(b[0]-a[0])/L],0);
-      S.face([w.q(0,h0),w.q(L,h0),w.q(L,h1-.5),w.q(0,h1-.5)],w.n,col);S.face([w.q(0,h1-.5),w.q(L,h1-.5),w.q(L,h1),w.q(0,h1)],w.n,cop);}};
     // a building on its lowest corner: walls, flat roof, storeys of windows (st) drawn as glazed bands
     const bld=(ring,h,wall,top,st=0,sh=3.5)=>{const q=Gs(ring);S.dy=groundMin(q);occMark(q);walls(ring,-2,h,wall);S.flat(q,h,top);
       for(let i=0;i<ring.length&&st;i++){const a=ring[i],b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<4)continue;

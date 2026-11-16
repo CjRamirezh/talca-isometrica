@@ -11,7 +11,7 @@
   // east and north faces (no views; drawn like the west face), the box's depth, the louvres' pattern, the rooftop
   // terrace. Method: docs/METODOLOGIA.md §9.
   {const F=localFrame(-43.7,585.5,Math.PI/2),{G,Gs,V,N3,R}=F;
-    const K={slate:C('#737981'),slate2:C('#686E76'),white:C('#E6E4DE'),conc:C('#C9C7C1'),roof:C('#9EA1A0'),deck:C('#B9AF9E'),
+    const K={...KH,slate:C('#737981'),slate2:C('#686E76'),white:C('#E6E4DE'),conc:C('#C9C7C1'),roof:C('#9EA1A0'),deck:C('#B9AF9E'),
       panel:C('#C2C4C3'),panel2:C('#B3B6B6'),louv:C('#A9ADAF'),louv2:C('#868C90'),orange:C('#D27A3E'),
       glass:C('#3E5560'),glass2:C('#34474F'),mull:C('#8C9CA3'),win:C('#3B4653'),steel:C('#ECEBE6'),
       pave:C('#C38A7B'),pave2:C('#AF7C6F'),pole:C('#D8D8D4'),plant:C('#B9B7B1')};
@@ -25,21 +25,20 @@
     const BU=-3,BV=-14;
     S.prism(Gs([[BU,V0],[U1,V0],[U1,V1],[U0,V1],[U0,BV],[BU,BV]]),0.3,HT,K.slate,K.roof,false);
     S.flat(Gs([[U0,V0],[U1,V0],[U1,V1],[U0,V1]]),H,K.roof);
-    const wall=(a,b,out)=>Object.assign(WL(a,b,out),{a,b,out}),at=(w,o)=>WL(w.a,w.b,w.out,o);
     const slate=(w,s0,s1,h0,h1)=>{for(let h=h0,k=0;h<h1-1e-6;h+=1.1,k++)if(k%2)rect(w,s0,s1,h,Math.min(h+1.1,h1),K.slate2);};
     // a side in the 1 Poniente manner: slate ground floor with paired windows, white slab band, ribbon window,
     // band, louvres with orange panels between concrete piers, white coping
-    const side=(w,s0,s1,seed)=>{slate(w,s0,s1,0.3,4.3);rect(at(w,.09),s0,s1,4.3,4.8,K.white);
-      rect(w,s0,s1,4.8,7.6,K.glass);for(let s=s0+1.5;s<s1-.5;s+=1.6)rect(at(w,.09),s-.12,s+.12,4.8,7.6,K.mull);
-      rect(at(w,.09),s0,s1,7.6,8.2,K.white);
+    const side=(w,s0,s1,seed)=>{slate(w,s0,s1,0.3,4.3);rect(w.at(.09),s0,s1,4.3,4.8,K.white);
+      rect(w,s0,s1,4.8,7.6,K.glass);for(let s=s0+1.5;s<s1-.5;s+=1.6)rect(w.at(.09),s-.12,s+.12,4.8,7.6,K.mull);
+      rect(w.at(.09),s0,s1,7.6,8.2,K.white);
       for(let h=8.2,k=0;h<13-1e-6;h+=.6,k++)rect(w,s0,s1,h,h+.6,k%2?K.louv2:K.louv);
-      let j=0;for(let s=s0+1;s<s1-2;s+=2.2,j++)for(let r=0;r<3;r++)if((j*5+r*3+seed)%7<2)rect(at(w,.09),s,s+1.6,8.6+r*1.5,9.6+r*1.5,K.orange);
-      for(let s=s0;s<=s1+1e-6;s+=Math.max(4,(s1-s0)/Math.round((s1-s0)/9.5)))rect(at(w,.12),Math.max(s0,s-.5),Math.min(s1,s+.5),4.8,13,K.conc);
-      rect(at(w,.12),s0,s1,13,H,K.white);
-      for(let s=s0+2;s<s1-1.5;s+=4.5)for(const d of [-.75,.75])rect(at(w,.12),s+d-.55,s+d+.55,1.5,2.7,K.win);};
-    const W=wall([U0,V1],[U0,BV],[-1,0]);side(W,0,W.L,1);
-    const E=wall([U1,V0],[U1,V1],[1,0]);side(E,0,E.L,4);
-    const N=wall([U1,V1],[U0,V1],[0,1]);side(N,0,N.L,2);
+      let j=0;for(let s=s0+1;s<s1-2;s+=2.2,j++)for(let r=0;r<3;r++)if((j*5+r*3+seed)%7<2)rect(w.at(.09),s,s+1.6,8.6+r*1.5,9.6+r*1.5,K.orange);
+      for(let s=s0;s<=s1+1e-6;s+=Math.max(4,(s1-s0)/Math.round((s1-s0)/9.5)))rect(w.at(.12),Math.max(s0,s-.5),Math.min(s1,s+.5),4.8,13,K.conc);
+      rect(w.at(.12),s0,s1,13,H,K.white);
+      for(let s=s0+2;s<s1-1.5;s+=4.5)for(const d of [-.75,.75])rect(w.at(.12),s+d-.55,s+d+.55,1.5,2.7,K.win);};
+    const W=WL([U0,V1],[U0,BV],[-1,0]);side(W,0,W.L,1);
+    const E=WL([U1,V0],[U1,V1],[1,0]);side(E,0,E.L,4);
+    const N=WL([U1,V1],[U0,V1],[0,1]);side(N,0,N.L,2);
     // the front's slate part: courses, two white bands, small framed windows, the big window, emblem and flagpoles
     {const w=WV(V0,-1),w2=WV(V0,-1,.09),w3=WV(V0,-1,.12);slate(w,BU,U1,0.3,H-.45);
       rect(w2,BU,U1,3.9,4.4,K.white);rect(w2,BU,U1,7.9,8.4,K.white);rect(w2,BU,U1,H-.45,H,K.white);

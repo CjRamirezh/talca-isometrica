@@ -9,8 +9,8 @@
   // (MODELS[...].pad); its walls go 10 m down, as the Casa de la Independencia's lower pad tilts the ground to its
   // north-east. The Antigua Intendencia (w275506476) to its north is not modelled. Method: docs/METODOLOGIA.md §9.
   {const F=localFrame(0,0,Math.PI/2),H=MODELS['plaza-de-armas'].pad;
-    const K={wall:C('#B9B3A5'),pil:C('#CBC6B9'),plinth:C('#6E6C66'),glass:C('#3B4653'),glass2:C('#2C3540'),door:C('#4A3F3A'),
-      flat:C('#8F8A82'),sky:C('#A9B2B5'),canopy:C('#5B5A55')};
+    const K={...KH,wall:C('#B9B3A5'),pil:C('#CBC6B9'),plinth:C('#6E6C66'),door:C('#4A3F3A'),
+      sky:C('#A9B2B5'),canopy:C('#5B5A55')};
     const {box,WU,WV,rect}=facade(S,F,K);
     occMark([[72.4,-28.5],[113.7,-28.3],[113.7,28.1],[72.3,27.6]]);PADS.push([72.4,-28.5,113.7,28.1,H]);S.dy=H;
     const F4=[[2,3.8],[5.6,7.5],[9.3,11.2],[13,14.8]],F5=F4.concat([[16.7,18.5]]),bays=(w,s0,s1,fl,wd=1.5,step=3.4,skip)=>{

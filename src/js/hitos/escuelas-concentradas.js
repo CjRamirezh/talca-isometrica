@@ -10,8 +10,8 @@
   // (undated). Approximate: the heights (proportions from the photos, ~9 m eaves, ~14 m tower), flat roofs (they are
   // low iron roofs behind the parapet), the court side and the north ends (no photos), the wings' widths. No lights.
   {const F=localFrame(375,15,Math.PI/2),{G,Gs,V,N3,R}=F;
-    const K={red:C('#B5433A'),red2:C('#9E3B33'),cream:C('#E6DCC2'),white:C('#F0EADB'),roof:C('#8A6A58'),orange:C('#D88A55'),
-      glass:C('#3B4653'),glass2:C('#2C3540'),board:C('#B39A62'),dark:C('#2E2C2B'),sign:C('#7FA7C9'),tile:C('#8A6A58'),tile2:C('#7A5E4E'),
+    const K={...KH,red:C('#B5433A'),red2:C('#9E3B33'),cream:C('#E6DCC2'),white:C('#F0EADB'),roof:C('#8A6A58'),orange:C('#D88A55'),
+      board:C('#B39A62'),dark:C('#2E2C2B'),sign:C('#7FA7C9'),tile:C('#8A6A58'),tile2:C('#7A5E4E'),
       yard:C('#C9B98F'),clay:C('#B0644A'),court:C('#58758C'),line:C('#F3F0E6'),pave:C('#CFC7B0'),pave2:C('#BDB49C'),lawn:C('#8FA85A')};
     const {box,WL,WV,WU,rect}=facade(S,F,K);
     const site=Gs([[-57,-83],[56,-83],[56,34],[-57,34]]);NOLOTS.push(site);
