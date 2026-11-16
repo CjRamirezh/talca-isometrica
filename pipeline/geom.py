@@ -165,7 +165,10 @@ def crossings(pl, ql):
 # ---------------------------------------------------------------- simplification
 def rdp(pts, eps):
     """Douglas–Peucker over an open polyline: the points farther than eps from the chord of their stretch (the first
-    of equally far ones). A closed polyline (first point = last) has no chord: simplify_ring() splits it."""
+    of equally far ones). A closed polyline (first point = last) has no chord: simplify_ring() splits it. Known bug,
+    kept because fixing it changes the map: with a zero-length chord every distance is 0, so a closed polyline comes
+    back as [a, a] (101 looped streets of data/geometry.json, 15.8 km) and usos.simplify() returns its ring unchanged
+    (raw/eval/resultado-calidad-pipeline-nov16.md)."""
     if len(pts) < 3: return pts
     a, b = pts[0], pts[-1]; dx, dy = b[0]-a[0], b[1]-a[1]; L = math.hypot(dx, dy) or 1e-9
     dmax, idx = 0, 0

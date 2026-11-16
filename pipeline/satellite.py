@@ -132,6 +132,15 @@ def dates(x0, x1, y0, y1, z, release=None):
         if c: k = fmt_cap(f); out[k] = (f, out.get(k, (f, 0))[1] + c / N / N)
     return list(out.values())
 
+def provenance(x0, x1, y0, y1, z, release=None):
+    """What an output derived from the image records of it (golf.json, techos.json): the zoom, the Wayback release
+    (None: the current imagery, raw/satelite/, whose tiles are not versioned: a later download may bring other
+    captures) and the captures under the box with the share of each (--fecha), or why they are unknown."""
+    out = {'z': z, 'publicacion': release or 'actual (raw/satelite/, sin versión)'}
+    try: out['capturas'] = [f'{fmt_cap(a)} {round(f * 100)} %' for a, f in dates(x0, x1, y0, y1, z, release)]
+    except OSError as e: out['capturas'] = f'sin metadatos ({e})'
+    return out
+
 def print_dates(x0, x1, y0, y1, z, release=None):
     """--fecha: imprime las capturas del área y avisa si a z17 hay una más nueva. Devuelve las líneas."""
     d = dates(x0, x1, y0, y1, z, release)

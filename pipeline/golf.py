@@ -12,6 +12,8 @@ leído de la misma imagen con `satellite.py punto … --calles`. La imagen puede
 satelital puede ser vieja») y las sombras de los árboles quedan pegadas a sus copas: las copas son aproximadas.
 
   python pipeline/golf.py            # escribe data/golf.json (make golf; requiere internet la primera vez: teselas de Esri)
+  python pipeline/golf.py --release=<id|AAAA-MM-DD|ultima>   # con las teselas de una publicación de Esri Wayback, que no
+                                     # cambian (satellite.py): así se puede rehacer igual. `imagen` dice cuál se usó
   python pipeline/golf.py panel      # diagnostics/golf-clases.png: pasto (verde claro), copas (verde oscuro), agua, arena (con Pillow)
 
 El trazado desde Esri es lo que permite OSM como fondo de dibujo; la imagen en sí no entra en el repositorio.
@@ -20,7 +22,7 @@ import colorsys, json
 import cli
 from common import CONFIG, DATA, ROOT
 from geom import pip
-from satellite import mosaic
+from satellite import mosaic, provenance, release_of
 
 BOX = (3240, 4350, 720, 1270)   # grid metres around the club's outline (w101587762)
 C = 3                           # cell side in metres
@@ -41,8 +43,8 @@ def classify(r, g, b):
     if v >= .31 and 80 < h < 150 and s > .25: return 't'
     return '.'
 
-def cells():
-    ring = outline(); img, P = mosaic(*BOX, Z); px = img.load(); W, H = img.size
+def cells(release=None):
+    ring = outline(); img, P = mosaic(*BOX, Z, release); px = img.load(); W, H = img.size
     ox, oy = BOX[0], BOX[2]; nx, ny = int((BOX[1] - BOX[0]) / C), int((BOX[3] - BOX[2]) / C)
     grid = []
     for j in range(ny):
@@ -60,8 +62,9 @@ def cells():
         grid.append(row)
     return ox, oy, nx, ny, grid
 
-def main():
-    ox, oy, nx, ny, grid = cells()
+def main(*, release=None):
+    """data/golf.json from the current imagery or, with --release, from a Wayback release (its tiles do not change)."""
+    rel = release_of(release); ox, oy, nx, ny, grid = cells(rel)
     # turf: a cell is turf when most of its samples are (crowns and water are left to the layers above)
     t = [[bool(c) and c.get('t', 0) >= 8 for c in row] for row in grid]
     rects, open_ = [], {}
@@ -89,7 +92,7 @@ def main():
             if n >= 2:
                 s = 1.0 + .15 * n
                 trees.append([round(ox + (i + 1) * C), round(oy + (j + 1) * C), round(s, 2)])
-    out = {'o': [ox, oy], 'c': C, 'turf': rects, 'trees': trees}
+    out = {'o': [ox, oy], 'c': C, 'turf': rects, 'trees': trees, 'imagen': provenance(BOX[0], BOX[1], BOX[2], BOX[3], Z, rel)}
     (DATA / 'golf.json').write_text(json.dumps(out, separators=(',', ':')))
     print(f'data/golf.json: {len(rects)} rectángulos de pasto, {len(trees)} copas, '
           f'{sum(c["t"] for row in grid for c in row if c and "t" in c) // 16} celdas de pasto aprox.')

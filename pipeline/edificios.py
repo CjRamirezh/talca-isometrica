@@ -35,10 +35,11 @@ estimados (la plantilla les da uno o dos pisos).
       los edificios de OSM coloreados por pisos (verde 1, amarillo 2, naranjo 3–5, rojo 6 o más, magenta sin dato) y las
       huellas de aprendizaje automático que entran, ya corridas, sin relleno (celeste: Microsoft; azul: Google);
       en cada manzana, su cobertura y la de los edificios con pisos (solo OSM)
-  uv run --with pillow python pipeline/edificios.py techos [z]
+  uv run --with pillow python pipeline/edificios.py techos [z] [--release=<id|AAAA-MM-DD|ultima>]
       config/techos.json: la familia del techo de cada edificio de data/edificios.json (CP.roof de la plantilla:
       teja, óxido, zinc, claro…), clasificada con la imagen satelital de Esri (la mediana de los píxeles claros dentro
-      de su planta, sin el borde; solo se guarda la familia). Luego `make edificios build`.
+      de su planta, sin el borde; solo se guarda la familia). Luego `make edificios build`. `imagen` guarda qué imagen
+      se usó; con --release, las teselas de esa publicación de Esri Wayback, que no cambian (las actuales sí).
 
 Lo que hace con OSM:
   - Plantas: vías y multipolígonos con `building` (no `building:part`), simplificadas a 0,25 m, en sentido
@@ -622,10 +623,11 @@ def roof_family(c):
     if s > .2 and 180 < h < 260: return 'blue'
     return 'light' if l > .68 else 'zinc' if l > .5 else 'zincOld'
 
-def cmd_techos(z='19'):
+def cmd_techos(z='19', *, release=None):
     from PIL import Image, ImageDraw
     from satellite import mosaic
-    z = int(z); ed = json.load(open(require(DATA / 'edificios.json', 'Ejecute: make edificios')))
+    from satellite import provenance, release_of
+    rel = release_of(release); z = int(z); ed = json.load(open(require(DATA / 'edificios.json', 'Ejecute: make edificios')))
     eds = []
     for oid, rings, *_ in ed['e']:
         r = [(x/10, y/10) for x, y in dec(rings[0])]; eds.append((oid, r))
@@ -637,7 +639,7 @@ def cmd_techos(z='19'):
             if not mine: continue
             x0 = min(p[0] for _, r in mine for p in r)-5; x1 = max(p[0] for _, r in mine for p in r)+5
             y0 = min(p[1] for _, r in mine for p in r)-5; y1 = max(p[1] for _, r in mine for p in r)+5
-            img, P = mosaic(x0, x1, y0, y1, z); px = img.load()
+            img, P = mosaic(x0, x1, y0, y1, z, rel); px = img.load()
             for oid, r in mine:
                 m = Image.new('L', img.size, 0); ImageDraw.Draw(m).polygon([P(p) for p in r], fill=255)
                 from PIL import ImageFilter
@@ -654,7 +656,8 @@ def cmd_techos(z='19'):
            f'data/edificios.json, clasificada por pipeline/edificios.py techos con la imagen satelital de Esri (zoom {z}): la '
            'mediana de los píxeles más claros dentro de la planta, sin su borde. Solo la familia: ni píxeles ni colores de la '
            'imagen (docs/FUENTES.md). La imagen puede tener años (trampa «La imagen satelital puede ser vieja»). Sin entrada: '
-           'árboles o sombra sobre el techo, o una planta chica.', 'z': z, 'techos': dict(sorted(res.items()))}
+           'árboles o sombra sobre el techo, o una planta chica.', 'z': z,
+           'imagen': provenance(min(xs), max(xs), min(ys), max(ys), z, rel), 'techos': dict(sorted(res.items()))}
     (CONFIG / 'techos.json').write_text(json.dumps(out, ensure_ascii=False, indent=0))
     from collections import Counter
     print(f'config/techos.json: {len(res)} de {len(eds)} edificios', dict(Counter(res.values()).most_common()))
