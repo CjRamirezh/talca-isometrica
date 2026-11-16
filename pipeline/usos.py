@@ -309,11 +309,10 @@ def write(cfg, name='usos.json'):
 
 def river_tests(g):
     """(x, y) -> name of the river whose water (area, or axis ribbon) holds the point, or None."""
-    areas = {k: [[dec(r) for r in p] for p in v] for k, v in g.get('area', {}).items()}
-    def wet(p):
-        for k, P in areas.items():
-            for poly in P:
-                if pip(p, poly[0]) and not any(pip(p, h) for h in poly[1:]): return k
+    areas = [(k, bbox(p[0]), p) for k, v in g.get('area', {}).items() for p in ([dec(r) for r in p] for p in v)]
+    def wet(p):   # in_ring: pip's answers over the edges near p (the water rings have thousands of vertices)
+        for k, bb, poly in areas:
+            if bb[0] <= p[0] <= bb[2] and bb[1] <= p[1] <= bb[3] and in_ring(p, poly[0]) and not any(in_ring(p, h) for h in poly[1:]): return k
         return None
     return wet
 
