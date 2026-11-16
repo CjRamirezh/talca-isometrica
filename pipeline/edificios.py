@@ -212,6 +212,39 @@ def h_encode(rings):
         out.append(G); px, py = G[0]
     return {'n': N, 'o': O, 'l': L}, out, nr
 
+def _imul(a, b): return (a * b) & 0xffffffff               # Math.imul, on unsigned 32-bit values
+FNV, FNV_M = 2166136261, 16777619
+
+def h_decode(H):
+    """The footprints of an "h" of data/edificios.json as the template decodes them (edDecodeH in src/js/52-edificios.js,
+    the same floating-point operations in the same order): [(ring, seed), …], the seed (Math.imul over the footprint's
+    integers, unsigned) that picks its colours and floors. tests/test_pipeline.py runs both on the same input."""
+    q, K, N, O, LL = H['q'], H['K'], H['n'], H['o'], H['l']
+    CU, SU = [], []
+    for k in range(2*K):
+        a, b = (K, k) if k < K else (2*K - k, K); w = math.sqrt(a*a + b*b); CU.append(a/w); SU.append(b/w)
+    out, po, pl, px, py = [], 0, 0, 0.0, 0.0
+    for nk in N:
+        R = []; s = _imul(FNV ^ (nk & 0xffff), FNV_M)
+        if nk >= 0:
+            kk, n = nk % (2*K), 2*(nk // (2*K)) + 4; cu, su = CU[kk], SU[kk]
+            u = math.floor((px*cu + py*su)/q + .5) + O[po]; v = math.floor((-px*su + py*cu)/q + .5) + O[po+1]; po += 2; u0 = u
+            s = _imul(_imul(s ^ (u & 0xffff), FNV_M) ^ (v & 0xffff), FNV_M); R.append(((u*cu - v*su)*q, (u*su + v*cu)*q))
+            for i in range(n - 2):
+                d = LL[pl]; pl += 1; s = _imul(s ^ (d & 0xffff), FNV_M)
+                if i % 2: v += d
+                else: u += d
+                R.append(((u*cu - v*su)*q, (u*su + v*cu)*q))
+            R.append(((u0*cu - v*su)*q, (u0*su + v*cu)*q))
+        else:
+            u = math.floor(px/q + .5) + O[po]; v = math.floor(py/q + .5) + O[po+1]; po += 2
+            s = _imul(_imul(s ^ (u & 0xffff), FNV_M) ^ (v & 0xffff), FNV_M); R.append((u*q, v*q))
+            for i in range(1, -nk):
+                du, dv = LL[pl], LL[pl+1]; pl += 2; s = _imul(_imul(s ^ (du & 0xffff), FNV_M) ^ (dv & 0xffff), FNV_M)
+                u += du; v += dv; R.append((u*q, v*q))
+        px, py = R[0]; out.append((R, s))
+    return out
+
 def osm(name='comuna'):
     """Los edificios y las superficies de raw/osm/map-<name>.json: ([(id, [anillo, hueco…], tags)], [(anillo, tipo)])."""
     m = osm_load(name); els, ways, pts = m.elements, m.W, m.pts

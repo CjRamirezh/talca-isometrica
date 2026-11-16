@@ -8,13 +8,9 @@ como un hueco continuo entre manzanas.
   python pipeline/diagnostics.py                 # todos los paneles -> diagnostics/
   python pipeline/diagnostics.py centro          # un panel
   python pipeline/diagnostics.py -71.70 -71.66 -35.445 -35.412   # caja libre (lon0 lon1 lat0 lat1)
-Requiere matplotlib y numpy.
+Requiere Pillow, importado dentro de main (uv run --with pillow python pipeline/diagnostics.py; make diagnostics).
 """
 import json
-import matplotlib; matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.collections import PolyCollection, LineCollection
 import cli
 from common import ROOT, MANZANAS_DIR, NAV_GRAPH, CONFIG, require
 
@@ -26,10 +22,12 @@ VIEWS = {  # lon0, lon1, lat0, lat1
     'estacion': (-71.665, -71.62, -35.46, -35.395),
     'centro': (-71.695, -71.655, -35.445, -35.412),
 }
+W = 1440                                                  # panel width in pixels (the margin for the labels aside)
 
 def main(views):
+    from PIL import Image, ImageDraw
     blocks = []
-    for fn, c in [('R07_MANZANA_IND_C17', '#e8c8d8'), ('R07_MANZANA_SIN_INF_C17', '#bcd'), ('R07_MANZANA_ALDEA_C17', '#cdb')]:
+    for fn, c in [('R07_MANZANA_IND_C17', (232, 200, 216)), ('R07_MANZANA_SIN_INF_C17', (187, 204, 221)), ('R07_MANZANA_ALDEA_C17', (204, 221, 187))]:
         for f in json.load(open(require(MANZANAS_DIR / f'{fn}.shp.geojson')))['features']:
             if f['properties'].get('NOM_COMUNA') not in ('TALCA', 'MAULE', 'PENCAHUE', 'SAN CLEMENTE'): continue
             g = f['geometry']
@@ -44,18 +42,27 @@ def main(views):
     traces = [v['puntos'] for v in tz['rios'].values() if 'puntos' in v] + [tz['ferrocarril']['puntos'], tz['ruta5']['puntos']]
     out = ROOT / 'diagnostics'; out.mkdir(exist_ok=True)
     for name, (x0, x1, y0, y1) in views.items():
-        fig, ax = plt.subplots(figsize=(16, 16*(y1-y0)/((x1-x0)*0.815)), dpi=90)
-        ax.add_collection(PolyCollection([p for p, _ in blocks], facecolors=[c for _, c in blocks], edgecolors='#a88', linewidths=0.2))
-        ax.add_collection(LineCollection(thin, colors='#777', linewidths=0.3))
-        ax.add_collection(LineCollection(major, colors='#222', linewidths=1))
-        ax.add_collection(LineCollection(trunk, colors='red', linewidths=1.6))
-        for t in traces: ax.plot([p[1] for p in t], [p[0] for p in t], color='#1f5fd6', lw=2, alpha=.8)
+        s = W / (x1 - x0); H = int((y1 - y0) * s / 0.815); M = 60     # a degree of latitude is 1/0.815 of one of longitude here
+        img = Image.new('RGB', (W + M, H + M), 'white'); d = ImageDraw.Draw(img, 'RGBA')
+        P = lambda lon, lat: (M + (lon - x0) * s, (y1 - lat) * s / 0.815)
+        box = lambda pts: any(x0 <= q[0] <= x1 and y0 <= q[1] <= y1 for q in pts)
+        for r, c in blocks:
+            if box(r): d.polygon([P(*q) for q in r], fill=c, outline=(170, 136, 136))
+        for segs, col, w in ((thin, (119, 119, 119), 1), (major, (34, 34, 34), 2), (trunk, (255, 0, 0), 3)):
+            for a, b in segs:
+                if box((a, b)): d.line([P(*a), P(*b)], fill=col, width=w)
+        for t in traces: d.line([P(lo, la) for la, lo in t], fill=(31, 95, 214, 204), width=3)
         step = 0.0025 if (x1 - x0) > 0.05 else 0.001
-        ax.set_xlim(x0, x1); ax.set_ylim(y0, y1); ax.set_aspect(1/0.815)
-        ax.set_xticks(np.arange(x0, x1+1e-9, step)); ax.set_yticks(np.arange(y0, y1+1e-9, step))
-        ax.grid(True, lw=0.4, color='#48f', alpha=0.6)
-        plt.xticks(rotation=90, fontsize=7); plt.yticks(fontsize=7)
-        fn = out / f'panel_{name}.png'; plt.savefig(fn, bbox_inches='tight'); plt.close(); print(fn)
+        d.rectangle([0, 0, M - 1, H + M], fill='white'); d.rectangle([0, H, W + M, H + M], fill='white')   # the margins, for the labels
+        k = int(x0 / step) * step
+        while k <= x1:                                    # the lat/lon grid, labelled outside the map
+            if k >= x0: q = P(k, y1)[0]; d.line([(q, 0), (q, H)], fill=(68, 136, 255, 150)); d.text((q - 18, H + 4 + 12 * (round(k / step) % 3)), f'{k:.4f}', fill='black')
+            k += step
+        k = int(y0 / step) * step
+        while k <= y1:
+            if k >= y0: q = P(x0, k)[1]; d.line([(M, q), (W + M, q)], fill=(68, 136, 255, 150)); d.text((2, q - 5), f'{k:.4f}', fill='black')
+            k += step
+        fn = out / f'panel_{name}.png'; img.save(fn); print(fn.relative_to(ROOT), img.size)
 
 def cmd(*a):
     if len(a) == 4 and all(v.lstrip('-').replace('.', '', 1).isdigit() for v in a): return main({'caja': tuple(map(float, a))})

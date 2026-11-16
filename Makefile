@@ -1,10 +1,11 @@
 # Talca Isométrica — tareas del pipeline. Ver README.md.
 PY ?= python3
 PW ?= uv run --with "playwright==1.63" python   # Python con Playwright, para las capturas (el del sistema no lo tiene)
+PIL ?= uv run --with pillow python               # Python con Pillow: lo que lee las teselas de Esri (golf) o dibuja paneles
 GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
 PORT ?= 8765
 DRY_RUN ?= 0
-.PHONY: all fetch osm data elevation ruta5 edificios edificios-ml golf pois build check lint smoke hooks validate diagnostics shots site-assets juego deploy serve clean
+.PHONY: all fetch osm data elevation ruta5 edificios edificios-ml golf pois build check golden lint smoke hooks validate diagnostics shots site-assets juego deploy serve clean
 
 all: data elevation edificios golf pois build         ## pipeline completo (requiere raw/: make fetch)
 
@@ -29,8 +30,8 @@ edificios:                    ## raw/osm/map-comuna.json + config/edificios.json
 edificios-ml:                 ## raw/overture, raw/msbuildings, raw/google-open-buildings* -> raw/edificios-ml/ (huellas de aprendizaje automático y alturas de Google 2.5D, para make edificios; uv)
 	uv run --with duckdb --with shapely --with numpy --with rasterio --with pyproj python -I tools/ml_buildings.py
 
-golf:                         ## la imagen de Esri sobre el Talca Country Club (su contorno, en config/usos.json) -> data/golf.json (pasto cortado y copas)
-	cd pipeline && $(PY) golf.py
+golf:                         ## la imagen de Esri sobre el Talca Country Club (su contorno, en config/usos.json) -> data/golf.json (pasto cortado y copas; Pillow, por uv)
+	cd pipeline && $(PIL) golf.py
 
 pois:                         ## pipeline/pois.py -> data/pois.json + data/pois.csv
 	cd pipeline && $(PY) pois.py
@@ -38,8 +39,13 @@ pois:                         ## pipeline/pois.py -> data/pois.json + data/pois.
 build:                        ## -> dist/: index.html, assets/ (el script, three.js y los datos, con hash) y los archivos de src/site/ (requiere npm install)
 	cd pipeline && $(PY) build.py
 
-check: build                  ## revisión rápida (<1 s): JSON, marcadores, hitos, node --check, los archivos que pide la página; la corre el hook de pre-commit
+check: build                  ## revisión rápida (~1 s): JSON, marcadores, hitos, node --check, los archivos que pide la página, trampas de config/ y data/, las pruebas de tests/ y que todo el Python compile; la corre el hook de pre-commit
 	$(PY) tools/check.py
+	$(PY) -m compileall -q pipeline tools tests
+	$(PY) -m unittest discover -s tests -q
+
+golden:                       ## las salidas de los comandos del pipeline contra una referencia (antes de refactorizar: make golden REF=shots/golden-ref SAVE=1; ~5 min)
+	$(PY) tests/golden.py $(if $(SAVE),--save,--against) $(or $(REF),shots/golden-ref)
 
 lint:                         ## ESLint (versión fija, por npx) sobre el script unido, con el archivo y la línea de src/ (~3 s; tools/lint.py)
 	$(PY) tools/lint.py
@@ -60,8 +66,8 @@ deploy:                       ## make build y sube dist/ a Cloudflare Pages (tal
 validate:                     ## compara cada lugar con su dirección en la grilla (requiere raw/)
 	cd pipeline && $(PY) geocode.py validate
 
-diagnostics:                  ## paneles PNG de manzanas + calles + trazados (requiere raw/)
-	cd pipeline && $(PY) diagnostics.py
+diagnostics:                  ## paneles PNG de manzanas + calles + trazados (requiere raw/; Pillow, por uv)
+	cd pipeline && $(PIL) diagnostics.py
 
 shots: build                  ## capturas de referencia en shots/ (requiere npm install + playwright)
 	$(PW) tools/screenshot.py shots/vista-inicial.png

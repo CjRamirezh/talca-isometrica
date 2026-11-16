@@ -28,6 +28,22 @@
 //    is a piece of the startup with its own key (2.5e7 + its place in DATA.ed): the first view's blocks come before
 //    the first frame, the rest in rest() (trap «El arranque en dos etapas»).
 // window.__ed (EDS): counts, the buildings left out for a landmark, and the ms taken.
+// The machine-learning footprints of DATA.ed.h (pipeline/edificios.py h_encode) as rings, in order, each with its seed
+// (from its integers): [{R, s}]. n, o, l are their outlines, each starting from the first vertex of the one before,
+// taken to its own grid of q m (the same operations as the pipeline: the same integers). A pure function: tests/
+// test_pipeline.py runs it with node against pipeline/edificios.py h_decode() (keep the two alike, operation by operation).
+function edDecodeH(H){const {q,K,n:N,o:O,l:LL}=H,CU=new Float64Array(2*K),SU=new Float64Array(2*K),out=[];let po=0,pl=0,px=0,py=0;
+  for(let k=0;k<2*K;k++){const a=k<K?K:2*K-k,b=k<K?k:K,w=Math.sqrt(a*a+b*b);CU[k]=a/w;SU[k]=b/w;}
+  const M=16777619;
+  for(let j=0;j<N.length;j++){const nk=N[j],R=[];let s=Math.imul(2166136261^(nk&0xffff),M);
+    if(nk>=0){const kk=nk%(2*K),n=2*Math.floor(nk/(2*K))+4,cu=CU[kk],su=SU[kk];
+      let u=Math.floor((px*cu+py*su)/q+.5)+O[po++],v=Math.floor((-px*su+py*cu)/q+.5)+O[po++];const u0=u;s=Math.imul(Math.imul(s^(u&0xffff),M)^(v&0xffff),M);R.push([(u*cu-v*su)*q,(u*su+v*cu)*q]);
+      for(let i=0;i<n-2;i++){const d=LL[pl++];s=Math.imul(s^(d&0xffff),M);if(i%2)v+=d;else u+=d;R.push([(u*cu-v*su)*q,(u*su+v*cu)*q]);}
+      R.push([(u0*cu-v*su)*q,(u0*su+v*cu)*q]);}
+    else{let u=Math.floor(px/q+.5)+O[po++],v=Math.floor(py/q+.5)+O[po++];s=Math.imul(Math.imul(s^(u&0xffff),M)^(v&0xffff),M);R.push([u*q,v*q]);
+      for(let i=1;i<-nk;i++){const du=LL[pl++],dv=LL[pl++];s=Math.imul(Math.imul(s^(du&0xffff),M)^(dv&0xffff),M);u+=du;v+=dv;R.push([u*q,v*q]);}}
+    px=R[0][0];py=R[0][1];out.push({R,s:s>>>0});}
+  return out;}
 const ED_GAP=2,ED_SOLID=6e4;
 const ED_T0=performance.now(),ED=(()=>{const D=DATA.ed;if(!D)return {list:[],surf:[],bks:[]};const dm=a=>dec(a).map(p=>[p[0]/10,p[1]/10]);
   const box=bbox;
@@ -48,19 +64,10 @@ const ED_T0=performance.now(),ED=(()=>{const D=DATA.ed;if(!D)return {list:[],sur
   // (K, k) up to 45 degrees, (2K - k, K) after), its lengths in l along u and v by turns but the two that close it;
   // -m for another, its other vertices in l as deltas on the map's grid. A footprint has no id ('ml' and its block):
   // its seed comes from its integers
-  const H=D.h;if(H){const {q,K,n:N,o:O,l:LL,c:C,i:I,k:KR}=H,CU=new Float64Array(2*K),SU=new Float64Array(2*K);let po=0,pl=0,j=0,px=0,py=0;
-    for(let k=0;k<2*K;k++){const a=k<K?K:2*K-k,b=k<K?k:K,w=Math.sqrt(a*a+b*b);CU[k]=a/w;SU[k]=b/w;}
-    const M=16777619;
+  const H=D.h;if(H){const {c:C,i:I,k:KR}=H,F=edDecodeH(H);let j=0;
     for(let r=0;r<KR.length;r+=2){const k=KR[r],bk=bks[k];bk.ml=true;
-      for(let c=0;c<KR[r+1];c++,j++){const nk=N[j],R=[];let s=Math.imul(2166136261^(nk&0xffff),M);
-        if(nk>=0){const kk=nk%(2*K),n=2*Math.floor(nk/(2*K))+4,cu=CU[kk],su=SU[kk];
-          let u=Math.floor((px*cu+py*su)/q+.5)+O[po++],v=Math.floor((-px*su+py*cu)/q+.5)+O[po++];const u0=u;s=Math.imul(Math.imul(s^(u&0xffff),M)^(v&0xffff),M);R.push([(u*cu-v*su)*q,(u*su+v*cu)*q]);
-          for(let i=0;i<n-2;i++){const d=LL[pl++];s=Math.imul(s^(d&0xffff),M);if(i%2)v+=d;else u+=d;R.push([(u*cu-v*su)*q,(u*su+v*cu)*q]);}
-          R.push([(u0*cu-v*su)*q,(u0*su+v*cu)*q]);}
-        else{let u=Math.floor(px/q+.5)+O[po++],v=Math.floor(py/q+.5)+O[po++];s=Math.imul(Math.imul(s^(u&0xffff),M)^(v&0xffff),M);R.push([u*q,v*q]);
-          for(let i=1;i<-nk;i++){const du=LL[pl++],dv=LL[pl++];s=Math.imul(Math.imul(s^(du&0xffff),M)^(dv&0xffff),M);u+=du;v+=dv;R.push([u*q,v*q]);}}
-        px=R[0][0];py=R[0][1];const A=C[I[j]];
-        const e={id:'ml'+k,R:[R],h:A[0]/10,t:D.tipos[A[1]],lv:A[2],roof:null,est:A[3]===1,f:D.fuentes[A[4]],bb:box(R),bk,seed:s>>>0};bk.eds.push(e);list.push(e);}}}
+      for(let c=0;c<KR[r+1];c++,j++){const {R,s}=F[j],A=C[I[j]];
+        const e={id:'ml'+k,R:[R],h:A[0]/10,t:D.tipos[A[1]],lv:A[2],roof:null,est:A[3]===1,f:D.fuentes[A[4]],bb:box(R),bk,seed:s};bk.eds.push(e);list.push(e);}}}
   const surf=D.s.map(([r,s,k])=>{const R=dm(r),o={r:R,k:D.superficies[s],bb:box(R)};bks[k].surf.push(o);return o;});
   // a mixed block under ED_SOLID with machine-learning footprints has its houses nearly all drawn: its own ground
   // (buildBase) takes the yard colour of its barrio (edYardCol) instead of the 2 m raster of yards, which then only

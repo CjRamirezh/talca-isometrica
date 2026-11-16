@@ -30,7 +30,7 @@ def load(name='comuna', hint='Ejecute: make osm'):
 
 def read(path):
     """Any OSM JSON file ({"elements": […]}) as a Map."""
-    return Map(json.load(open(path))['elements'])
+    with open(path) as f: return Map(json.load(f)['elements'])
 
 def join(ways, last=False):
     """Open ways (lists of node ids or of points) chained by their ends into closed rings, each with its first item
