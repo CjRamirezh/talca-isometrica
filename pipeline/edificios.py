@@ -563,7 +563,7 @@ def main(with_ml=True):
     for z in range(len(groups)):                            # la caja de cada grupo suelto, con las plantas redondeadas
         bb = [bbox(r) for (k, _, _), r in zip(H, dec_rings) if r and k == len(sel) + len(mix) + z] or [bbox(m['r'][0]) for m in groups[z]]
         out['z'].append([math.floor(min(v[0] for v in bb)*10)/10, math.floor(min(v[1] for v in bb)*10)/10, math.ceil(max(v[2] for v in bb)*10)/10, math.ceil(max(v[3] for v in bb)*10)/10])
-    (DATA / 'edificios.json').write_text(json.dumps(out, separators=(',', ':')))
+    (DATA / 'edificios.json').write_text(json.dumps(out, separators=(',', ':'), ensure_ascii=False))   # like the other data/*.json
     kb = (DATA / 'edificios.json').stat().st_size / 1024
     print(f"data/edificios.json: {len(sel)} manzanas enteras, {len(mix)} mixtas y {len(groups)} grupos de huellas sueltas, "
           f"{len(out['e'])} edificios de OSM y {len(idx)} huellas ({nrect} rectilíneas; {nm} de OSM en las mixtas, {ne} de OSM sin altura, {nr} de OSM con pisos de Google 2.5D, "
