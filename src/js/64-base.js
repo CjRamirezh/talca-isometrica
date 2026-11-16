@@ -26,7 +26,7 @@ function buildBase(L){
   const r=rng(4242);
   for(let x=XMIN;x<XMAX;x+=160){for(let y=YMIN;y<YMAX;y+=130){
     if(!CM[cellOf(x+80,y+65)]&&!CM[cellOf(x,y)]&&!CM[cellOf(x+160,y+130)]&&!CM[cellOf(x,y+130)]&&!CM[cellOf(x+160,y)])continue; // outside the commune
-    let px=x,w=160;
+    let px=x;
     while(px<x+160){const pw=Math.min(40+r()*120,x+160-px);const cx=px+pw/2,cy=y+65;
       if(blockAt(cx,cy)<0&&blockAt(px+3,y+3)<0&&blockAt(px+pw-3,y+127)<0&&Math.max(wildAt(cx,cy),wildAt(px,y),wildAt(px+pw,y+130))<0.35&&!usoAt(cx,cy)){
         B.quadXY([[px+1.5,y+1.5],[px+pw-1.5,y+1.5],[px+pw-1.5,y+128.5],[px+1.5,y+128.5]],0.02,pick(r,PAL.fields));
@@ -41,7 +41,6 @@ function buildBase(L){
     else col=b.A<40000?PAL.park:PAL.open;
     B.flat(b.r,0.1,col);});
   alamedaGround(B);
-  // plaza de armas block recolor handled by trees
   // rivers: a green riparian margin (not along an irrigation canal, W[k][2]), then gravel bank and water. A river
   // from OpenStreetMap (RIV; an estero or a canal without OSM water is all ribbon) lies over the blocks (riverBase);
   // a hand-traced one is a ribbon under them

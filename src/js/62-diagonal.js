@@ -25,10 +25,10 @@ function diagonalBase(G,D){const B=draped(G),{P,cw,L}=DIAG,K={curb:hex('#E8E5DC'
     return occAt(x,y)===1;};
   const ok=u=>{const v1=DIAG.vNE(u);if(v1===null||v1-2*cw<4)return false;return !cross(P(u,cw+.3))&&!cross(P(u,v1-cw-.3))&&!cross(P(u,v1/2));};
   // runs of median between the crossing streets, their ends found by bisection
-  let prev=ok(0),u0=0;const ST=2;
+  let prev=ok(0),start=0;const ST=2;
   for(let u=ST;u<=L+1e-6;u+=ST){const cur=ok(u);if(cur!==prev){let lo=u-ST,hi=u;for(let t=0;t<6;t++){const m=(lo+hi)/2;if(ok(m)===prev)lo=m;else hi=m;}
-      if(prev){if(lo-u0>6)DIAG.runs.push([u0,lo]);}else u0=hi;}prev=cur;}
-  if(prev&&L-u0>6)DIAG.runs.push([u0,L]);
+      if(prev){if(lo-start>6)DIAG.runs.push([start,lo]);}else start=hi;}prev=cur;}
+  if(prev&&L-start>6)DIAG.runs.push([start,L]);
   let nt=0;
   for(const [a,b] of DIAG.runs){const n=Math.ceil((b-a)/2.5),us=[...Array(n+1)].map((_,k)=>a+(b-a)*k/n);
     const m1=u=>DIAG.vNE(u)-cw,mid=u=>(cw+m1(u))/2;
@@ -38,7 +38,7 @@ function diagonalBase(G,D){const B=draped(G),{P,cw,L}=DIAG,K={curb:hex('#E8E5DC'
       strip(p,q,()=>cw,()=>cw+.5,K.curb);strip(p,q,u=>m1(u)-.5,m1,K.curb);
       strip(pi,qi,()=>cw+.5,u=>mid(u)-1.2,K.bed);strip(pi,qi,u=>mid(u)+1.2,u=>m1(u)-.5,K.bed);
       strip(pi,qi,u=>mid(u)-1.2,u=>mid(u)+1.2,Math.floor(p/2.5)%2?K.walk:K.walk2);}
-    for(const u of [a,b-.5])strip(u,u+.5,()=>cw+.5,u=>m1(u)-.5,K.curb);
+    for(const e of [a,b-.5])strip(e,e+.5,()=>cw+.5,u=>m1(u)-.5,K.curb);
     // two rows of trees, staggered, in the planting strips; shrubs between them; lamps on the walk's edge
     for(const [side,ph] of [[-1,0],[1,3.5]]){const bedC=u=>side<0?(cw+.5+mid(u)-1.2)/2:(mid(u)+1.2+m1(u)-.5)/2,bedW=u=>(m1(u)-cw-3.4)/2;
       for(let u=a+3+ph;u<b-2.5;u+=7){if(r()<.06)continue;const [x,y]=P(u+(r()-.5)*.8,side<0?Math.min(bedC(u),mid(u)-1.7):Math.max(bedC(u),mid(u)+1.7));TREES.push([x,y,1+r()*.35,.6+r()*.25]);nt++;}

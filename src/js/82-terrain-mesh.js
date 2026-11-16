@@ -6,9 +6,9 @@ function terrainMesh(){
   const P=[],C=[],N=[],idx=[];
   const f0=PAL.field,sc=[hex('#8FA05E'),hex('#7E9153')],dry=hex('#A9A26C'),CC=[new Float32Array(EN_),new Float32Array(EN_),new Float32Array(EN_)];
   for(let j=0;j<ENY;j++)for(let i=0;i<ENX;i++){const k=j*ENX+i,x=EX0+i*ES,y=EY0+j*ES;P.push(x,EH[k],-y);N.push(ENRM[k*3],ENRM[k*3+1],ENRM[k*3+2]);
-    const n=0.5+0.5*Math.sin(x*0.013+y*0.021)*Math.cos(x*0.007-y*0.011);const g=n>.5?sc[0]:sc[1];
+    const n=0.5+0.5*Math.sin(x*0.013+y*0.021)*Math.cos(x*0.007-y*0.011);const gc=n>.5?sc[0]:sc[1];
     const hi=Math.max(0,Math.min(1,(ER[k]-120)/90))*0.6; // dry grass on the high ground
-    const w=EW[k],f=0.94+0.12*n;for(let c=0;c<3;c++){CC[c][k]=(f0[c]*(1-w)+(g[c]*(1-hi)+dry[c]*hi)*w)/255*f;C.push(CC[c][k]);}}
+    const w=EW[k],f=0.94+0.12*n;for(let c=0;c<3;c++){CC[c][k]=(f0[c]*(1-w)+(gc[c]*(1-hi)+dry[c]*hi)*w)/255*f;C.push(CC[c][k]);}}
   let lo=1e9;
   for(let c=0;c<CM.length;c++){if(!CM[c])continue;const i=c%ECW,j=(c-i)/ECW,a=j*ENX+i,b=a+1,cc=a+ENX,d=cc+1;
     lo=Math.min(lo,EH[a],EH[b],EH[cc],EH[d]);

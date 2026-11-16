@@ -4,13 +4,13 @@ const card=$('#card');
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function select(id,fly){const p=BYID[id];if(!p)return;selId=id;
   if(tour&&PD.tours[tour.k].s[tour.i]!==id){const idx=PD.tours[tour.k].s.indexOf(id);if(idx<0)tour=null;else tour.i=idx;}
-  const m=MODELS[id];ring.visible=true;ring.position.set(m?m.x:p.x,E(m?m.x:p.x,m?m.y:p.y)+1,-(m?m.y:p.y));ring.userData.t0=performance.now();ring.material.color.set(cssVar('--c-'+p.c)||'#7A1F3D');
+  const m=MODELS[id];selRing.visible=true;selRing.position.set(m?m.x:p.x,E(m?m.x:p.x,m?m.y:p.y)+1,-(m?m.y:p.y));selRing.userData.t0=performance.now();selRing.material.color.set(cssVar('--c-'+p.c)||'#7A1F3D');
   renderCard(p);
   if(fly){const z=p.id==='cerro-la-virgen'?2.2:p.id.startsWith('utalca')?2.4:Math.max(view.zoom,4.2);const f=framed(...lift(m?m.x:p.x,m?m.y:p.y),z);flyTo(f[0],f[1],z);}
   try{history.replaceState(null,'','#'+id);}catch(e){}
   document.querySelectorAll('#list li button').forEach(b=>b.classList.toggle('sel',b.dataset.id===id));
   dirty=true;}
-function closeCard(){selId=null;tour=null;card.hidden=true;ring.visible=false;dirty=true;try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}document.querySelectorAll('#list li button.sel').forEach(b=>b.classList.remove('sel'));}
+function closeCard(){selId=null;tour=null;card.hidden=true;selRing.visible=false;dirty=true;try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}document.querySelectorAll('#list li button.sel').forEach(b=>b.classList.remove('sel'));}
 function renderCard(p){
   card.style.setProperty('--cc',`var(--c-${p.c})`);
   // the category says what kind of institution a place is; «Hitos de la ciudad» says nothing the name and the map don't
@@ -57,10 +57,10 @@ function buildPanel(){
   $('#fold').onclick=()=>{$('#panel').classList.toggle('folded');};
   if(matchMedia('(max-width:760px)').matches)$('#panel').classList.add('folded');
 }
-function norm(s){return s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();}
+function searchKey(s){return s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();}
 function renderList(){
-  const q=norm($('#q').value.trim());const host=$('#list');host.innerHTML='';
-  [...LEGAL,...CITYCATS].forEach(c=>{const items=POIS.filter(p=>p.c===c&&enabled.has(c)&&(!q||norm(p.n+' '+p.a+' '+(p.sub||[]).join(' ')).includes(q)));if(!items.length)return;
+  const q=searchKey($('#q').value.trim());const host=$('#list');host.innerHTML='';
+  [...LEGAL,...CITYCATS].forEach(c=>{const items=POIS.filter(p=>p.c===c&&enabled.has(c)&&(!q||searchKey(p.n+' '+p.a+' '+(p.sub||[]).join(' ')).includes(q)));if(!items.length)return;
     const g=document.createElement('div');g.className='group';g.style.setProperty('--cc',`var(--c-${c})`);
     g.innerHTML=`<h3><i></i>${CATS[c].n}</h3><ul>${items.map(p=>`<li><button data-id="${p.id}" class="${p.id===selId?'sel':''}"><span class="nm">${esc(p.n)}</span><span class="ad">${esc(p.a)}</span></button></li>`).join('')}</ul>`;
     g.querySelectorAll('button').forEach(b=>b.onclick=()=>{tour=null;if(matchMedia('(max-width:760px)').matches)$('#panel').classList.add('folded');select(b.dataset.id,true);});host.appendChild(g);});

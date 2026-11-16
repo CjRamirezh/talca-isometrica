@@ -18,7 +18,7 @@ const E=(x,y)=>sampleTri(EH,x,y);
 // keeps the part of the commune inside it (LIMP[cell]: polygons; LIMT[cell]: the same as counter-clockwise
 // triangles), which drape() and terrainMesh() cut against. inTerrain(x,y): is the point on the diorama (in the commune).
 // The ring is shifted by a few millimetres so that none of its integer vertices lies on a grid line.
-const EX1=EX0+(ENX-1)*ES,EY1=EY0+(ENY-1)*ES,ECW=ENX-1,ECH=ENY-1;
+const ECW=ENX-1,ECH=ENY-1;
 const LIM=dec(DATA.limit).map(p=>[p[0]+0.0123,p[1]+0.0071]),CM=new Uint8Array(ECW*ECH),LIMP=new Map(),LIMT=new Map();
 const cellOf=(x,y)=>{const i=Math.floor((x-EX0)/ES),j=Math.floor((y-EY0)/ES);return i<0||j<0||i>=ECW||j>=ECH?-1:j*ECW+i;};
 // t (0..1) along a→b where it crosses the terrain's grid lines and, with diag, the cells' diagonals too

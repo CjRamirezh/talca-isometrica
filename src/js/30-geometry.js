@@ -51,7 +51,7 @@ class GB{
 // Tiles. A mesh over the whole commune is drawn whole in every pass (colour, normals, shadows): its bounding sphere
 // is always in view. tiled(src, mat) cuts a GB (or an indexed BufferGeometry) into one mesh per TILE x TILE metres,
 // each triangle in the tile of its centroid, so three.js leaves out the tiles the camera (or the shadow camera) does
-// not see. A GB is consumed: its arrays are dropped. The copies in the JS heap are dropped too once uploaded (free):
+// not see. A GB is consumed: its arrays are dropped. The copies in the JS heap are dropped too once uploaded (dropArray):
 // nothing reads them after the boot, and they doubled the memory a phone has to hold. Each tile takes one pass over its
 // triangles: a vertex is copied the first time one of them uses it (stamp), into scratch arrays sized for the largest
 // tile and reused, which are then sliced to the tile's size (a copy at memory speed); the bounding box grows during
@@ -67,7 +67,6 @@ class GB{
 const TILE=1000,TILE_N=64,STRIP=4,STRIPS=[]; // tile keys: (tx+TILE_N)*2*TILE_N+(tz+TILE_N), the box of the commune is ±25 km at most
 // (window.__KEEP before the page loads: the arrays stay, for tools/export.py, which reads the finished meshes)
 const KEEP=!!window.__KEEP;function dropArray(){if(!KEEP)this.array=null;}
-function free(g){for(const k in g.attributes)g.attributes[k].onUpload(dropArray);if(g.index)g.index.onUpload(dropArray);return g;}
 // The tiling of a layer is a generator that yields between tiles (tileGen, tiledPartsGen, instTiledGen): rest() runs
 // it in slices with yield* (a whole layer at once was a task of up to 255 ms, a jolt while the map moved); the first
 // stage drains it at once (drain). The same meshes either way
@@ -75,11 +74,10 @@ const drain=g=>{let r;do r=g.next();while(!r.done);return r.value;};
 function tiled(src,mat,keep){
   const isGB=src instanceof GB,A=src.attributes;
   const grp=drain(tileGen([isGB?src:{P:A.position.array,N:A.normal.array,C:A.color.array,I:src.index.array,nv:A.position.array.length/3,ni:src.index.array.length}],null,null,mat));
-  if(isGB&&!keep)src.P=src.N=src.C=src.I=null; // (keep: boot tiles it again with the rest, tiledParts)
+  if(isGB&&!keep)src.P=src.N=src.C=src.I=null; // (keep: boot tiles it again with the rest, tiledPartsGen)
   return grp;}
-// tiledParts(gbs, mat): builders filled in two stages of the startup, tiled together with their triangles in the order
-// of their runs' keys (GB.grow), which is the order of a startup at once: the same meshes, triangle for triangle
-const tiledParts=(gbs,mat)=>drain(tiledPartsGen(gbs,mat));
+// tiledPartsGen(gbs, mat): builders filled in two stages of the startup, tiled together with their triangles in the
+// order of their runs' keys (GB.grow), which is the order of a startup at once: the same meshes, triangle for triangle
 function* tiledPartsGen(gbs,mat){const runs=[];
   gbs.forEach((g,p)=>{const L=g.log||[];for(let r=0;r<L.length;r+=3){const t0=L[r+2]/3,t1=(r+5<L.length?L[r+5]:g.ni)/3;if(t1>t0)runs.push([L[r],p,t0,t1]);}});
   runs.sort((a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2]);
@@ -121,8 +119,8 @@ function* tileGen(parts,sp,sq,mat){
     for(let i=off[k],e=off[k+1];i<e;i++){const x=ord[i],Q=sp?parts[sp[x]]:parts[0],t3=3*(sp?sq[x]:x),I=Q.I,P=Q.P,N=Q.N,C=Q.C,o0=sp?vo[sp[x]]:0;
       for(let j=0;j<3;j++){const v=I[t3+j],g=o0+v;
         if(stamp[g]!==k){stamp[g]=k;idx[g]=m;const a=v*3,b=(base+m)*3;m++;
-          const x=SP[b]=P[a],y=SP[b+1]=P[a+1],z=SP[b+2]=P[a+2];SN[b]=N[a];SN[b+1]=N[a+1];SN[b+2]=N[a+2];SC[b]=C[a];SC[b+1]=C[a+1];SC[b+2]=C[a+2];
-          if(x<x0)x0=x;if(y<y0)y0=y;if(z<z0)z0=z;if(x>x1)x1=x;if(y>y1)y1=y;if(z>z1)z1=z;}
+          const px=SP[b]=P[a],py=SP[b+1]=P[a+1],pz=SP[b+2]=P[a+2];SN[b]=N[a];SN[b+1]=N[a+1];SN[b+2]=N[a+2];SC[b]=C[a];SC[b+1]=C[a+1];SC[b+2]=C[a+2];
+          if(px<x0)x0=px;if(py<y0)y0=py;if(pz<z0)z0=pz;if(px>x1)x1=px;if(py>y1)y1=py;if(pz>z1)z1=pz;}
         SI[si+o++]=idx[g];}}
     if(base&&base+m>65535){const s0=si;flush(); // it does not fit: the strip so far is done, this tile starts the next
       SP.copyWithin(0,base*3,(base+m)*3);SN.copyWithin(0,base*3,(base+m)*3);SC.copyWithin(0,base*3,(base+m)*3);SI.copyWithin(0,s0,s0+o);base=0;}
@@ -168,7 +166,7 @@ GB.prototype.face=function(pts,n,col){
     let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const L=Math.hypot(nx,ny,nz)||1;nx/=L;ny/=L;nz/=L;
     // gable triangles are vertical: orient away from polygon center using stored hint
     if(this._c){let cx=0,cz=0;pts.forEach(p=>{cx+=p[0];cz+=p[2];});cx/=pts.length;cz/=pts.length;
-      const up=Math.abs(ny)>.2?ny:0;const out=nx*(cx-this._c[0])+nz*(cz-this._c[1]);
+      const out=nx*(cx-this._c[0])+nz*(cz-this._c[1]);
       if((Math.abs(ny)>.2&&ny<0)||(Math.abs(ny)<=.2&&out<0)){nx=-nx;ny=-ny;nz=-nz;}}
     else if(ny<0){nx=-nx;ny=-ny;nz=-nz;}
     return _face.call(this,pts,[nx,ny,nz],col);}
@@ -197,7 +195,7 @@ function cutAtF(q,fq,c,k,A,B){for(let i=0;i<q.length;i++){const i1=i+1<q.length?
     if(fp<=k)A.push(p);if(fp>=k)B.push(p);
     if((fp<k&&fr>k)||(fp>k&&fr<k)){const t=(k-fp)/(fr-fp),m=[p[0]+(r[0]-p[0])*t,p[1]+(r[1]-p[1])*t];A.push(m);B.push(m);}}}
 // drapeQ(G, q, off, col): one convex polygon q (grid metres, counter-clockwise), cut the same way, into G
-function drapeQ(G,q,off,col){let polys=[q];
+function drapeQ(G,q0,off,col){let polys=[q0];
   for(let c=0;c<3;c++){const nxt=[];
     for(let q of polys){let lo=1e9,hi=-1e9;for(const p of q){const v=cutF(c,p);if(v<lo)lo=v;if(v>hi)hi=v;}
       for(let k=Math.floor(lo)+1;k<hi;k++){const fq=q.map(p=>cutF(c,p)),A=[],B=[];cutAtF(q,fq,c,k,A,B);if(A.length>2)nxt.push(A);q=B;}

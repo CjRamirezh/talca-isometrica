@@ -7,16 +7,16 @@ const MOB=matchMedia('(max-width:760px)').matches;
 // once the pads have levelled the terrain (lift); until then the loading screen covers the map.
 const HOME_ZOOM=MOB?5:6;
 const view={tx:0,ty:0,zoom:HOME_ZOOM,az:Math.PI/4};
-// camT, camMoved: when the camera last moved, and whether it did since the last frame (loop: moving); ART: metres per
-// art pixel of the last frame
-let W=1,H=1,dirty=true,camT=0,camMoved=false,paLite=false,ART=0.5;const MOVE_MS=160;
+// VW, VH: the view's size in CSS pixels (resize()); camT, camMoved: when the camera last moved, and whether it did
+// since the last frame (loop: moving); ART: metres per art pixel of the last frame
+let VW=1,VH=1,dirty=true,camT=0,camMoved=false,paLite=false,ART=0.5;const MOVE_MS=160;
 const BASEH=3200;
 function placeCam(){
-  const h=BASEH/view.zoom, a=W/H;cam.left=-h*a/2;cam.right=h*a/2;cam.top=h/2;cam.bottom=-h/2;
+  const h=BASEH/view.zoom, a=VW/VH;cam.left=-h*a/2;cam.right=h*a/2;cam.top=h/2;cam.bottom=-h/2;
   const D=8000;cam.position.set(view.tx+Math.sin(view.az)*Math.cos(EL)*D,Math.sin(EL)*D,-view.ty+Math.cos(view.az)*Math.cos(EL)*D);
   cam.up.set(0,1,0);cam.lookAt(view.tx,0,-view.ty);cam.updateProjectionMatrix();cam.updateMatrixWorld();
   camT=performance.now();camMoved=true;
-  const ppm=H/h; uni.uWin.value=Math.max(0,Math.min(1,(ppm-1.2)/1.6));
+  const ppm=VH/h; uni.uWin.value=Math.max(0,Math.min(1,(ppm-1.2)/1.6));
   fitShadow();dirty=true;
 }
 // The shadow camera covers the ground the view shows, from the terrain's lowest point to 60 m over its highest. In
@@ -43,7 +43,7 @@ function fitShadow(force){
   const hx=Math.ceil(SH_M*(x1-x0)/2/8)*8,hy=Math.ceil(SH_M*(y1-y0)/2/8)*8,tx=2*hx/SMAP,ty=2*hy/SMAP,hz=SH_M*(z1-z0)/2,zc=(z0+z1)/2;
   const cx=Math.round((x0+x1)/2/tx)*tx,cy=Math.round((y0+y1)/2/ty)*ty;z0=zc-hz;z1=zc+hz;
   SH={x0:cx-hx,x1:cx+hx,y0:cy-hy,y1:cy+hy,z0,z1};shDirty=true;
-  const off=Math.max(tx,ty)>SH_FAR;if(off!==shOff){shOff=off;for(const o of CASTERS)o.castShadow=!off;}
+  const off=Math.max(tx,ty)>SH_FAR;if(off!==shOff){shOff=off;for(const m of CASTERS)m.castShadow=!off;}
   sun.target.position.copy(SLX).multiplyScalar(cx).addScaledVector(SLY,cy).addScaledVector(SUND,z0);
   sun.position.copy(sun.target.position).addScaledVector(SUND,z1-z0+400);sun.target.updateMatrixWorld();
   const c=sun.shadow.camera;c.left=-hx;c.right=hx;c.bottom=-hy;c.top=hy;c.near=1;c.far=z1-z0+420;c.updateProjectionMatrix();
@@ -53,8 +53,8 @@ function fitShadow(force){
 function shadowTouch(x,y,r){if(!SH||shOff)return;v3.set(x,E(x,y),-y);const px=v3.dot(SLX),py=v3.dot(SLY);
   if(px>SH.x0-r&&px<SH.x1+r&&py>SH.y0-r&&py<SH.y1+r)shDirty=true;}
 const v3=new T.Vector3();
-function resize(){W=canvas.clientWidth;H=canvas.clientHeight;renderer.setSize(W,H,false);placeCam();}
-function wpp(){return (BASEH/view.zoom)/H;}
+function resize(){VW=canvas.clientWidth;VH=canvas.clientHeight;renderer.setSize(VW,VH,false);placeCam();}
+function wpp(){return (BASEH/view.zoom)/VH;}
 function pan(dx,dy){const R=new T.Vector3().setFromMatrixColumn(cam.matrixWorld,0);const U=new T.Vector3().setFromMatrixColumn(cam.matrixWorld,1);U.y=0;U.normalize();const k=wpp();
   const mx=-R.x*dx*k+U.x*dy*k/Math.sin(EL),mz=-R.z*dx*k+U.z*dy*k/Math.sin(EL);view.tx+=mx;view.ty-=mz;clampView();placeCam();}
 // the view's centre stays over the commune's box; the farthest zoom shows the whole commune (24 km from north to south)
@@ -62,9 +62,9 @@ function clampView(){view.tx=Math.max(XMIN,Math.min(XMAX,view.tx));view.ty=Math.
 const ray=new T.Raycaster(),plane=new T.Plane(new T.Vector3(0,1,0),0);
 // the camera aims at the y=0 plane; planeAt() is where a screen point meets it (zoom anchoring, which only needs
 // a stable reference), ground() is where it meets the terrain (rotation centre)
-function planeAt(px,py){const v=new T.Vector2(px/W*2-1,-(py/H)*2+1);ray.setFromCamera(v,cam);const o=new T.Vector3();return ray.ray.intersectPlane(plane,o)?[o.x,-o.z]:null;}
+function planeAt(px,py){const v=new T.Vector2(px/VW*2-1,-(py/VH)*2+1);ray.setFromCamera(v,cam);const o=new T.Vector3();return ray.ray.intersectPlane(plane,o)?[o.x,-o.z]:null;}
 let EHI=0,ELO=0,cerroMesh=null;
-function ground(px,py){const v=new T.Vector2(px/W*2-1,-(py/H)*2+1);ray.setFromCamera(v,cam);const o=ray.ray.origin,d=ray.ray.direction;if(d.y>=0)return null;
+function ground(px,py){const v=new T.Vector2(px/VW*2-1,-(py/VH)*2+1);ray.setFromCamera(v,cam);const o=ray.ray.origin,d=ray.ray.direction;if(d.y>=0)return null;
   const at=t=>[o.x+d.x*t,-(o.z+d.z*t)],above=t=>{const p=at(t);return o.y+d.y*t-E(p[0],p[1]);};
   let t0=(EHI+1-o.y)/d.y;const t1=(ELO-1-o.y)/d.y,st=ES/2/Math.max(0.2,Math.hypot(d.x,d.z));
   for(let t=t0+st;t<=t1+st;t+=st){if(above(t)<=0){let a=t-st,b=t;for(let k=0;k<20;k++){const m=(a+b)/2;if(above(m)>0)a=m;else b=m;}return at(b);}}
@@ -75,18 +75,18 @@ function zoomAt(f,px,py){const g0=px!=null?planeAt(px,py):null;view.zoom*=f;clam
 let anim=null;
 function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
 function framed(x,y,z){ // shift target so (x,y) lands in the free area between panel and card (mobile: between the title and card)
-  const mob=matchMedia('(max-width:760px)').matches;const h=BASEH/z;const k=h/H;
+  const mob=matchMedia('(max-width:760px)').matches;const h=BASEH/z;const k=h/VH;
   let ox=0,oy=0;
   if(mob){const top=$('.brand').getBoundingClientRect().bottom,bot=card.hidden?$('#panel').getBoundingClientRect().top:card.getBoundingClientRect().top;
-    oy=(bot-top>60?(top+bot)/2:top+30)-H/2;}
-  else{const pan=$('#panel');const L=pan.classList.contains('folded')?0:pan.getBoundingClientRect().right;const Rr=W-450;ox=(L+Rr)/2-W/2;}
+    oy=(bot-top>60?(top+bot)/2:top+30)-VH/2;}
+  else{const pnl=$('#panel');const L=pnl.classList.contains('folded')?0:pnl.getBoundingClientRect().right;const Rr=VW-450;ox=(L+Rr)/2-VW/2;}
   const c=Math.cos(view.az),s=Math.sin(view.az);
   // camera right vector on ground (world X,Z) = (cos az, -sin az); ground-up (away from camera) = (-sin az, -cos az)
   const rx=c,rz=-s,ux=-s,uz=-c;const d=oy*k/Math.sin(EL); // oy<0 puts the place above centre, so the target moves toward the camera
   const wx=-ox*k*rx+d*ux,wz=-ox*k*rz+d*uz;
   return [x+wx,y-wz];
 }
-function homeView(z=HOME_ZOOM){view.az=Math.PI/4;view.zoom=z;const [x,y]=lift(0,0),k=BASEH/z/H;
+function homeView(z=HOME_ZOOM){view.az=Math.PI/4;view.zoom=z;const [x,y]=lift(0,0),k=BASEH/z/VH;
   const ox=MOB?0:$('#panel').getBoundingClientRect().right/2; // the plaza ox px right of the centre: the target moves left
   view.tx=x-ox*k*Math.cos(view.az);view.ty=y-ox*k*Math.sin(view.az);placeCam();}
 function flyTo(x,y,z,az){const s={tx:view.tx,ty:view.ty,zoom:view.zoom,az:view.az},e={tx:x,ty:y,zoom:z??view.zoom,az:az??view.az};const t0=performance.now();
@@ -96,23 +96,23 @@ function flyTo(x,y,z,az){const s={tx:view.tx,ty:view.ty,zoom:view.zoom,az:view.a
     view.tx=s.tx+(e.tx-s.tx)*k;view.ty=s.ty+(e.ty-s.ty)*k;view.zoom=Math.exp(lz-hop);view.az=s.az+(e.az-s.az)*k;placeCam();if(t>=1)anim=null;};}
 
 /* =============== input =============== */
-const ptrs=new Map();let lastPinch=0,moved=0;
-canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved=0;anim=null;canvas.classList.add('drag');if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastPinch=Math.hypot(a[0]-b[0],a[1]-b[1]);}});
+const ptrs=new Map();let lastPinch=0;
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);anim=null;canvas.classList.add('drag');if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastPinch=Math.hypot(a[0]-b[0],a[1]-b[1]);}});
 canvas.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;const rect=canvas.getBoundingClientRect();
   const p=ptrs.get(e.pointerId);const dx=e.clientX-p[0],dy=e.clientY-p[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);
-  if(ptrs.size===1){pan(dx,dy);moved+=Math.abs(dx)+Math.abs(dy);}
-  else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(lastPinch){zoomAt(d/lastPinch,(a[0]+b[0])/2-rect.left,(a[1]+b[1])/2-rect.top);}lastPinch=d;moved+=10;}});
-const up=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)lastPinch=0;if(!ptrs.size)canvas.classList.remove('drag');};
-canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+  if(ptrs.size===1){pan(dx,dy);}
+  else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(lastPinch){zoomAt(d/lastPinch,(a[0]+b[0])/2-rect.left,(a[1]+b[1])/2-rect.top);}lastPinch=d;}});
+const ptrUp=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)lastPinch=0;if(!ptrs.size)canvas.classList.remove('drag');};
+canvas.addEventListener('pointerup',ptrUp);canvas.addEventListener('pointercancel',ptrUp);
 canvas.addEventListener('wheel',e=>{e.preventDefault();anim=null;const rect=canvas.getBoundingClientRect();const f=Math.exp(-e.deltaY*(e.deltaMode===1?0.05:0.0016));zoomAt(f,e.clientX-rect.left,e.clientY-rect.top);},{passive:false});
 canvas.addEventListener('dblclick',e=>{const rect=canvas.getBoundingClientRect();zoomAt(1.8,e.clientX-rect.left,e.clientY-rect.top);});
 window.addEventListener('keydown',e=>{if(e.target.closest('input'))return;const k=e.key;let h=true;
   if(k==='ArrowLeft')pan(120,0);else if(k==='ArrowRight')pan(-120,0);else if(k==='ArrowUp')pan(0,120);else if(k==='ArrowDown')pan(0,-120);
-  else if(k==='+'||k==='=')zoomAt(1.4,W/2,H/2);else if(k==='-'||k==='_')zoomAt(1/1.4,W/2,H/2);
+  else if(k==='+'||k==='=')zoomAt(1.4,VW/2,VH/2);else if(k==='-'||k==='_')zoomAt(1/1.4,VW/2,VH/2);
   else if(k==='q'||k==='Q')rotate(-1);else if(k==='e'||k==='E')rotate(1);else if(k==='Escape'){closeCard();}else h=false;if(h)e.preventDefault();});
-function turnTo(az){const g=ground(W/2,H/2);const t=g?lift(g[0],g[1],az):[view.tx,view.ty];flyTo(t[0],t[1],view.zoom,az);} // turn around the terrain point in the centre
+function turnTo(az){const g=ground(VW/2,VH/2);const t=g?lift(g[0],g[1],az):[view.tx,view.ty];flyTo(t[0],t[1],view.zoom,az);} // turn around the terrain point in the centre
 function rotate(dir){turnTo(Math.round((view.az-Math.PI/4)/(Math.PI/2))*(Math.PI/2)+Math.PI/4+dir*Math.PI/2);}
-$('#zin').onclick=()=>zoomAt(1.5,W/2,H/2);$('#zout').onclick=()=>zoomAt(1/1.5,W/2,H/2);
+$('#zin').onclick=()=>zoomAt(1.5,VW/2,VH/2);$('#zout').onclick=()=>zoomAt(1/1.5,VW/2,VH/2);
 $('#rl').onclick=()=>rotate(-1);$('#rr').onclick=()=>rotate(1);
 $('#compass').onclick=()=>turnTo(Math.PI/4);
 

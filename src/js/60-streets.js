@@ -71,7 +71,7 @@ function crossings(B){const seen=new Set(),zeb=hex('#E4E0D6');let n=0;
       if(t<-1/LA||t>1+1/LA||u<-1/LB||u>1+1/LB)continue;
       const x=A[0]+ax*t,y=A[1]+ay*t;if(Math.hypot(x,y)>CROSS_R)continue;
       const key=Math.round(x/4)+','+Math.round(y/4);if(seen.has(key))continue;seen.add(key);
-      for(const [S,cS,O,cO,sx,sy] of [[A,cA,Bs,cB,ax/LA,ay/LA],[Bs,cB,A,cA,bx/LB,by/LB]]){ // the zebras across S, beside O
+      for(const [S,O,sx,sy] of [[A,Bs,ax/LA,ay/LA],[Bs,A,bx/LB,by/LB]]){ // the zebras across S, beside O
         const hwS=S[4],hwO=O[4],cw=hwS-walkOf(streets[S[5]])-0.3,nx=-sy,ny=sx;
         // distance along S from the crossing to O's sidewalk, measured on S (O may cross at an angle)
         const sin=Math.abs(d)/LA/LB,s0=(hwO-walkOf(streets[O[5]])+0.4)/sin;
@@ -84,7 +84,7 @@ function crossings(B){const seen=new Set(),zeb=hex('#E4E0D6');let n=0;
 // A street a landmark paints by zones (s.paint: [[x0, y0, x1, y1, colour or null], ...], the first box that holds a
 // point wins; null or no box, the street's own colour): ribbon() with each segment cut at the boxes' edges. The
 // concrete slabs of the streets around the plaza (hitos/calles-plaza.js)
-function paintRibbon(B,s,w,y,col,joins=true){const pts=s.pts,Z=s.paint,colAt=(x,y)=>{for(const b of Z)if(x>=b[0]&&x<=b[2]&&y>=b[1]&&y<=b[3])return b[4]||col;return col;};
+function paintRibbon(B,s,w,y,col,joins=true){const pts=s.pts,Z=s.paint,colAt=(px,py)=>{for(const b of Z)if(px>=b[0]&&px<=b[2]&&py>=b[1]&&py<=b[3])return b[4]||col;return col;};
   for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);if(L<0.01)continue;const nx=-dy/L*w/2,ny=dx/L*w/2,ts=[0,1];
     for(const z of Z){if(Math.abs(dx)>1e-9)for(const X of [z[0],z[2]]){const u=(X-a[0])/dx;if(u>0&&u<1)ts.push(u);}if(Math.abs(dy)>1e-9)for(const Y of [z[1],z[3]]){const u=(Y-a[1])/dy;if(u>0&&u<1)ts.push(u);}}
     ts.sort((p,q)=>p-q);
@@ -149,7 +149,6 @@ function parkedCars(ws){const t0=performance.now(),out=[],ZC=50;
   if(!ZEB_G){ZEB_G=new Map();for(const z of ZEB){const k=Math.floor(z[0]/ZC)+','+Math.floor(z[1]/ZC);(ZEB_G.get(k)||ZEB_G.set(k,[]).get(k)).push(z);}}const zg=ZEB_G;
   const onZebra=(x,y)=>{for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)for(const [zx,zy,tx,ty,cw] of zg.get((Math.floor(x/ZC)+i)+','+(Math.floor(y/ZC)+j))||[]){
       const dx=x-zx,dy=y-zy;if(Math.abs(dx*tx+dy*ty)<4.2&&Math.abs(-dx*ty+dy*tx)<cw+1)return true;}return false;};
-  const colW=CAR_COLS.reduce((a,c)=>a+c[3],0);
   for(const w of ws){const bi=w.bi;if(bi<0||ALAM.has(bi))continue;const s=streets[w.si],cw=w.hw-w.iw;
     if(cw*2<4.5)continue;
     const r=rng(w.si*6271+(w.side>0?1:2)*92821+Math.round(w.pts[0][0]*5+w.pts[0][1]*11)+31337);
@@ -168,7 +167,7 @@ function parkedCars(ws){const t0=performance.now(),out=[],ZC=50;
       const x=A[0]+tx*v+nx*off,y=A[1]+ty*v+ny*off,van=r()<.07,len=(van?4.9:4.1+r()*.6)/4.5;
       const q=rotRect(x,y,4.5*len,1.8,Math.atan2(ty,tx));
       if(q.some(c=>occAt(c[0],c[1])===1||inMedian(c[0],c[1]))||onZebra(x,y))continue;
-      let c=r()*colW,col=CAR_COLS[0];for(const cc of CAR_COLS){if((c-=cc[3])<0){col=cc;break;}}
+      const col=CAR_COLS[wpick(r,CAR_COLS,c=>c[3])];
       const car=[x,y,-tx*w.side,-ty*w.side,len,van?1.3:1,col,r()];if(!q.some(c=>inClear(c[0],c[1])))out.push(car);}}
   STREET.cars=(STREET.cars||0)+out.length;STREET.carMs=(STREET.carMs||0)+Math.round(performance.now()-t0);return out;}
 // a car, 4.5 x 1.8 m, in local x (forward), y (up), z: a body 0.8 m tall, and over it the cabin, its windows a band of
@@ -181,8 +180,12 @@ function carGeo(){const P=[],N=[],C=[],I=[],W=[1,1,1],G=[.2,.23,.28];
   box(-2.25,2.25,0,.8,-.9,.9,W,W);box(-1.35,.85,.8,1.3,-.74,.74,G,W);
   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('normal',new T.Float32BufferAttribute(N,3));
   g.setAttribute('color',new T.Float32BufferAttribute(C,3));g.setIndex(I);return g;}
-function instCars(list){list=list.filter(c=>inTerrain(c[0],c[1]));
-  const q=new T.Quaternion(),e=new T.Euler(0,0,0,'YZX'),s=new T.Vector3(),p=new T.Vector3();
-  return instTiled(carGeo(),new T.MeshLambertMaterial({vertexColors:true}),list,([x,y,dx,dy,len,hs,c,k],m,col)=>{const h=2.25*len,f=E(x+dx*h,y+dy*h),b=E(x-dx*h,y-dy*h);
-    e.set(0,Math.atan2(dy,dx),Math.atan2(f-b,2*h));q.setFromEuler(e);s.set(len,hs,1);p.set(x,(f+b)/2+.13,-y);m.compose(p,q,s);
+// carsMesh(list): cars [x, y, dx, dy (heading), length (x 4.5 m), height (x 1), colour, k (its shade), h, pitch]
+// instanced by tile; without h and pitch a car stands on the ground (E at its front and back), with them at that
+// height (the Ruta 5's, on its decks). instCars: the parked cars, in the commune only
+function carsMesh(list){const q=new T.Quaternion(),e=new T.Euler(0,0,0,'YZX'),s=new T.Vector3(),p=new T.Vector3();
+  return instTiled(carGeo(),new T.MeshLambertMaterial({vertexColors:true}),list,([x,y,dx,dy,len,hs,c,k,h,sl],m,col)=>{
+    if(h===undefined){const hl=2.25*len,f=E(x+dx*hl,y+dy*hl),b=E(x-dx*hl,y-dy*hl);sl=Math.atan2(f-b,2*hl);h=(f+b)/2+.13;}
+    e.set(0,Math.atan2(dy,dx),sl);q.setFromEuler(e);s.set(len,hs,1);p.set(x,h,-y);m.compose(p,q,s);
     const v=.96+k*.08;col.setRGB(c[0]*v,c[1]*v,c[2]*v);});}
+const instCars=list=>carsMesh(list.filter(c=>inTerrain(c[0],c[1])));

@@ -39,7 +39,7 @@ function buildCerro(B){ // Cerro La Virgen: the hill is real terrain now; the st
   rect(WV(1.35,1,.12),-.6,.6,3,4.5,K.white);
   // the Virgin, facing the city: a cloud, the robe in two stepped stages, torso, shoulders and veil, head; her right
   // arm (+u) raised in three steps with the rosary hanging from the hand; the Child on her left arm, arms out
-  const H=5.45,ring=(r,h0,h1,col)=>S.prism(ngon(...G(0,0),r,8,Math.PI/8),H+h0,H+h1,col,col);
+  const H=5.45,ring=(r,y0,y1,col)=>S.prism(ngon(...G(0,0),r,8,Math.PI/8),H+y0,H+y1,col,col);
   ring(.95,0,.35,K.whiteSh);ring(.8,.35,1.7,K.white);ring(.68,1.7,2.9,K.whiteSh);
   box(-.55,-.35,.55,.35,H+2.9,H+3.55,K.white,K.white);box(-.65,-.42,.65,.36,H+3.5,H+3.9,K.whiteSh,K.whiteSh);
   box(-.34,-.4,.34,.26,H+3.9,H+4.45,K.white,K.white);
@@ -76,7 +76,7 @@ function buildCerro(B){ // Cerro La Virgen: the hill is real terrain now; the st
       const q=Gs([[p0[0]-dv*1.2,p0[1]+du*1.2],[p1[0]-dv*1.2,p1[1]+du*1.2],[p1[0]+dv*1.2,p1[1]-du*1.2],[p0[0]+dv*1.2,p0[1]-du*1.2]]);
       const es=q.map(p=>E(p[0],p[1]));S.prism(q,Math.min(...es)-1.5,Math.max(...es)+.12,K.step2,i%2?K.step:K.paving);}}
   S.dy=0;cerroMesh=new T.Mesh(S.geo(),matFlat);cerroMesh.name='cerro';scene.add(cerroMesh);
-  const c=G(0,0);MODELS['cerro-la-virgen']={x:c[0],y:c[1],h:h1+12};
+  const ctr=G(0,0);MODELS['cerro-la-virgen']={x:ctr[0],y:ctr[1],h:h1+12};
 }
 // scrub and wood on steep ground and where CONAF says there is (wildAt), in clumps; the plantations of eucalyptus or pine
 // (cobTall) as columns, in T0.p

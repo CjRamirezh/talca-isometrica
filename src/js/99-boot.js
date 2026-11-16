@@ -41,7 +41,7 @@ function sliced(gen,done){const ch=new MessageChannel();let ms=0;
 // the reach of a lot)
 const STAGE_M=150;
 function stageBox(){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9,far=0;
-  for(const [px,py] of [[0,0],[W/2,0],[W,0],[0,H/2],[W,H/2],[0,H],[W/2,H],[W,H]]){const g=ground(px,py)||planeAt(px,py);if(!g)continue;
+  for(const [px,py] of [[0,0],[VW/2,0],[VW,0],[0,VH/2],[VW,VH/2],[0,VH],[VW/2,VH],[VW,VH]]){const g=ground(px,py)||planeAt(px,py);if(!g)continue;
     x0=Math.min(x0,g[0]);x1=Math.max(x1,g[0]);y0=Math.min(y0,g[1]);y1=Math.max(y1,g[1]);far=Math.max(far,Math.hypot(g[0],g[1]));}
   return {box:[x0-STAGE_M,y0-STAGE_M,x1+STAGE_M,y1+STAGE_M],rho:far+STAGE_M+CITY_REACH};}
 const split=(a,f)=>{const y=[],n=[];for(const e of a)(f(e)?y:n).push(e);return [y,n];};
@@ -88,7 +88,7 @@ function boot(){
     if(h&&BYID[h]){const m=MODELS[h]||BYID[h];select(h,false);view.zoom=4;const f=framed(...lift(m.x,m.y),4);view.tx=f[0];view.ty=f[1];placeCam();}
     else if(h==='justicia'||h==='iconica'){startTour(h);}
     // (window.__STAGE before the page loads, for tools/regress.py --init: 0, everything at once; [x0, y0, x1, y1, rho], another first box)
-    let rho=Infinity;const SG=window.__STAGE;if(Array.isArray(SG)){STAGE=SG.slice(0,4);rho=SG[4];}else if(SG!==0){const s=stageBox();STAGE=s.box;rho=s.rho;}
+    let rho=Infinity;const ask=window.__STAGE;if(Array.isArray(ask)){STAGE=ask.slice(0,4);rho=ask[4];}else if(ask!==0){const s=stageBox();STAGE=s.box;rho=s.rho;}
     const L={base:[],water:[],walk:[]};
     tm('pads');scene.add(terrainMesh());tm('terrain');
     const base=buildBase(L);tm('base');const D=new GB(1<<14);walkBase(base,D,L);tm('walk');
@@ -134,7 +134,7 @@ function boot(){
     const cast=[first.b,first.s,...trees,first.d,...cars];
     scene.add(first.y=tiled(Y,matFlat,true));
     // shadows: everything receives them; the buildings, the landmarks (and the Cerro's sanctuary) and the trees cast them
-    scene.traverse(o=>{if(o.isMesh&&o!==ring)o.receiveShadow=true;});
+    scene.traverse(o=>{if(o.isMesh&&o!==selRing)o.receiveShadow=true;});
     if(cerroMesh)cast.push(cerroMesh);
     for(const m of cast){m.traverse(o=>o.castShadow=o.receiveShadow=true);if(!m.parent)scene.add(m);}
     scene.traverse(o=>{if(o.castShadow)CASTERS.push(o);});SH=null;shOff=false;placeCam(); // what casts shadows, switched off together by fitShadow when far; the shadow box for the first view

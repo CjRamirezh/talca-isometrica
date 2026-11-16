@@ -78,11 +78,11 @@ function edHull(r,d){const P=r.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]),X=(o,a,
   for(let i=P.length-1;i>=0;i--){const p=P[i];while(hi.length>1&&X(hi[hi.length-2],hi[hi.length-1],p)<=0)hi.pop();hi.push(p);}
   const H=lo.slice(0,-1).concat(hi.slice(0,-1));if(!d||H.length<3)return H;
   let s=0;for(let i=1;i<H.length;i++)if(H[i][1]<H[s][1]||(H[i][1]===H[s][1]&&H[i][0]<H[s][0]))s=i;
-  const n=H.length,o=[];let i=0,j=0;
-  while(i<n||j<8){const p=H[(s+i)%n],q=ED_OCT[j%8];o.push([p[0]+d*q[0],p[1]+d*q[1]]);
-    const p1=H[(s+i+1)%n],q1=ED_OCT[(j+1)%8],c=(p1[0]-p[0])*(q1[1]-q[1])-(p1[1]-p[1])*(q1[0]-q[0]);
-    if(j>=8||(i<n&&c>0))i++;else if(i>=n||c<0)j++;else{i++;j++;}}
-  const h=[];for(const p of o){while(h.length>1&&X(h[h.length-2],h[h.length-1],p)<=1e-9)h.pop();h.push(p);}
+  const n=H.length,out=[];let ih=0,io=0; // ih along the hull, io along the octagon
+  while(ih<n||io<8){const p=H[(s+ih)%n],q=ED_OCT[io%8];out.push([p[0]+d*q[0],p[1]+d*q[1]]);
+    const p1=H[(s+ih+1)%n],q1=ED_OCT[(io+1)%8],c=(p1[0]-p[0])*(q1[1]-q[1])-(p1[1]-p[1])*(q1[0]-q[0]);
+    if(io>=8||(ih<n&&c>0))ih++;else if(ih>=n||c<0)io++;else{ih++;io++;}}
+  const h=[];for(const p of out){while(h.length>1&&X(h[h.length-2],h[h.length-1],p)<=1e-9)h.pop();h.push(p);}
   while(h.length>2&&X(h[h.length-2],h[h.length-1],h[0])<=1e-9)h.pop();while(h.length>2&&X(h[h.length-1],h[0],h[1])<=1e-9)h.shift();
   return h;}
 const ringArea=r=>{let A=0;for(let i=0,j=r.length-1;i<r.length;j=i++)A+=r[j][0]*r[i][1]-r[i][0]*r[j][1];return A/2;};
@@ -108,7 +108,7 @@ function edificiosPlan(){const t0=performance.now();
     // cut at the line of the sidewalks of every street segment it reaches into (a segment whose line is beyond reach
     // from every corner of the footprint's box, or whose ends are past it, is skipped before the test of each point:
     // the box holds every point of the footprint and of what is left of it, and the margin of 1e-6 m covers the rounding)
-    const A0=ringArea(R),cOf=O=>{let c=[0,0];for(const p of O){c[0]+=p[0];c[1]+=p[1];}return [c[0]/O.length,c[1]/O.length];};let rings=e.R,c=cOf(R);stamp++;
+    const A0=ringArea(R),cOf=O=>{let sx=0,sy=0;for(const p of O){sx+=p[0];sy+=p[1];}return [sx/O.length,sy/O.length];};let rings=e.R,c=cOf(R);stamp++;
     for(let gx=Math.max(0,Math.floor((x0-XMIN)/SG));gx<=Math.min(sgW-1,Math.floor((x1-XMIN)/SG));gx++)for(let gy=Math.max(0,Math.floor((y0-YMIN)/SG));gy<=Math.min(sgH-1,Math.floor((y1-YMIN)/SG));gy++)
       for(const id of sgrid[gy*sgW+gx]){if(seen[id]===stamp)continue;seen[id]=stamp;const s=segs[id],st=streets[s[5]];if(st.bridge)continue;
         const L=Math.hypot(s[2]-s[0],s[3]-s[1]);if(L<0.5)continue;const tx=(s[2]-s[0])/L,ty=(s[3]-s[1])/L,ax=s[0],ay=s[1],m=s[4]+(walkOf(st)?WALK_OUT:0.3);
@@ -267,18 +267,18 @@ function edRaster(Y,bk,bb){const C=bk.ml?2:1,FRONT=3.2,{bi,mix,surf}=bk,xs=ED_XS
   // what was there before: a landmark, a land use (occ 1), or a landmark's fenced ground (NOLOTS: the Mall's car park)
   // and, in a mixed block, any land use (but parcelas): their ground and an eriazo's patches lie at 0.11 too, and an
   // industrial use or an eriazo leave occ free
-  const HN=NOLOTS.filter(q=>{const r=ringBox(q);return r[2]>=bx0&&r[0]<=bx1&&r[3]>=by0&&r[1]<=by1;}),UN=new Set();
+  const HN=NOLOTS.filter(q=>{const rb=ringBox(q);return rb[2]>=bx0&&rb[0]<=bx1&&rb[3]>=by0&&rb[1]<=by1;}),UN=new Set();
   if(mix)for(let gx=Math.floor((bx0-XMIN)/BG);gx<=Math.floor((bx1-XMIN)/BG);gx++)for(let gy=Math.floor((by0-YMIN)/BG);gy<=Math.floor((by1-YMIN)/BG);gy++)
     for(const u of UGRID[gy*bgW+gx]||[])if(!u.skip&&u.k!=='parcelas')UN.add(u);
   // a row at a time: the crossings of each ring that reaches the row (pipRow), with the box tests of inRing() for NOLOTS
   // and of the land uses: the same answers as inRing() and pipXY() cell by cell, which took ~0.2 s of the startup
-  const RS=[...HN.map(q=>{const rb=ringBox(q);return [q,rb[0]-1,rb[1]-1,rb[2]+1,rb[3]+1,true];}),...[...UN].map(u=>[u.r,...u.bb,false])],
-    RX=RS.map(()=>[]),RK=new Int32Array(RS.length),on=[];
+  const RG=[...HN.map(q=>{const rb=ringBox(q);return [q,rb[0]-1,rb[1]-1,rb[2]+1,rb[3]+1,true];}),...[...UN].map(u=>[u.r,...u.bb,false])],
+    RX=RG.map(()=>[]),RK=new Int32Array(RG.length),on=[];
   for(let j=0;j<ny;j++){const y=Y0+(j+.5)*C;on.length=0;
-    for(let n=0;n<RS.length;n++){const R=RS[n];if(R[5]?y>R[2]&&y<R[4]:y>=R[2]&&y<=R[4]){pipRow(R[0],y,RX[n]);if(RX[n].length){on.push(n);RK[n]=0;}}}
+    for(let n=0;n<RG.length;n++){const R=RG[n];if(R[5]?y>R[2]&&y<R[4]:y>=R[2]&&y<=R[4]){pipRow(R[0],y,RX[n]);if(RX[n].length){on.push(n);RK[n]=0;}}}
     for(let i=0;i<nx;i++){const c=j*nx+i;if(own[c]<=0)continue;const x=X0+(i+.5)*C;if(occAt(x,y)===1){own[c]=-3;continue;}
-      for(const n of on){const R=RS[n],xs=RX[n];let k=RK[n];while(k<xs.length&&xs[k]<=x)k++;RK[n]=k; // x grows along the row
-        if((R[5]?x>R[1]&&x<R[3]:x>=R[1]&&x<=R[3])&&(xs.length-k)&1){own[c]=-3;break;}}}}
+      for(const n of on){const R=RG[n],rx=RX[n];let k=RK[n];while(k<rx.length&&rx[k]<=x)k++;RK[n]=k; // x grows along the row
+        if((R[5]?x>R[1]&&x<R[3]:x>=R[1]&&x<=R[3])&&(rx.length-k)&1){own[c]=-3;break;}}}}
   surf.forEach((s,k)=>fill(s.r,10+k,v=>v>0||v===-2||v===-4));
   eds.forEach((e,k)=>fill(e.R[0],bk.solid&&e.t==='casa'?-5:100+k,v=>v>0||v===-2||v===-4)); // under the building: its own patio colour (hidden, no seams at the walls); a house of a solid block, none (-5)
   // breadth-first from the footprints: an open cell takes the patio of the nearest building
@@ -305,7 +305,7 @@ function edRaster(Y,bk,bb){const C=bk.ml?2:1,FRONT=3.2,{bi,mix,surf}=bk,xs=ED_XS
     // T-junctions between rectangles, and they show it, in the same colour, instead of the ground (an outlined dot)
     const out=[[(x0+x1)/2,y0-.5],[x1+.5,(y0+y1)/2],[(x0+x1)/2,y1+.5],[x0-.5,(y0+y1)/2]];
     const g=out.map(([ci,cj])=>laid(Math.floor(ci),Math.floor(cj))?.25:0);
-    if(g.some(v=>v))drapeQ(Y,[[X0+x0-g[3],Y0+y0-g[0]],[X0+x1+g[1],Y0+y0-g[0]],[X0+x1+g[1],Y0+y1+g[2]],[X0+x0-g[3],Y0+y1+g[2]]],o-.03,col);};
+    if(g.some(Boolean))drapeQ(Y,[[X0+x0-g[3],Y0+y0-g[0]],[X0+x1+g[1],Y0+y0-g[0]],[X0+x1+g[1],Y0+y1+g[2]],[X0+x0-g[3],Y0+y1+g[2]]],o-.03,col);};
   const cid=new Map(),same=bk.ml?(v=>{const c=colOf(v);if(!c)return -1e9;let k=cid.get(c);if(k===undefined)cid.set(c,k=cid.size);return k;}):(v=>v);
   for(let j=0;j<=ny;j++){const cur=new Map();
     if(j<ny)for(let i=0;i<nx;){const v=own[j*nx+i],sv=same(v);let e=i+1;while(e<nx&&same(own[j*nx+e])===sv)e++;if(colOf(v)){EDS[mix?'cellsX':'cells']+=(e-i)*C*C;const k=i+','+e+','+sv,o=open.get(k);cur.set(k,o?o:[i,e,j,v]);open.delete(k);}i=e;}

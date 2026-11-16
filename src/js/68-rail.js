@@ -89,13 +89,13 @@ function railBase(B){const t0=performance.now(),R=new GB(1<<16),RX=DATA.railx||[
       for(const sg of [1,-1])top(sg*L.g/2-.2,sg*L.g/2+.2,.04,PAL.rail);
       if(i%2===0)R.face(sleeperQ(a,L).map(q=>V(q[0],q[1],Ta+.02)),[0,1,0],L.sl);}
     // the decks' abutments: white walls under each end, across the embankment
-    for(const f of lifts)if(f.deck)for(const [s,sg] of [[f.s0,-1],[f.s1,1]]){const i=Math.min(N-1,Math.max(0,P.findIndex(p=>p.s>=s))),p=P[i];
+    for(const f of lifts)if(f.deck)for(const [s,sg] of [[f.s0,-1],[f.s1,1]]){const i=Math.min(N-1,Math.max(0,P.findIndex(e=>e.s>=s))),p=P[i];
       if(!inTerrain(p.x,p.y))continue;const q=rotRect(p.x+p.dx*sg*.5,p.y+p.dy*sg*.5,1,2*hwD+.6,Math.atan2(p.dy,p.dx));R.prism(q,groundMin(q)-.5,TH[i]-.02,K.white2,K.white);}
     // the river bridges, on the profile
     for(const f of lifts)if(f.br){const hAt=p=>TH[near(P,p.x,p.y,Math.max(0,f.i0-40),Math.min(N-1,f.i1+40))];f.br.draw(R,hAt);}
-    const x=new Float32Array(N),y=new Float32Array(N),s=new Float32Array(N),h=new Float32Array(N);
-    for(let i=0;i<N;i++){x[i]=P[i].x;y[i]=P[i].y;s[i]=P[i].s;h[i]=TH[i]+.04;}
-    RAILP[L.k]={x,y,s,h,g:GR,kind,lifts:lifts.map(f=>({s0:f.s0,s1:f.s1,H:f.H,bridge:!!f.br}))};done.push({L,P,TH,kind,hwD});}
+    const px=new Float32Array(N),py=new Float32Array(N),ps=new Float32Array(N),ph=new Float32Array(N);
+    for(let i=0;i<N;i++){px[i]=P[i].x;py[i]=P[i].y;ps[i]=P[i].s;ph[i]=TH[i]+.04;}
+    RAILP[L.k]={x:px,y:py,s:ps,h:ph,g:GR,kind,lifts:lifts.map(f=>({s0:f.s0,s1:f.s1,H:f.H,bridge:!!f.br}))};done.push({L,P,TH,kind,hwD});}
   // the catenary of the Línea Central: OSM's masts beside the track and a cantilever over it at 6.2 m; no contact wire
   // (~1.5 cm: drawn as one art pixel it broke into dashes, ESTETICA §2)
   const M=done.find(d=>d.L.k==='main');
@@ -118,7 +118,7 @@ function railBase(B){const t0=performance.now(),R=new GB(1<<16),RX=DATA.railx||[
   // and two red lights facing the traffic, and the barrier's box with its arm raised (red and white, 0.6 m bands)
   const LB=RX.filter(r=>r[0]===1),seen=new Set();
   for(const r of LB){if(seen.has(r))continue;const g=LB.filter(q=>Math.hypot(q[2]-r[2],q[3]-r[3])<15);g.forEach(q=>seen.add(q));
-    const cx=g.reduce((a,q)=>a+q[2],0)/g.length,cy=g.reduce((a,q)=>a+q[3],0)/g.length,st=streetAt(cx,cy);if(!st)continue;
+    const cx=g.reduce((acc,q)=>acc+q[2],0)/g.length,cy=g.reduce((acc,q)=>acc+q[3],0)/g.length,st=streetAt(cx,cy);if(!st)continue;
     const {ux,uy,w}=st,vx=-uy,vy=ux,ext=Math.max(...g.map(q=>Math.abs((q[2]-cx)*ux+(q[3]-cy)*uy)))+3.5,a=Math.atan2(uy,ux);
     for(const sg of [1,-1]){const x=cx+ux*sg*ext+vx*sg*(w/2+.9),y=cy+uy*sg*ext+vy*sg*(w/2+.9),e=E(x,y);
       R.prism(rotRect(x,y,.4,.4,a),e-.3,e+4.3,K.post,K.post);

@@ -27,7 +27,7 @@ const R5C=R5.c.map(c=>{let x=0,y=0;const raw=[],P=[];let d=0;for(let i=0;i<c.p.l
   const z=raw[raw.length-1],q=P[P.length-1];P.push({x:z[0],y:z[1],d,l:q.l,lit:q.lit,tx:q.tx,ty:q.ty,e:0});
   for(let i=0,r0=-1;i<=P.length;i++){const on=i<P.length&&P[i].l>=3;if(on&&r0<0)r0=i;
     if(!on&&r0>=0){const a=P[r0].d,b=P[Math.min(i,P.length-1)].d;for(let j=r0;j<i;j++)P[j].e=Math.max(0,Math.min(1,(P[j].d-a)/40,(b-P[j].d)/40));r0=-1;}}
-  P.forEach((p,i)=>{const s=P[Math.max(0,i-1)];let mx=-s.ty-p.ty,my=s.tx+p.tx;const L=Math.hypot(mx,my)||1,c=Math.max(.5,(-mx*p.ty+my*p.tx)/L);p.nx=mx/L/c;p.ny=my/L/c;});
+  P.forEach((p,i)=>{const s=P[Math.max(0,i-1)];let mx=-s.ty-p.ty,my=s.tx+p.tx;const L=Math.hypot(mx,my)||1,cs=Math.max(.5,(-mx*p.ty+my*p.tx)/L);p.nx=mx/L/cs;p.ny=my/L/cs;});
   return {P,L:d,gaps:[]};});
 R5C.forEach((C,k)=>{const O=R5C[1-k].P;for(const p of C.P){let m=1e18;for(let i=0;i<O.length-1;i++){const a=O[i],b=O[i+1];
   if(Math.abs(a.x-p.x)>120&&Math.abs(b.x-p.x)>120||Math.abs(a.y-p.y)>120&&Math.abs(b.y-p.y)>120)continue;m=Math.min(m,segDist2(p.x,p.y,a.x,a.y,b.x,b.y));}p.hs=Math.sqrt(m)/2;}});
@@ -83,15 +83,13 @@ function ruta5Objects(){const K=R5K,G=new GB(1<<15),A=R5C[0];
     if(p.hs<9){if(k)continue;const c=r5off(p,p.hs);if(r5under(...c))continue;post(...c,[r5off(p,p.hs-3),r5off(p,p.hs+3)]);posts++;}
     else{const c=r5off(p,R5R(p)-1),h=r5off(p,R5R(p)+2);if(r5under(...c))continue;post(...c,[h]);posts++;}}
   // cars: one every ~110 m in each direction, a fifth of them lorries in the right lane; on the decks at their height
-  const r=rng(5005),list=[],colW=CAR_COLS.reduce((a,c)=>a+c[3],0);
+  const r=rng(5005),list=[];
   const H=(k,d)=>{const g=r5gap(k,d);if(g)return g[2](d);const p=r5at(k,d);return E(p.x,p.y)+.16;};
   for(let k=0;k<2;k++)for(let d=30+r()*60;d<R5C[k].L-10;d+=20+r()*180){const p=r5at(k,d);if(!inTerrain(p.x,p.y))continue;
     const truck=r()<.2,o=truck||r()<.55?-1.75:1.75,c=r5off(p,p.e>.9&&r()<.3?-5.25:o),len=truck?2.4+r()*.4:(4.1+r()*.6)/4.5;
-    let cc=r()*colW,col=CAR_COLS[0];for(const q of CAR_COLS){if((cc-=q[3])<0){col=q;break;}}
+    const col=CAR_COLS[wpick(r,CAR_COLS,cc=>cc[3])];
     list.push([c[0],c[1],p.tx,p.ty,len,truck?2.1:1,col,r(),(H(k,d-2)+H(k,d+2))/2,Math.atan2(H(k,d+2)-H(k,d-2),4)]);}
-  const q=new T.Quaternion(),e=new T.Euler(0,0,0,'YZX'),s=new T.Vector3(),pp=new T.Vector3();
-  const cars=instTiled(carGeo(),new T.MeshLambertMaterial({vertexColors:true}),list,([x,y,dx,dy,len,hs,c,k,h,sl],m,col)=>{e.set(0,Math.atan2(dy,dx),sl);q.setFromEuler(e);s.set(len,hs,1);pp.set(x,h,-y);m.compose(pp,q,s);
-    const v=.96+k*.08;col.setRGB(c[0]*v,c[1]*v,c[2]*v);});
+  const cars=carsMesh(list);
   Object.assign(STREET,{r5posts:posts,r5cars:list.length,r5gaps:R5C.map(c=>c.gaps.length)});
   const mesh=tiled(G,matFlat);for(const o of [mesh,cars])o.traverse(c=>c.castShadow=true);
   window.__r5cars=on=>{cars.visible=on;shDirty=dirty=true;};
@@ -133,7 +131,7 @@ function r5Deck(S,K,k,d0,d1,h,open=[],o={}){
 // model became the commune.
 const r5north=(k,d)=>r5at(k,d).ty<0?-1:1; // +1 where d grows northwards on carriageway k
 function r5Raise(S,K,k,knots,open,o={}){
-  const Q=knots.map(([x,y,h,n=0])=>{const d=r5d(k,x,y)[0];return [d+r5north(k,d)*n,h];}).sort((a,b)=>a[0]-b[0]);for(const q of Q)if(q[1]===null)q[1]=r5gh(k,q[0]);
+  const Q=knots.map(([x,y,hk,n=0])=>{const d=r5d(k,x,y)[0];return [d+r5north(k,d)*n,hk];}).sort((a,b)=>a[0]-b[0]);for(const q of Q)if(q[1]===null)q[1]=r5gh(k,q[0]);
   const h=d=>{for(let i=0;i<Q.length-1;i++)if(d<=Q[i+1][0])return Q[i][1]+(Q[i+1][1]-Q[i][1])*(d-Q[i][0])/Math.max(Q[i+1][0]-Q[i][0],1e-6);return Q[Q.length-1][1];};
   return r5Deck(S,K,k,Q[0][0],Q[Q.length-1][0],h,open.map(([a,b])=>{const u=r5d(k,...a)[0],v=r5d(k,...b)[0];return [Math.min(u,v),Math.max(u,v)];}),o);}
 // A street over the motorway (landmarks): its deck along pts (grid metres; for a divided street, the middle of both
@@ -155,7 +153,7 @@ function r5Over(S,K,pts,hw,top,o={}){
       if(h(u)-.6-ga<.15&&h(v)-.6-gb<.15)continue;
       S.face([[A[0],ov?ga+.16:ga-.3,-A[1]],[B[0],ov?gb+.16:gb-.3,-B[1]],[B[0],h(v)-.6,-B[1]],[A[0],h(u)-.6,-A[1]]],[nx,0,-ny],ov?K.void:K.wall);}}
   const Z=pts[pts.length-1],dl=Math.hypot(Z[0]-pts[0][0],Z[1]-pts[0][1]);
-  streets.forEach(s=>{const [p,q]=s.pts,l=Math.hypot(q[0]-p[0],q[1]-p[1])||1;if(s.pts.length===2&&Math.abs(((Z[0]-pts[0][0])*(q[0]-p[0])+(Z[1]-pts[0][1])*(q[1]-p[1]))/dl/l)>.8
+  streets.forEach(s=>{const [p0,p1]=s.pts,l=Math.hypot(p1[0]-p0[0],p1[1]-p0[1])||1;if(s.pts.length===2&&Math.abs(((Z[0]-pts[0][0])*(p1[0]-p0[0])+(Z[1]-pts[0][1])*(p1[1]-p0[1]))/dl/l)>.8
     &&s.pts.every(p=>pts.some((a,i)=>i<pts.length-1&&segDist2(p[0],p[1],a[0],a[1],pts[i+1][0],pts[i+1][1])<(hw*.6)**2)))s.bridge=true;});
   R5X.push([pts,hw]);S.dy=0;}
 // A footbridge over the motorway (landmarks): pts its OSM polyline (ramps and span); the span, from pts[i0] to pts[i1],

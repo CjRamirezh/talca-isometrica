@@ -21,5 +21,4 @@ const swOf=s=>s.w||SW[s.c],walkOf=s=>s.walk??WALK[s.c]; // a street's width and 
 // CLARO is the Río Claro's one polygon, [outer ring, island, ...]
 const RIV={};for(const k in DATA.area||{})RIV[k]=DATA.area[k].map(p=>p.map(dec));
 const CLARO=RIV.claro?RIV.claro[0]:[];
-const W2L=(x,y)=>[x,-y];
 

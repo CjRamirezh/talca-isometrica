@@ -89,9 +89,9 @@ function paRender(lite){const o=PA,a=paFit(o),sz=renderer.getDrawingBufferSize(n
   for(const p of GLOWPTS)p.material.size=9/o.k; // the glows keep their size on screen
   renderer.setRenderTarget(o.rt);renderer.render(scene,cam);
   if(o.ol>1&&!lite&&!dc){if(!o.nt)o.nt=new T.WebGLRenderTarget(w,h,opt); // the normals' target, only for crease:'normals'
-const lv=GLOWPTS.map(p=>p.visible),rv=ring.visible;for(const p of GLOWPTS)p.visible=false;ring.visible=false; // (the colour pass drew the shadow map, if due)
+const lv=GLOWPTS.map(p=>p.visible),rv=selRing.visible;for(const p of GLOWPTS)p.visible=false;selRing.visible=false; // (the colour pass drew the shadow map, if due)
     scene.overrideMaterial=paNorm;renderer.setRenderTarget(o.nt);renderer.render(scene,cam);scene.overrideMaterial=null;
-    GLOWPTS.forEach((p,i)=>p.visible=lv[i]);ring.visible=rv;}
+    GLOWPTS.forEach((p,i)=>p.visible=lv[i]);selRing.visible=rv;}
   cam.left=l;cam.right=rr;cam.top=t;cam.bottom=b;cam.near=n0;cam.far=f0;cam.updateProjectionMatrix();
   const U=paQuad.m.uniforms;U.tC.value=o.rt.texture;U.tD.value=o.rt.depthTexture;U.tN.value=o.nt?o.nt.texture:null;U.res.value.set(w,h);U.k.value=o.k;
   U.range.value=range;U.edge.value=o.edge;U.dark.value=o.dark;U.uOut.value=lite&&!dc?Math.min(o.ol,1):o.ol;U.off.value.set(fx*o.k,fy*o.k);

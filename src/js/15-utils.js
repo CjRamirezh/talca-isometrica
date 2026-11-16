@@ -7,6 +7,9 @@ let TRI_FAIL=0;
 function triangulate(ring,holes){const V=a=>a.map(p=>new T.Vector2(p[0],p[1]));
   try{return T.ShapeUtils.triangulateShape(V(ring),holes?holes.map(V):[]);}catch(e){TRI_FAIL++;return null;}}
 const pick=(r,arr)=>arr[Math.floor(r()*arr.length)];
+// wpick(r, arr, w): the index of an element of arr drawn by weight (w(e): its weight; without w, arr holds the weights);
+// one r() call. The roof families (fam), the barrios' recipes, the cars' colours
+const wpick=(r,arr,w)=>{let t=0;for(const e of arr)t+=w?w(e):e;let x=r()*t;for(let k=0;k<arr.length;k++){x-=w?w(arr[k]):arr[k];if(x<0)return k;}return arr.length-1;};
 const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
 const shade=(c,f)=>[Math.min(255,c[0]*f),Math.min(255,c[1]*f),Math.min(255,c[2]*f)];
 function pipXY(x,y,r){let ins=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const xi=r[i][0],yi=r[i][1],xj=r[j][0],yj=r[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins;}return ins;}

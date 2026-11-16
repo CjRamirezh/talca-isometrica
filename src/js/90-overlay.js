@@ -28,7 +28,7 @@ const SL=[];
 })();
 let showStreets=true;
 const vtmp=new T.Vector3();
-function proj(x,y,h){vtmp.set(x,h,-y).project(cam);return [(vtmp.x+1)/2*W,(1-vtmp.y)/2*H];}
+function proj(x,y,h){vtmp.set(x,h,-y).project(cam);return [(vtmp.x+1)/2*VW,(1-vtmp.y)/2*VH];}
 function visibleP(p){if(enabled.has(p.c))return true;for(const c of p.cs)if(enabled.has(c))return true;return false;}
 function layout(){
   const rects=[];const hit=(r)=>{for(const q of rects)if(r[0]<q[2]&&r[2]>q[0]&&r[1]<q[3]&&r[3]>q[1])return true;return false;};
@@ -39,7 +39,7 @@ function layout(){
     const minZ=[0,0.9,1.9,3.2][p.p];
     if(!vis||(z<minZ&&p.id!==selId)){el.hidden=true;continue;}
     const s=proj(m?m.x:p.x,m?m.y:p.y,h);
-    if(s[0]<-40||s[1]<-40||s[0]>W+40||s[1]>H+60){el.hidden=true;continue;}
+    if(s[0]<-40||s[1]<-40||s[0]>VW+40||s[1]>VH+60){el.hidden=true;continue;}
     const small=p.p>=3&&p.id!==selId;el.classList.toggle('small',small);
     const cs=small?20:26,stem=small?10:14;
     const x=s[0]-cs/2,y=s[1]-cs-stem;
@@ -53,7 +53,7 @@ function layout(){
   }
   const sz=z>=2.6&&showStreets;
   for(const l of SL){if(l.r?(z<0.45||!showStreets):(!sz&&!l.w)||(l.w&&z<0.5)){l.el.hidden=true;continue;}
-    if(l.h==null)l.h=E(l.x,l.y)+0.3;const s=proj(l.x,l.y,l.h);if(s[0]<0||s[1]<0||s[0]>W||s[1]>H){l.el.hidden=true;continue;}
+    if(l.h==null)l.h=E(l.x,l.y)+0.3;const s=proj(l.x,l.y,l.h);if(s[0]<0||s[1]<0||s[0]>VW||s[1]>VH){l.el.hidden=true;continue;}
     const s2=proj(l.x+l.dx,l.y+l.dy,l.h);let ang=Math.atan2(s2[1]-s[1],s2[0]-s[0]);if(ang>Math.PI/2)ang-=Math.PI;if(ang<-Math.PI/2)ang+=Math.PI;
     const w=l.t.length*(l.w?7:l.r?6.2:6.6),hgt=14;const c=Math.abs(Math.cos(ang)),sn=Math.abs(Math.sin(ang));const bw=w*c+hgt*sn,bh=w*sn+hgt*c;
     const r=[s[0]-bw/2,s[1]-bh/2,s[0]+bw/2,s[1]+bh/2];if(hit(r)){l.el.hidden=true;continue;}rects.push(r);

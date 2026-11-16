@@ -130,9 +130,9 @@ function trainsInit(){if(!RAILP.main||!RAILP.ramal)return;const t0=performance.n
   let verts=0,cars=0;for(const k in TRAIN.geo){verts+=TRAIN.geo[k].body.attributes.position.count+TRAIN.geo[k].win.attributes.position.count;}
   for(const t of TRAIN.list)cars+=t.cars.length;STREET.trains={cars,verts,ms:Math.round(performance.now()-t0)};
   window.__train=(line,s,kind,dir=1)=>{if(line==null){TRAIN.hold=false;for(const t of TRAIN.list)if(t.run||t===adm)trainPlace(t);dirty=true;return null;}
-    TRAIN.hold=true;const t=TRAIN.list.find(t=>t.line===line&&(kind?t.kind===kind:true));if(!t)return null;
-    for(const o of TRAIN.list)if(o!==t)trainHide(o);
-    if(t.dir!==dir)trainTurn(t,false);t.s=s;t.v=0;trainPlace(t);dirty=true;return t.mid;};
+    TRAIN.hold=true;const tr=TRAIN.list.find(e=>e.line===line&&(kind?e.kind===kind:true));if(!tr)return null;
+    for(const o of TRAIN.list)if(o!==tr)trainHide(o);
+    if(tr.dir!==dir)trainTurn(tr,false);tr.s=s;tr.v=0;trainPlace(tr);dirty=true;return tr.mid;};
   window.__trains=()=>TRAIN.list.map(t=>({line:t.line,kind:t.kind,dir:t.dir,s:Math.round(t.s),v:Math.round(t.v),len:Math.round(t.len),
     run:!!t.run,shown:t.grp.visible,inView:t.inView,mid:t.mid.map(Math.round)}));}
 // the frame hook (loop): advance the timetable and the trains by dt seconds; true when the frame should be drawn

@@ -57,9 +57,8 @@ const MIX={pob:[['zinc',35],['zincOld',30],['rust',15],['red',10],['green',5],['
   core:[['tileOld',45],['tile',15],['rust',20],['zincOld',20]],
   villa:[['zinc',30],['zincOld',15],['red',30],['tile',15],['green',10]],
   condo:[['tile',60],['tileOld',20],['red',20]], apt:[['zinc',50],['zincOld',25],['red',25]]};
-const fam=(r,mix)=>{let t=0;for(const m of mix)t+=m[1];let x=r()*t;for(const m of mix){x-=m[1];if(x<0)return m[0];}return mix[0][0];};
+const fam=(r,mix)=>mix[wpick(r,mix,m=>m[1])][0];
 const tone=(f,k)=>CP.roof[f][k&1];
-const wpick=(r,W)=>{let t=0;for(const w of W)t+=w;let x=r()*t;for(let k=0;k<W.length;k++){x-=W[k];if(x<0)return k;}return W.length-1;};
 // Barrios. Talca grew by pieces, each built at once and alike inside: the colonial centre; the old barrios around it,
 // one-storey houses on the line of the street with dark tile and rusted roofs (antiguo); poblaciones of self-built
 // houses, every one different, with zinc roofs of every colour and a mediagua at the back (pob); villas of identical
@@ -135,15 +134,15 @@ function shopFront(Z,P,F,u0,u1,v0,dd,fl,h,wall,signs,r,cs){const sg=pick(r,signs
 // houses of a row are hidden, so they are not drawn). And its gable roof, the ridge along u: a front and a back slope
 // per segment (the back a tone darker), the gable ends in the colours cl, cr where asked. Fewer faces than a gable()
 // per house, which keeps the pareadas and rows within the vertex budget.
-function lotWalls(G,P,F,v0,v1,y1,segs,l,r){
-  for(const [ua,ub,c] of segs){wq(G,P,F.f,ua,ub,v0,-3.7,y1,c);wq(G,P,F.b,ua,ub,v1,-3.7,y1,c);}
-  if(l)uq(G,P,F.l,segs[0][0],v0,v1,-3.7,y1,segs[0][2]);
-  if(r){const s=segs[segs.length-1];uq(G,P,F.r,s[1],v0,v1,-3.7,y1,s[2]);}}
+function lotWalls(G,P,F,v0,v1,y1,parts,l,r){
+  for(const [ua,ub,c] of parts){wq(G,P,F.f,ua,ub,v0,-3.7,y1,c);wq(G,P,F.b,ua,ub,v1,-3.7,y1,c);}
+  if(l)uq(G,P,F.l,parts[0][0],v0,v1,-3.7,y1,parts[0][2]);
+  if(r){const s=parts[parts.length-1];uq(G,P,F.r,s[1],v0,v1,-3.7,y1,s[2]);}}
 function uq(G,P,n,u,v0,v1,y0,y1,col){const a=P(u,v0),b=P(u,v1);G.face([[a[0],y0,-a[1]],[b[0],y0,-b[1]],[b[0],y1,-b[1]],[a[0],y1,-a[1]]],n,col);}
-function lotGable(G,P,F,v0,v1,y1,rh,segs,cl,cr){const vm=(v0+v1)/2,t=y1+rh,V=(u,v,y)=>{const p=P(u,v);return [p[0],y,-p[1]];};
-  for(const [ua,ub,c] of segs){G.face([V(ua,v0,y1),V(ub,v0,y1),V(ub,vm,t),V(ua,vm,t)],null,c);G.face([V(ub,v1,y1),V(ua,v1,y1),V(ua,vm,t),V(ub,vm,t)],null,shade(c,.86));}
-  if(cl){const u=segs[0][0];G.face([V(u,v0,y1),V(u,v1,y1),V(u,vm,t)],F.l,cl);}
-  if(cr){const u=segs[segs.length-1][1];G.face([V(u,v0,y1),V(u,v1,y1),V(u,vm,t)],F.r,cr);}}
+function lotGable(G,P,F,v0,v1,y1,rh,parts,cl,cr){const vm=(v0+v1)/2,t=y1+rh,V=(u,v,y)=>{const p=P(u,v);return [p[0],y,-p[1]];};
+  for(const [ua,ub,c] of parts){G.face([V(ua,v0,y1),V(ub,v0,y1),V(ub,vm,t),V(ua,vm,t)],null,c);G.face([V(ub,v1,y1),V(ua,v1,y1),V(ua,vm,t),V(ub,vm,t)],null,shade(c,.86));}
+  if(cl){const u=parts[0][0];G.face([V(u,v0,y1),V(u,v1,y1),V(u,vm,t)],F.l,cl);}
+  if(cr){const u=parts[parts.length-1][1];G.face([V(u,v0,y1),V(u,v1,y1),V(u,vm,t)],F.r,cr);}}
 // Lots along the streets. Each house stands on its lot: a slab 20 cm over the ground (Y, without procedural windows)
 // in the colour of its yard, from the front garden past the side passage to the back, so that a block reads as built
 // up to its back fences, as Talca's are, and not as houses on bare ground (docs/PROYECTOS-SIMILARES.md). In the centre
@@ -228,8 +227,8 @@ function cityGen(B,Y,Z,sts,bis){
           // a rectangle free of other lots, of what occupied the raster before, of streets, and inside block bi
           const fits=(u0,u1,v0,v1)=>{const q=Q(u0,u1,v0,v1);if(!q.every(p=>inTerrain(p[0],p[1]))||!lotFree(q))return false;
             const nu=Math.max(1,Math.ceil((u1-u0)/2.5)),nv=Math.max(1,Math.ceil((v1-v0)/2.5));
-            for(let i=0;i<=nu;i++)for(let j=0;j<=nv;j++){const p=P(u0+(u1-u0)*i/nu,v0+(v1-v0)*j/nv);if(occAt(p[0],p[1])===1)return false;
-              if((i===0||j===0||i===nu||j===nv)&&nearStreet(p[0],p[1],0.6))return false;}
+            for(let iu=0;iu<=nu;iu++)for(let jv=0;jv<=nv;jv++){const p=P(u0+(u1-u0)*iu/nu,v0+(v1-v0)*jv/nv);if(occAt(p[0],p[1])===1)return false;
+              if((iu===0||jv===0||iu===nu||jv===nv)&&nearStreet(p[0],p[1],0.6))return false;}
             for(const p of [P(u0,v1),P(u1,v1),P((u0+u1)/2,(v0+v1)/2)])if(!blockIs(p[0],p[1],bi))return false;
             return true;};
           let ok=false;
@@ -258,9 +257,9 @@ function cityGen(B,Y,Z,sts,bis){
               const h=fl*2.8+.3,rh=dd*.22,wc=r()<.15?pick(r,CP.wallsPob):H.wl[run%H.wl.length],join=!!pend&&Math.abs(pend.u1-u)<.01&&Math.abs(pend.dy-B.dy)<.05&&pend.dd===dd;
               if(join)pend=null;else flush();
               roof=tone(H.rf,run);lotWalls(B,P,F,o0,o0+dd,h,[[u,u+w,wc]],!join,false);lotGable(B,P,F,o0,o0+dd,h,rh,[[u,u+w,roof]],join?null:wc,null);
-              const u1=u+w,dy=B.dy,v1=o0+dd,vm=o0+dd/2;
-              pend=()=>{const k=B.dy;B.dy=dy;uq(B,P,F.r,u1,o0,v1,-3.7,h,wc);const a=P(u1,o0),b=P(u1,v1),m=P(u1,vm);B.face([[a[0],h,-a[1]],[b[0],h,-b[1]],[m[0],h+rh,-m[1]]],F.r,wc);B.dy=k;};
-              pend.u1=u1;pend.dy=dy;pend.dd=dd;run++;}
+              const u1=u+w,dy0=B.dy,v1=o0+dd,vm=o0+dd/2;
+              pend=()=>{const k=B.dy;B.dy=dy0;uq(B,P,F.r,u1,o0,v1,-3.7,h,wc);const pa=P(u1,o0),pb=P(u1,v1),pm=P(u1,vm);B.face([[pa[0],h,-pa[1]],[pb[0],h,-pb[1]],[pm[0],h+rh,-pm[1]]],F.r,wc);B.dy=k;};
+              pend.u1=u1;pend.dy=dy0;pend.dd=dd;run++;}
             else if(kind==='hip'){const h=fl*2.8+.3;roof=tone(H.rf,run);B.prism(q,.3,h,wall,null,false);B.hipRoof(q,h,Math.min(w,dd)*.3,roof);run++;}
             else if(kind==='shed'){const h=6+r()*4,sw=pick(r,CP.wallsShed),sr=pick(r,CP.shedRoof),k=r();
               if(k<.4){const lg=dd>w;Z.gable(lg?[q[1],q[2],q[3],q[0]]:q,.3,h,(lg?w:dd)*.12,sw,sr);}

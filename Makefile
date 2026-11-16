@@ -4,7 +4,7 @@ PW ?= uv run --with "playwright==1.63" python   # Python con Playwright, para la
 GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
 PORT ?= 8765
 DRY_RUN ?= 0
-.PHONY: all fetch osm data elevation ruta5 edificios edificios-ml golf pois build check smoke hooks validate diagnostics shots site-assets juego deploy serve clean
+.PHONY: all fetch osm data elevation ruta5 edificios edificios-ml golf pois build check lint smoke hooks validate diagnostics shots site-assets juego deploy serve clean
 
 all: data elevation edificios golf pois build         ## pipeline completo (requiere raw/: make fetch)
 
@@ -41,7 +41,10 @@ build:                        ## -> dist/: index.html, assets/ (el script, three
 check: build                  ## revisión rápida (<1 s): JSON, marcadores, hitos, node --check, los archivos que pide la página; la corre el hook de pre-commit
 	$(PY) tools/check.py
 
-smoke: build                  ## carga la página en Chromium y falla si hay errores de consola o la generación sale vacía (~1 min)
+lint:                         ## ESLint (versión fija, por npx) sobre el script unido, con el archivo y la línea de src/ (~3 s; tools/lint.py)
+	$(PY) tools/lint.py
+
+smoke: build lint             ## carga la página en Chromium y falla si hay errores de consola o la generación sale vacía (~1 min)
 	$(PW) tools/screenshot.py shots/smoke.png --strict
 
 hooks:                        ## instala .githooks/ (pre-commit = make check; pre-push = make deploy al empujar main a origin, sin bloquear)
