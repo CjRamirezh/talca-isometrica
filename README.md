@@ -101,6 +101,7 @@ src/                     toda la aplicación (CSS, UI y motor three.js r128), en
   site/                  lo que el sitio publicado lleva junto a index.html: favicon.svg, apple-touch-icon.png, og.jpg, los pósters del arranque (poster-movil.webp, poster-escritorio.webp) y _headers (la caché de assets/ en Cloudflare Pages)
 data/                    datos procesados (versionados)
 dist/                    resultado (no versionado: `make build`): index.html, assets/ (app.<hash>.js, three-r128.<hash>.js y un .json con hash por fuente de datos) y los archivos de src/site/
+tools/page.py            lo que comparten las herramientas de Playwright: Map (sirve dist/, abre Chromium, espera a window.__idle()), --size --dpr --gl --init, diff()
 tools/screenshot.py      capturas con Chromium sin interfaz
 tools/variants.py        hoja de comparación: varias vistas por varias variantes de render (--diff: píxeles distintos)
 tools/site_assets.py     la imagen de Open Graph, el ícono y los pósters del arranque de src/site/, desde el mapa (make site-assets)
@@ -122,8 +123,10 @@ tools/blender_ver.py     abre en Blender un glb o STL exportado, con sus colores
 tools/godot/             proyecto de Godot que carga un glb exportado (ver.gd: cámara ortográfica, colores por vértice; --png)
 juego/                   un juego de Godot para pasear por la Plaza de Armas en tercera persona (make juego exporta juego/plaza.glb; Godot --path juego); juego/modelos/: la catedral, las fachadas y las calles de alrededor, de cerca
 juego/vp.gd, juego/vp/   --vp: la plaza en una tele de fondo, proyectada desde la posición de un teléfono Android que filma (WebXR, ARCore; producción virtual como un set de LED)
-tools/juego_osm.py       las plantas y los nodos de la calle de OSM alrededor de la plaza para juego/modelos/ (entorno/osm.json)
-juego/modelos/plaza.gd   la Plaza de Armas del juego en detalle (árboles, quiosco, piletas, faroles, escaños; plaza/: geometría, texturas y shaders en código)
+tools/juego_osm.py       las plantas y los nodos de la calle de OSM alrededor de la plaza para juego/modelos/ y la página (data/plaza-osm.json)
+juego/modelos/plaza.gd   la Plaza de Armas del juego en detalle (árboles, quiosco, piletas, faroles, escaños; plaza/: árboles, piezas y texturas en código)
+juego/malla.gd, materiales.gd   el constructor de mallas y los materiales de todos los modelos del juego (shaders/: capa, patron, plaza/)
+juego/args.gd, fps.gd, glb.gd   las banderas de la línea de comandos, el arnés de --fps y lo que tools/export.py escribe en plaza.json (capas, luces)
 tools/check.py           revisión rápida del repo (make check), con las trampas de config/ y data/ que se pueden comprobar; .githooks/pre-commit la corre antes de cada commit (make hooks)
 tools/datadiff.py        qué cambió en los data/*.json (de una línea): claves, tamaños y elementos distintos contra HEAD u otra versión
 tests/                   pruebas del pipeline que corre make check (test_pipeline.py: huellas en Python y en la plantilla, geometría, línea de comandos) y golden.py (make golden: la salida de cada comando del pipeline, antes y después de un cambio)
