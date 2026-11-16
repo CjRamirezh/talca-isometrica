@@ -16,6 +16,7 @@
 # usa los colores por vértice del glb (ver tools/godot/ver.gd): se encienden aquí.
 #
 # Lo que se ve y lo que reemplaza al glb va en archivos propios, para que este no crezca:
+#   cine.gd          --cine: un plano de cine a la tarde, con la cámara en un recorrido fijo y peatones (ver cine.gd)
 #   vp.gd            --vp: producción virtual con una tele de fondo, la cámara movida por un teléfono (ver vp.gd)
 #   ambiente.gd      cielo, luz, sombras, niebla y posproceso (un Node3D que se agrega a la escena)
 #   jugador.gd       el personaje y su cámara
@@ -72,6 +73,9 @@ func _ready() -> void:
 		add_child(m)
 
 	var args := OS.get_cmdline_user_args()
+	if "--cine" in args:  # un plano de cine: la cámara, la hora y los peatones, en función del tiempo (cine.gd)
+		add_child(preload("res://cine.gd").new())
+		return
 	if "--vp" in args:  # la tele de fondo: la cámara la mueve un teléfono (vp.gd), sin personaje
 		add_child(preload("res://vp.gd").new())
 		await png(args)
