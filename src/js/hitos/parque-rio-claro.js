@@ -29,7 +29,7 @@
     const GRD=PARK.map(p=>offShore(p,8));NOLOTS.push(PARK);
     // footways [width, colour, line]: the promenade, the riverside walk (paving stones), the loop (concrete plates),
     // the dirt walk in the wood, the entrance from the Alameda end, the cross walks
-    const WALKS=[[5,K.pave,[-1331,937,-1366,942.5,-1367,939.5,-1386.5,879.5,-1393.5,856,-1413.5,790.5,-1433,721,-1438.5,699.5,-1438.5,686,-1439,666,-1438,633.5,-1433,621.5,-1409.5,582]],
+    const PWALKS=[[5,K.pave,[-1331,937,-1366,942.5,-1367,939.5,-1386.5,879.5,-1393.5,856,-1413.5,790.5,-1433,721,-1438.5,699.5,-1438.5,686,-1439,666,-1438,633.5,-1433,621.5,-1409.5,582]],
       [4,K.pave,[-1508.5,603.5,-1508,642.5,-1505.5,653,-1505.5,690.5,-1508,762.5,-1508.5,787.5,-1510,831,-1507,843.5,-1486.5,887,-1473,915.5,-1464,934,-1452.5,958,-1436,997,-1433.5,997,-1432.5,953.5,-1432.5,936,-1432,910.5]],
       [4,K.plates,[-1401.5,788,-1407.5,789,-1413.5,790.5,-1465.5,776,-1508,762.5,-1515.5,760.5,-1513,693,-1505.5,690.5,-1471,678,-1439,666,-1435,664.5,-1430,663]],
       [3.5,K.pave,[-1389.5,944.5,-1409.5,916,-1432,885,-1466,838,-1468,832.5,-1473,821.5,-1474,810,-1465.5,776,-1458.5,735,-1460.5,719,-1471,678,-1489,597.5,-1493,583.5,-1475.5,580.5,-1422.5,564.5,-1412,565.5,-1393,577]],
@@ -59,7 +59,7 @@
     // their details 0.19
     {const {G:Lg,lay,done}=groundLayer(S,1<<14);
       lay(GRD,.11,K.ground);LAWNS.forEach(q=>bands(q,4).forEach((b,n)=>lay(b,.13,n%2?K.grass2:K.grass)));BEDS.forEach(q=>lay(q,.145,K.bloom));
-      for(const [w,c,a] of WALKS)ribbon(Lg,pairs(a),w,.16,c);
+      for(const [w,c,a] of PWALKS)ribbon(Lg,pairs(a),w,.16,c);
       ribbon(Lg,pairs(CYCLE),2.6,.175,K.cycle);
       // playgrounds: rubber in two colours with a band of the other every 4 m; water play: a pale pad with wet discs
       PLAY.forEach((q,i)=>{lay(q,.175,i?K.rubber2:K.rubber);const c=shrink(q,.55);lay(c,.19,i?K.rubber:K.rubber2);});
@@ -69,7 +69,7 @@
         lay(rotRect((a[0]*.7+b[0]*.3),(a[1]*.7+b[1]*.3),5,.4,Math.atan2(b[1]-a[1],b[0]-a[0])),.19,K.line);}
       done();}
     // the city's trees keep off the walks, lawns, play areas and buildings
-    for(const [w,,a] of WALKS)occPath(a,w);occPath(CYCLE,2.6);[...LAWNS,...PLAY,...SPLASH,...POOLS,CARS].forEach(q=>occMark(q));
+    for(const [w,,a] of PWALKS)occPath(a,w);occPath(CYCLE,2.6);[...LAWNS,...PLAY,...SPLASH,...POOLS,CARS].forEach(q=>occMark(q));
     // a building in its own frame: v along its longest side; walls, a white band at the top, a grey flat roof
     const hut=(fp,h,wall,doors)=>{let L=0,A=0;for(let i=0;i<fp.length;i++){const a=fp[i],b=fp[(i+1)%fp.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);if(l>L){L=l;A=Math.atan2(b[1]-a[1],b[0]-a[0]);}}
       const c=fp.reduce((s,p)=>[s[0]+p[0]/fp.length,s[1]+p[1]/fp.length],[0,0]),F=localFrame(c[0],c[1],A),{box,WU,WV,rect}=facade(S,F,K);

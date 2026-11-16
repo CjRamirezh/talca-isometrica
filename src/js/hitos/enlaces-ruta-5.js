@@ -52,10 +52,10 @@
     // the street under the motorway at 2820, 276: a dark opening (the shade under the motorway) where it meets each
     // pavement's outer edge, 2.5 m deep, as wide as the street
     for(const k of [0,1]){const [d]=r5d(k,2820.5,276.2),p=r5at(k,d),[sx,sy]=[(2837.2-2796.2)/43.1,(281.4-268.0)/43.1],c=Math.abs(p.tx*sy-p.ty*sx)||1,o=R5R(p);
-      const P=(t,u)=>{const q=r5at(k,d+t/c);return r5off(q,o-u);},q=[P(-4,0),P(4,0),P(4,2.5),P(-4,2.5)];
+      const P=(t,u)=>r5off(r5at(k,d+t/c),o-u),q=[P(-4,0),P(4,0),P(4,2.5),P(-4,2.5)];
       S.face(q.map(v=>[v[0],E(v[0],v[1])+.2,-v[1]]),[0,1,0],K.void);}
     // footbridges: OSM polyline, span from point i0 to i1; stairs [foot, top]
-    {const ht=r5Foot(S,K,[[2934.1,847.7],[2944.7,893.9],[2974.7,887.1],[2963.8,839.7]],1,2,5.6);}
+    r5Foot(S,K,[[2934.1,847.7],[2944.7,893.9],[2974.7,887.1],[2963.8,839.7]],1,2,5.6);
     r5Foot(S,K,[[6651.0,7584.1],[6678.6,7628.7],[6705.0,7611.6],[6677.4,7568.2]],1,2,5.6);   // Aldea Campesina
     r5Foot(S,K,[[5052.5,5176.1],[5029.9,5138.2],[5059.7,5120.7],[5077.6,5152.2]],1,2,5.6);   // (5046, 5128)
     {const ht=r5Foot(S,K,[[2569.3,-705.4],[2552.2,-783.5],[2586.8,-791.0],[2573.2,-852.9]],1,2,5.6);

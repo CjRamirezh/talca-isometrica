@@ -13,7 +13,7 @@
   // canopies 4.4-4.9 m), the facades (bays, the signs' colours: licence), the market block's roofs, the fence and its
   // gates' widths, and above all the buses: where they stand changes every minute; here, rows of the kind the imagery
   // shows (nose-in under the office canopy; along the island and the south platform). No lights: none documented.
-  {const F=localFrame(1718.2,-235.7,0.8*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(1718.2,-235.7,0.8*Math.PI/180),{G,Gs,R}=F;
     const K={...KH,wall:C('#D6CFBF'),wall2:C('#C4BDAD'),base:C('#A8A196'),roof:C('#6F7173'),roof2:C('#65686A'),
       light:C('#B4B6B2'),sky:C('#A8B1B3'),
       can:C('#A9AEAE'),can2:C('#979C9D'),col:C('#4A4A4A'),asph:C('#65615D'),bays:C('#716D68'),line:C('#E8E4DA'),
@@ -60,13 +60,13 @@
     box(9,53,14,60,.3,3,K.wall2,K.light);box(24,58,28,61,.3,3,K.wall,K.roof);box(29,58,34,61,.3,3,K.wall,K.roof);box(36,57,47,61,.3,3.2,K.wall,K.roof);
     // the south-west block: the market-like shops (OSM's outline), walls with awnings, a roof of zinc bays in tones, the
     // passages' roofs (OSM's corridors, lit) paler
-    const SW=ccwRing([[20,-52],[20,-34],[17,-34],[17,-12],[50,-12],[50,-8],[62,-8],[62,0],[75,0],[74,-14],[70,-14],[70,-22],[74,-22],[74,-33],[71,-35],[71,-37],[74,-37],[74,-51],[53,-52]]);
-    walls(SW,.3,4.8,i=>i%2?K.wall:K.wall2);S.flat(Gs(SW),4.8,K.roof2);
+    const SWING=ccwRing([[20,-52],[20,-34],[17,-34],[17,-12],[50,-12],[50,-8],[62,-8],[62,0],[75,0],[74,-14],[70,-14],[70,-22],[74,-22],[74,-33],[71,-35],[71,-37],[74,-37],[74,-51],[53,-52]]);
+    walls(SWING,.3,4.8,i=>i%2?K.wall:K.wall2);S.flat(Gs(SWING),4.8,K.roof2);
     // the market passages' awnings (u 20-36, OSM's lit corridors), zinc gable roofs over the sheds east of them
     for(let v=-52,k=0;v<-12;v+=3.2,k++)S.quadXY(R(20,v,36,Math.min(-12,v+3.2)),4.86,K.aw[k%K.aw.length]);
     const zinc=facade(S,F,{...K,tile:K.can,tile2:K.can2,gable:K.wall});
     zinc.roof('v',-52,-13,36,53,4.8,2.4,6.5,[1,1]);zinc.roof('v',-52,-13,53,70,4.8,2.4,6.5,[1,1]);
-    for(let i=0;i<SW.length;i++){const a=SW[i],b=SW[(i+1)%SW.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<8)continue;
+    for(let i=0;i<SWING.length;i++){const a=SWING[i],b=SWING[(i+1)%SWING.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<8)continue;
       const out=[(b[1]-a[1])/L,-(b[0]-a[0])/L];
       const w=WL(a,b,out,.08);for(let s=1.5,k=i;s<L-3.5;s+=4,k++){rect(w,s,s+3,.3,2.6,K.glass2);rect(WL(a,b,out,.12),s-.2,s+3.2,2.6,3.1,K.aw[k%K.aw.length]);}}
     // the island: a raised platform under a canopy of pale panels (OSM w1420052919: u 33-42, v 1-52), two rows of
@@ -99,4 +99,4 @@
     for(const [u,th,vs] of [[28.6,Math.PI/2-.12,[9,23,37,50]],[46.2,Math.PI/2+.12,[8,22,36,50]],[60,Math.PI/2-.08,[14,29,44]]])
       for(const v of vs){if(r()<.2)continue;bus(u,v+(r()-.5)*2,r()<.25?9.4:11.8,th+(r()-.5)*.06,pickBus());}
     for(const [u,v] of [[23,-44],[29,-44],[35,-46]])bus(u,v,6.8,Math.PI/2,K.micro,2.9);   // blue micros waiting at the west gate
-    const c=G(31,5);MODELS['terminal-buses']={x:c[0],y:c[1],h:12};S.dy=0;}
+    const mc=G(31,5);MODELS['terminal-buses']={x:mc[0],y:mc[1],h:12};S.dy=0;}

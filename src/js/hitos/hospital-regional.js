@@ -16,7 +16,6 @@
       green:C('#7E9B5A'),green2:C('#8FA85A'),path:C('#E3E0D6'),padc:C('#B9B8B2'),yellow:C('#D3AE5E'),yroof:C('#BCA562'),roof2:C('#B5B8AE'),solar:C('#3E4A5C'),
       orange:C('#C8693E'),grey:C('#E3E1DA'),groof:C('#B9BCBC'),tile:C('#C9C9C4'),tile2:C('#B9B9B4')};
     const {box,WL,WV,WU,rect}=facade(S,F,K);
-    const quad=(w,pts,col)=>S.face(pts.map(([s,h])=>w.q(s,h)),w.n,col);
     // a (u,v) polygon (any orientation, may be concave) as walls h0..h1 and a flat roof; returns the walls (WL) so
     // they can take window bands
     const extrude=(q,h0,h1,wall,top)=>{const sg=ringArea(q)>0?1:-1,ws=[];
@@ -74,4 +73,4 @@
       [[[-100,-27],[-95,-27],[-95,-31],[-83,-31],[-80,-73],[-93,-73],[-93,-78],[-97,-78]],8.2],[[[7,22],[16,23],[17,2],[10,2],[10,5],[7,5]],5],
       [[[37,13],[30,13],[30,17],[23,17],[23,7],[37,7]],5],[[[77,108],[94,99],[93,96],[97,95],[92,86],[70,98],[67,95],[63,97],[68,106],[74,104]],7.6]]){
       const g=Gs(q);occMark(g);S.dy=groundMin(g)-.3;const ws=extrude(q,0.3,h,K.grey,K.groof);bands(ws,h>6?[[1.4,3.2],[5,6.8]]:[[1.4,3.4]],K.glass);}
-    const c=G(10,-40);MODELS['hospital-regional']={x:c[0],y:c[1],h:44};S.dy=0;}
+    const mc=G(10,-40);MODELS['hospital-regional']={x:mc[0],y:mc[1],h:44};S.dy=0;}

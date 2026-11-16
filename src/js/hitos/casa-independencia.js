@@ -7,7 +7,7 @@
   // barred windows and plank doors, clay-tile roofs on exposed rafters (the dark band under the eaves). Hipped roofs
   // as on the imagery. Approximate: the wings' widths (±1 m), the eave height (~4.4 m), the 1 Norte front and the
   // courtyard walls (no photos: the side's rhythm), the trees in the courtyards. Method: docs/METODOLOGIA.md §9.
-  {const F=localFrame(147.1,70.5,90.92*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(147.1,70.5,90.92*Math.PI/180),{G,V,R}=F;
     const K={...KH,wall:C('#A23B32'),wall2:C('#8F332B'),plinth:C('#7A2B25'),rafter:C('#4A2E26'),tile:C('#AE6446'),tile2:C('#97573D'),
       vano:C('#2E2C2B'),door:C('#4A3426'),patio:C('#CDBB9C'),grass:C('#6E9A48'),trunk:C('#6E5B48'),leaf:C('#5A8A3E'),leaf2:C('#4C7835')};
     const {box,WU,WV,rect}=facade(S,F,K);
@@ -45,4 +45,4 @@
     for(const [mk,s0,s1] of [[o=>WV(8.3,1,o),11.5,27],[o=>WV(20.5,-1,o),11.5,27],[o=>WU(11.5,1,o),8.3,20.5],[o=>WU(27,-1,o),8.3,20.5],
       [o=>WV(26,1,o),15,30.5],[o=>WV(38.8,-1,o),15,30.5],[o=>WU(15,1,o),26,38.8],[o=>WU(30.5,-1,o),26,38.8]]){const w=mk(.06);
       rect(w,s0,s1,0.3,0.8,K.plinth);for(let s=s0+2.5;s<s1-1.5;s+=4)rect(mk(.12),s-.6,s+.6,0.3,2.8,K.door);}
-    const c=G(18.6,21.4);MODELS['casa-independencia']={x:c[0],y:c[1],h:9};S.dy=0;}
+    const mc=G(18.6,21.4);MODELS['casa-independencia']={x:mc[0],y:mc[1],h:9};S.dy=0;}

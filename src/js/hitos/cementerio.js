@@ -16,7 +16,7 @@
   // gabled vaults), the number and place of the mausoleums and trees (read from the imagery), the heights (no dated photo
   // of the interior), the roofs' colours, the pavilion and the dome (only seen from above), the yard's sheds and the
   // rubble. No lights: nothing says the cemetery is lit.
-  {const F=localFrame(-4,2120,75.3*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(-4,2120,75.3*Math.PI/180),{G,Gs,R}=F;
     const K={...KH,soil:C('#BBA680'),field:C('#B39A74'),path:C('#DCD0B4'),wall:C('#DDC768'),wall2:C('#C9B25A'),
       grave:['#E8E4DA','#D3CFC5','#BDB8AE','#CFC2B2','#A8A49C'].map(C),niche:C('#D4CFC3'),niche2:C('#BFBAAE'),tile:C('#7E5240'),tile2:C('#6C4636'),
       zinc:C('#B5B8B5'),zinc2:C('#A3A7A5'),dark:C('#2C3540'),cu:C('#3F6B5A'),cu2:C('#4D7C68'),
@@ -36,7 +36,7 @@
     // free(): a rectangle inside the ring and off every obstacle; the graves ask it along rows of the same v, so the
     // ring's crossings at each v are kept (pipRow: the same answers as pip)
     const ROWS=new Map(),inRow=(u,v)=>{let xs=ROWS.get(v);if(!xs)ROWS.set(v,xs=pipRow(UV,v,[]));let n=0;for(const x of xs)if(u<x)n++;return n%2===1;};
-    const free=(u0,v0,u1,v1)=>inRow(u0,v0)&&inRow(u1,v0)&&inRow(u1,v1)&&inRow(u0,v1)&&!onOB(u0,v0,u1,v1);
+    const freeRect=(u0,v0,u1,v1)=>inRow(u0,v0)&&inRow(u1,v0)&&inRow(u1,v1)&&inRow(u0,v1)&&!onOB(u0,v0,u1,v1);
     const rr=rng(8611);
     // ---- the ground: soil under all (0.11), the empty field (0.12), the paths (0.13); draped on the terrain (no pad)
     // main avenue, cross avenues and the paths along the walls (u, v): the map's own tracks lie on them (class 7)
@@ -96,8 +96,8 @@
       for(let v=v0;v+tl<=v1;v+=pv,row++){const h=row%2?.6:.85;let run=[],u=u0;
         const flush=()=>{if(!run.length)return;const a=run[0],b=run[run.length-1]+tw,base=K.grave[row%2],q=R(a,v,b,v+tl);S.dy=groundMin(q);S.prism(q,.3,.3+h,shade(base,.8),base,false);
           for(const x of run){const col=r()<.14?K.grave[4]:r()<.5?K.grave[0]:K.grave[1];S.face(R(x,v,x+tw,v+tl).map(p=>[p[0],.3+h,-p[1]]),[0,1,0],col);}run=[];};
-        for(;u+tw<=u1;u+=pu){if(r()>dens||!free(u,v,u+tw,v+tl)){flush();continue;}
-          if(r()<.045&&free(u-.3,v-.3,u+2.3,v+3)){flush();const q=R(u,v,u+2.1,v+2.6);S.dy=groundMin(q);S.gable(q,.3,2.3,.9,r()<.5?K.stone:K.white,r()<.5?K.tile:K.tile2);ob(u-.3,v-.3,u+2.4,v+2.9);u+=1.5;continue;}
+        for(;u+tw<=u1;u+=pu){if(r()>dens||!freeRect(u,v,u+tw,v+tl)){flush();continue;}
+          if(r()<.045&&freeRect(u-.3,v-.3,u+2.3,v+3)){flush();const q=R(u,v,u+2.1,v+2.6);S.dy=groundMin(q);S.gable(q,.3,2.3,.9,r()<.5?K.stone:K.white,r()<.5?K.tile:K.tile2);ob(u-.3,v-.3,u+2.4,v+2.9);u+=1.5;continue;}
           run.push(u);if(run.length>=3+Math.floor(r()*3))flush();}
         flush();}S.dy=0;};
     // niche walls: four tiers (3.2 m), the long faces in two alternating tones by tier, a white coping on top
@@ -116,7 +116,7 @@
     // a ring of red pillars, the four columns with copper plaques in the middle
     {const mc=[46.9,87.6],ring=ngon(mc[0],mc[1],9.8,24);
       for(let i=0;i<24;i++){const a=ring[i],b=ring[(i+1)%24],ang=Math.atan2(a[1]-mc[1],a[0]-mc[0]);if(Math.abs(ang+Math.PI/2)<.34)continue; // the south opening
-        const m=[(a[0]+b[0])/2,(a[1]+b[1])/2],l=Math.hypot(b[0]-a[0],b[1]-a[1]),dx=(m[0]-mc[0])/9.8,dy=(m[1]-mc[1])/9.8;
+        const m=[(a[0]+b[0])/2,(a[1]+b[1])/2],dx=(m[0]-mc[0])/9.8,dy=(m[1]-mc[1])/9.8;
         const q=[[a[0],a[1]],[b[0],b[1]],[b[0]-dx*.9,b[1]-dy*.9],[a[0]-dx*.9,a[1]-dy*.9]].map(p=>G(p[0],p[1]));S.dy=groundMin(q);S.prism(q,.3,1.7,K.stone,K.stone2);}
       for(let k=0;k<3;k++){const q=Gs([[mc[0]-2.8,mc[1]-10.6-k*.7+.7],[mc[0]+2.8,mc[1]-10.6-k*.7+.7],[mc[0]+2.8,mc[1]-10.6-k*.7],[mc[0]-2.8,mc[1]-10.6-k*.7]]);S.dy=groundMin(q);S.prism(q,.3,.3+.25*(3-k),K.stone2,K.stone);}
       for(let i=0;i<14;i++){const a=i/14*Math.PI*2+.2;if(Math.abs(a-1.5*Math.PI)<.5||Math.abs(a+.5*Math.PI)<.5)continue;
@@ -133,7 +133,7 @@
       shed(-24,106,-14,114,K.white,K.zinc);shed(-8,112,14,120,K.white2,K.zinc2);shed(-12,121,2,127,K.white,K.zinc);shed(16,111,22,125,K.white2,K.zinc);
       shed(-103,60.5,-97,65,K.white,K.zinc);
       // heaps of rubble in the yard
-      const r=rng(77);for(let i=0;i<26;i++){const u=-20+r()*50,v=104+r()*34,s=1.2+r()*2.4;if(u<-26||!inR(u,v)||!free(u-s,v-s,u+s,v+s))continue;const q=R(u-s,v-s*.8,u+s,v+s*.8);S.dy=groundMin(q);S.prism(q,.3,.3+s*.45,K.rubble,K.rubble);}
+      const r=rng(77);for(let i=0;i<26;i++){const u=-20+r()*50,v=104+r()*34,s=1.2+r()*2.4;if(u<-26||!inR(u,v)||!freeRect(u-s,v-s,u+s,v+s))continue;const q=R(u-s,v-s*.8,u+s,v+s*.8);S.dy=groundMin(q);S.prism(q,.3,.3+s*.45,K.rubble,K.rubble);}
       // the walled lot at the north-west of the field
       wallPath(Gs([[-57,230],[-25,230],[-25,255],[-57,255]]),true,2.2,.5,K.white2,K.white,[],1);
       {const q=R(-56,231,-26,254);S.dy=groundMin(q);}ob(-58,229,-24,256);
@@ -150,4 +150,4 @@
       field(-123,-80,-2,-50,70,1.3);field(35,-80,94,-50,38,1.3);field(-123,-48,94,56,44,1.0);field(-52,-208,-4,-148,16,.9);field(62,-232,95,-160,10,1.0);
       for(const [u,v] of [[70,45],[88,18],[75,5],[93,38]])t(u,v,1.2);t(-44,159,1.2);
       for(const sd of [-1,1])for(let v=-236;v<56;v+=8.5){if(rr()<.2||(v>-110&&v<-105)||(v>55&&v<62))continue;const u=29.5+sd*6,p=G(u,v);if(inTerrain(p[0],p[1]))PO_FIELD.push([p[0],p[1],.75+rr()*.2,rr()*.2]);}}
-    const m=G(0,0);MODELS['cementerio']={x:m[0],y:m[1],h:8};S.dy=0;}
+    const ctr=G(0,0);MODELS['cementerio']={x:ctr[0],y:ctr[1],h:8};S.dy=0;}

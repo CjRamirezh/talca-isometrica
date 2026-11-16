@@ -17,7 +17,7 @@
       pave:C('#D8D1C1'),pave2:C('#CCC4B2'),pitch:C('#7D8E8C'),line:C('#F3F0E6'),
       red:C('#C8312A'),blue:C('#2C4A8C'),stone:C('#7F8A80'),stone2:C('#6F7A71'),bronze:C('#3C4540'),bronze2:C('#2F3632'),
       tile:C('#ADABA4'),tile2:C('#9D9B94')};
-    const {box,WL,WV,WU,rect,arch,hipped}=facade(S,F,K);
+    const {box,WV,WU,rect,arch,hipped}=facade(S,F,K);
     // the grounds: no procedural lots inside the school's fence; level pad under all of it
     const site=Gs([[-40,-30],[-36,-33],[8,-33],[9,-31],[10,-29],[20,-29],[22,-31],[22,-33],[69,-34],[73,-30],[71,92],[68,95],[-41,94]]);
     NOLOTS.push(site);
@@ -84,4 +84,4 @@
       box(su-.85,sv-.85,su+.85,sv+.85,3,3.35,K.stone2,K.stone);
       box(su-.45,sv-.35,su+.45,sv+.35,3.35,4.6,K.bronze,K.bronze2);box(su-.35,sv-.3,su+.35,sv+.3,4.6,5.4,K.bronze2,K.bronze);
       box(su-.2,sv-.2,su+.2,sv+.2,5.4,5.85,K.bronze,K.bronze);box(su-.85,sv-.3,su-.45,sv+.3,3.35,4.1,K.bronze2,K.bronze2);}
-    const c=G(16,-12);MODELS['liceo-abate-molina']={x:c[0],y:c[1],h:21};S.dy=0;}
+    const mc=G(16,-12);MODELS['liceo-abate-molina']={x:mc[0],y:mc[1],h:21};S.dy=0;}

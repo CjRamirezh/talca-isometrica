@@ -8,11 +8,11 @@
   // (east) and the main block (west); a pale green roof with a skylight over the centre. Behind a white palisade fence
   // (not drawn: too thin) and a paved yard. Approximate: the depth of the glazed porch, the rear and east faces (no
   // views; windows drawn by floor), the skylight's size. Method: docs/METODOLOGIA.md §9.
-  {const F=localFrame(-285.5,577.4,92.4*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(-285.5,577.4,92.4*Math.PI/180),{G,Gs,R}=F;
     const K={...KH,brick:C('#A6553D'),brick2:C('#984D37'),roof:C('#B3BFA3'),sky:C('#3B4653'),
       glass:C('#4C6B78'),glass2:C('#405D69'),mull:C('#8C9CA3'),win:C('#3B4653'),door:C('#2E3A40'),col:C('#EEEBE3'),
       pave:C('#CFCAC0'),pave2:C('#C2BDB2'),flagb:C('#2D4F9A'),flagr:C('#C8352B')};
-    const {box,WL,WV,WU,rect}=facade(S,F,K);
+    const {box,WL,WV,rect}=facade(S,F,K);
     const H=12.5,HT=H-.03,FL=[0.3,4.5,8.5]; // roof line (walls stop 3 cm under it); floor levels
     // footprint (OSM) plus the paved yard to the Alameda's sidewalk
     const fp=Gs([[-16,-28],[19,-28],[19,29],[-16,29]]);
@@ -43,4 +43,4 @@
       for(let u=-11.6;u<-1;u+=3)S.prism(Gs(ngon(u,-13.8,.3,8)),0.3,11,K.col,K.col,false);}
     // roof: the skylight over the central hall, plant boxes
     box(-6,12,14,19,H,H+1.2,K.white,K.sky);box(10,-4,15,0,H,H+1.3,K.white,K.white);box(-12,22,-8,26,H,H+1,K.white,K.white);
-    const c=G(1.5,8);MODELS['garantia-top']={x:c[0],y:c[1],h:14};S.dy=0;}
+    const mc=G(1.5,8);MODELS['garantia-top']={x:mc[0],y:mc[1],h:14};S.dy=0;}

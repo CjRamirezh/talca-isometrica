@@ -13,7 +13,7 @@
   // the satellite image and the usual look of Chilean army barracks (cream walls, red tile, rust zinc); the two floors
   // of the barracks, the windows, the number and size of the trees and the dry-grass colours are approximate, and the
   // imagery may be years old. The parade ground has no flagpole: nothing shows one. No lights: nothing documents them.
-  {const F=localFrame(150,1480,Math.PI/2),{G,Gs,V,R}=F;
+  {const F=localFrame(150,1480,Math.PI/2),{G,Gs,R}=F;
     const K={...KH,soil:C('#B8A27C'),dry:C('#B7A57E'),dry2:C('#B3A07A'),lawn:C('#7FA14F'),lawn2:C('#8FAE58'),asph:C('#7D7B76'),asph2:C('#6E6C68'),yard:C('#9A988F'),track:C('#C49A72'),pitch:C('#9DA66A'),pitch2:C('#8E9A5E'),line:C('#F1EEE4'),road:C('#CDB88F'),
       cream:C('#E6D8B4'),cream2:C('#D9CDB0'),rustR:C('#8F5240'),rustR2:C('#7F4636'),teja:C('#B3412E'),teja2:C('#9A3828'),olive:C('#7C7860'),olive2:C('#6C6853'),zinc:C('#B8BAB6'),zinc2:C('#A5A8A4'),metal:C('#E4E4DE'),metal2:C('#D2D3CD'),
       wall:C('#DDD3BA'),pool:C('#5BB0D6'),poolE:C('#E6E2D6'),dark:C('#5A4636')};
@@ -59,7 +59,6 @@
         if(alongU){for(const [v,sg] of [[v0,-1],[v1,1]]){const w=WV(v,sg,.06);for(let s=u0+3;s<u1-2;s+=3.6)rect(w,s,s+1.2,h0,h1,K.glass);}}
         else for(const [u,sg] of [[u0,-1],[u1,1]]){const w=WU(u,sg,.06);for(let s=v0+3;s<v1-2;s+=3.6)rect(w,s,s+1.2,h0,h1,K.glass);}}
       bl(u0,v0,u1,v1);occMark(q);S.dy=0;};
-    const RUST=[K.rustR,K.rustR2];
     // the old barracks: two rows of long blocks, two floors, rust zinc roofs
     bld(-45,46,-31,120,{fl:2,roof:K.rustR});bld(-15,47,0,89,{fl:2,roof:K.rustR2});bld(-45,-30,-31,35,{fl:2,roof:K.rustR2});bld(-16,-10,0,34,{fl:2,roof:K.teja});
     bld(-16,-41,0,-10,{fl:1,roof:K.metal,wall:K.cream2,win:false});bld(14,-40,21,-15,{fl:1,roof:K.metal,wall:K.cream2,win:false});

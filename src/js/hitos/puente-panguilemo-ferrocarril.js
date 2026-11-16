@@ -23,8 +23,8 @@
     const a=[7523.1,8820.4],b=[7531.0,8842.5]; // b: the middle of OSM's bridge, ~3 m inside the limit
     const da=[(b[0]-a[0])/Math.hypot(b[0]-a[0],b[1]-a[1]),(b[1]-a[1])/Math.hypot(b[0]-a[0],b[1]-a[1])],a0=[a[0]-da[0]*8,a[1]-da[1]*8];
     // the old viaduct: frame along OSM's way, module of 7.5 m (8 arches in 60 m), piers 1.4 m, half width 2.5 m
-    const A=[7503.4,8803.3],B=[7531.2,8871.5],VL=Math.hypot(B[0]-A[0],B[1]-A[1]),vx=(B[0]-A[0])/VL,vy=(B[1]-A[1])/VL,ang=Math.atan2(vy,vx);
-    const M=7.5,PW=1.4,R=(M-PW)/2,HW=2.5,T0=(VL-8*M)/2,at=(t,n)=>[A[0]+vx*t-vy*n,A[1]+vy*t+vx*n];
+    const A=[7503.4,8803.3],AB=[7531.2,8871.5],VL=Math.hypot(AB[0]-A[0],AB[1]-A[1]),vx=(AB[0]-A[0])/VL,vy=(AB[1]-A[1])/VL,ang=Math.atan2(vy,vx);
+    const M=7.5,PW=1.4,R=(M-PW)/2,HW=2.5,T0=(VL-8*M)/2,at=(t,o)=>[A[0]+vx*t-vy*o,A[1]+vy*t+vx*o];
     let n=0;while(n<8&&inTerrain(...at(T0+(n+1)*M+PW/2,0)))n++;            // the arches wholly inside the commune
     let Ew=1e9;for(let t=T0;t<=T0+n*M;t+=2)Ew=Math.min(Ew,E(...at(t,0)));
     const HV=Ew+6.5,HI=HV-.95-R,H=HV+3;                                        // old top, impost, the new deck

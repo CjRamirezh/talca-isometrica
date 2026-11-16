@@ -8,7 +8,7 @@
   // out behind vertical timber louvres. Approximate: the heights (±1.5 m, scaled from the photos), the west and
   // south sides (no photos), the brown box by the cylinder (2017 photo). The timber soffits can't be seen from
   // above, so the visor's roof edge carries a band of their colour (licence); the lobby's night glow is licence too.
-  {const F=localFrame(97.9,442.2,1.4*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(97.9,442.2,1.4*Math.PI/180),{G,Gs,V,N3}=F;
     const K={...KH,wall:C('#E2D2A6'),wall2:C('#CDBB8E'),tower:C('#ECE5D1'),roof:C('#C8C5BC'),roof2:C('#B5B2A9'),white:C('#F1EEE6'),
       wood:C('#B0663A'),louvre:C('#C49A6C'),brown:C('#6E4B3A'),
       plant:C('#B9B4A8'),tile:C('#D9D6CC'),tile2:C('#D9D6CC')};
@@ -50,4 +50,4 @@
     box(-22.6,-31,-20.5,-18,0.3,0.55,K.step2,K.step);box(-21.8,-31,-20.5,-18,0.55,0.8,K.step2,K.step2);
     // the glazed lobby glows at night, in front of its leaning glass (licence)
     for(const v of [-29,-24,-19]){const g=G(-21.9,v);GLOW.push(g[0],S.dy+8,g[1]);}
-    const c=G(-6,-5);MODELS['teatro-regional']={x:c[0],y:c[1],h:21};S.dy=0;}
+    const mc=G(-6,-5);MODELS['teatro-regional']={x:mc[0],y:mc[1],h:21};S.dy=0;}

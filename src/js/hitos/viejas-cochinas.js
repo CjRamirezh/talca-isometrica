@@ -26,4 +26,4 @@
       rect(WU(10,1,.06),(v0+v1)/2-.6,(v0+v1)/2+.6,.3,2.3,K.door);}
     // four chimneys for the wood fireplaces on the road-side slope
     for(const v of [-14,-5,5,14]){box(-3.1,v-.5,-1.9,v+.5,3.6,6.4,K.brick,K.brick);box(-3.25,v-.65,-1.75,v+.65,6.4,6.6,K.white,K.white);}
-    const m=G(2,0);MODELS['viejas-cochinas']={x:m[0],y:m[1],h:7};S.dy=0;}
+    const mc=G(2,0);MODELS['viejas-cochinas']={x:mc[0],y:mc[1],h:7};S.dy=0;}

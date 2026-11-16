@@ -25,7 +25,6 @@
       car:['#E8E8E4','#E8E8E4','#E8E8E4','#BBBFC0','#BBBFC0','#3A3D42','#3A3D42','#A8453D','#4F6D8C'].map(C),carGl:C('#2C3540'),
       tractor:[C('#3F7D3A'),C('#B23A2E'),C('#3F7D3A'),C('#D9A532')],cab:C('#3B4653')};
     // the lot (w595485838), in grid metres
-    const LOT=[[-1195,891],[-1297,680],[-1317,639],[-1192,624],[-1049,601],[-1031,596],[-990,590],[-989,556],[-941,557],[-935,601],[-928,661],[-913,715],[-874,819]];
     // what is reserved: the lot out to the map's 5 Norte and the west carriageway of Circunvalación, which run 10–20 m
     // outside its fence (the strips hold trees, not the houses cityGen would put there)
     const RES=[[-1204,906],[-1297,680],[-1317,639],[-1192,624],[-1049,601],[-1031,596],[-990,590],[-989,556],[-927,548],[-919,634],[-915,666],[-911,681],[-858,803],[-860,824],[-874,829],[-905,844]];
@@ -42,7 +41,7 @@
     ownTracks(RES);
     const inAxis=(u,v)=>u<-30&&Math.abs(v)<9.5,inDrive=(u,v)=>u>-95&&u<4&&Math.abs(v-50)<6.5,
       nearRoad=(u,v,d)=>[SROAD,EROAD,NROAD,NDRIVE].some(p=>{for(let i=0;i+1<p.length;i++)if(segDist2(u,v,...p[i],...p[i+1])<d*d)return true;return false;}),
-      free=(u,v)=>!inAxis(u,v)&&!nearRoad(u,v,7.5); // a lawn's or a bay's piece that leaves the axis and the roads alone
+      freeAt=(u,v)=>!inAxis(u,v)&&!nearRoad(u,v,7.5); // a lawn's or a bay's piece that leaves the axis and the roads alone
     onFinalTerrain(()=>{ // draw on the final terrain (the Estadio's pad reaches Circunvalación)
     // ---- the ground, draped on the terrain
     {const {G:Lg,lay,done}=groundLayer(S,1<<16);
@@ -54,11 +53,11 @@
       band(0,RO,0,2*Math.PI,4,.125,K.pave);
       const T0=128*D2R,T1=300*D2R;
       band(75.5,82,T0-8*D2R,T1,4,.14,K.asph);band(96,102.5,T0-8*D2R,T1,4,.14,K.asph);
-      band(108,111,T0-14*D2R,T1+6*D2R,4,.14,K.pave2,(u,v)=>!free(u,v));band(111,RO,T0-14*D2R,T1+6*D2R,4,.14,i=>i%2?K.lawn:K.lawn2,(u,v)=>!free(u,v));
-      band(62,70,T0,T1,4,.14,i=>i%2?K.lawn:K.lawn2,(u,v)=>!free(u,v));band(87.5,90.5,T0,T1,4,.155,K.lawn,(u,v)=>!free(u,v)||inDrive(u,v));
+      band(108,111,T0-14*D2R,T1+6*D2R,4,.14,K.pave2,(u,v)=>!freeAt(u,v));band(111,RO,T0-14*D2R,T1+6*D2R,4,.14,i=>i%2?K.lawn:K.lawn2,(u,v)=>!freeAt(u,v));
+      band(62,70,T0,T1,4,.14,i=>i%2?K.lawn:K.lawn2,(u,v)=>!freeAt(u,v));band(87.5,90.5,T0,T1,4,.155,K.lawn,(u,v)=>!freeAt(u,v)||inDrive(u,v));
       // the bays, a tone each (the pixel-art stripe of the painted lines)
       for(const [r0,r1] of [[70,75.5],[82,87.5],[90.5,96],[102.5,108]])
-        band(r0,r1,T0,T1,2.5,.155,i=>i%2?K.bay:K.bay2,(u,v)=>!free(u,v)||inDrive(u,v));
+        band(r0,r1,T0,T1,2.5,.155,i=>i%2?K.bay:K.bay2,(u,v)=>!freeAt(u,v)||inDrive(u,v));
       for(const p of [SROAD,EROAD,NROAD,NDRIVE])ribbon(Lg,Gs(p),9,.14,K.asph);
       ribbon(Lg,Gs(SROAD),.5,.17,K.line);
       // the pedestrian axis from the west, in two-tone bands, and the water channel along the façade
@@ -74,13 +73,13 @@
     const hG=groundMax(fp);S.dy=hG;
     // a wall of vertical stripes along a→b (u, v), outward normal n, between y0 and y1 (relative to S.dy), `w` metres each
     const stripes=(a,b,y0,y1,w,c0,c1,o=.06)=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1]),tu=(b[0]-a[0])/L,tv=(b[1]-a[1])/L,nu=tv,nv=-tu,n=N3(nu,nv);
-      for(let s=0,k=0;s<L-.01;s+=w,k++){const e=Math.min(L,s+w),A=[a[0]+tu*s+nu*o,a[1]+tv*s+nv*o],B=[a[0]+tu*e+nu*o,a[1]+tv*e+nv*o];
-        S.face([V(A[0],A[1],y0),V(B[0],B[1],y0),V(B[0],B[1],y1),V(A[0],A[1],y1)],n,k%2?c1:c0);}};
+      for(let s=0,k=0;s<L-.01;s+=w,k++){const e=Math.min(L,s+w),A=[a[0]+tu*s+nu*o,a[1]+tv*s+nv*o],BB=[a[0]+tu*e+nu*o,a[1]+tv*e+nv*o];
+        S.face([V(A[0],A[1],y0),V(BB[0],BB[1],y0),V(BB[0],BB[1],y1),V(A[0],A[1],y1)],n,k%2?c1:c0);}};
     // the four sides of a rectangle, counter-clockwise so that the normal (tv, −tu) points out
     const sides=q=>[[q[0],q[1]],[q[1],q[2]],[q[2],q[3]],[q[3],q[0]]];
     // a cylinder of n facets with its colour per facet
-    const cyl=(c,r,y0,y1,n,col,o=0)=>{for(let i=0;i<n;i++){const a=i/n*2*Math.PI,b=(i+1)/n*2*Math.PI,m=(a+b)/2,A=P(r+o,a),B=P(r+o,b);
-      S.face([V(c[0]+A[0],c[1]+A[1],y0),V(c[0]+B[0],c[1]+B[1],y0),V(c[0]+B[0],c[1]+B[1],y1),V(c[0]+A[0],c[1]+A[1],y1)],N3(Math.cos(m),Math.sin(m)),col(i));}};
+    const cyl=(c,r,y0,y1,n,col,o=0)=>{for(let i=0;i<n;i++){const a=i/n*2*Math.PI,b=(i+1)/n*2*Math.PI,m=(a+b)/2,A=P(r+o,a),BB=P(r+o,b);
+      S.face([V(c[0]+A[0],c[1]+A[1],y0),V(c[0]+BB[0],c[1]+BB[1],y0),V(c[0]+BB[0],c[1]+BB[1],y1),V(c[0]+A[0],c[1]+A[1],y1)],N3(Math.cos(m),Math.sin(m)),col(i));}};
     // piles: a dark core under the deck (the shadow between them) and a row of piles along the edges, each on its own ground
     S.prism(Gs(rect(BX[0]+4,BX[1]+4,BX[2]-4,BX[3]-4)),0,DK,K.dark,K.dark,false);S.prism(Gs(ngon(DC[0],DC[1],DR-4,24)),0,DK,K.dark,K.dark,false);
     {const pile=(u,v)=>{const g=G(u,v),e=E(g[0],g[1]);S.dy=e;S.prism(rotRect(g[0],g[1],.7,.7),0,hG+DK-e,K.slab,K.slab,false);};
@@ -135,8 +134,8 @@
         S.dy=E(g[0],g[1]);S.prism(rotRect(g[0],g[1],4.2,1.8,t),.13,1,c,c);S.prism(rotRect(g[0],g[1],2.2,1.6,t),1,1.55,K.carGl,c);};
       const T0=128*D2R,T1=300*D2R;
       for(const [r0,r1] of [[70,75.5],[82,87.5],[90.5,96],[102.5,108]]){const rm=(r0+r1)/2,n=Math.round((T1-T0)*rm/2.5);
-        for(let i=0;i<n;i++){const t=T0+(T1-T0)*(i+.5)/n,p=P(rm,t);if(!free(...p)||inDrive(...p)||p[1]>VMAX-2.5)continue;if(rr()<.5)car(rm,t);}}
-      for(let t=T0+2*D2R,k=0;t<T1;t+=9/89,k++){const p=P(89,t);if(!free(...p)||inDrive(...p)||p[1]>VMAX)continue;const g=G(...p);
+        for(let i=0;i<n;i++){const t=T0+(T1-T0)*(i+.5)/n,p=P(rm,t);if(!freeAt(...p)||inDrive(...p)||p[1]>VMAX-2.5)continue;if(rr()<.5)car(rm,t);}}
+      for(let t=T0+2*D2R,k=0;t<T1;t+=9/89,k++){const p=P(89,t);if(!freeAt(...p)||inDrive(...p)||p[1]>VMAX)continue;const g=G(...p);
         if(k%3===1){S.dy=E(g[0],g[1]);S.prism(rotRect(g[0],g[1],.3,.3),0,7,K.iron,K.iron,false);S.prism(rotRect(g[0],g[1],.8,.8),7,7.35,K.iron,K.lamp);GLOW.push(g[0],S.dy+7.6,g[1]);}
         else if(inTerrain(g[0],g[1]))TREES.push([g[0],g[1],.95+rr()*.3,rr()]);}}
     // ---- palms along the axis and the inner lawn; lamps along the axis; palms and trees on the plaza north of the box

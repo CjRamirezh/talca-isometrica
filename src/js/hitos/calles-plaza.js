@@ -29,13 +29,13 @@
     const J=[...ends].filter(([k,c])=>c>=3).map(([k])=>k.split(',').map(Number)).filter(([x,y])=>inZ(x,y));
     const nearJ=(x,y,r)=>J.some(j=>Math.hypot(j[0]-x,j[1]-y)<r);
     const curb=s=>swOf(s)/2-walkOf(s); // from the axis to the curb
-    const ground=(x,y)=>E(x,y)+WALK_Y;
+    const walkY=(x,y)=>E(x,y)+WALK_Y;
     // a street lamp: a base, the pole, a cream lantern under a cap; its light in GLOW
-    const lamp=(x,y)=>{S.dy=ground(x,y);const sq=(r)=>[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r]];
+    const lamp=(x,y)=>{S.dy=walkY(x,y);const sq=(r)=>[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r]];
       S.prism(sq(.35),0,.7,K.iron2,K.iron2);S.prism(sq(.2),.7,3.7,K.iron,K.iron);S.prism(sq(.35),3.7,4.3,K.lantern,K.lantern);
       S.prism(sq(.45),4.3,4.5,K.iron,K.iron);S.prism(sq(.2),4.5,4.8,K.iron,K.iron);GLOW.push(x,S.dy+4,y);};
     // a traffic light: a grey pole and a black head facing (fx, fy), the red lamp lit
-    const light=(x,y,fx,fy)=>{S.dy=ground(x,y);const sq=(r)=>[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r]];S.prism(sq(.2),0,3.5,K.grey,K.grey);
+    const light=(x,y,fx,fy)=>{S.dy=walkY(x,y);const sq=(r)=>[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r]];S.prism(sq(.2),0,3.5,K.grey,K.grey);
       const lx=-fy,ly=fx,hx=x+fx*.3,hy=y+fy*.3,H=(u,v)=>[hx+lx*u+fx*v,hy+ly*u+fy*v];
       S.prism([H(-.3,-.25),H(.3,-.25),H(.3,.25),H(-.3,.25)],2.4,3.6,K.black,K.black);
       const f=(u,v,h)=>{const p=H(u,v);return [p[0],S.dy+h,-p[1]];};
@@ -55,8 +55,8 @@
     // junction (its corner of the plaza); the pole on their right-hand curb, the head facing them
     let ns=0;
     for(const [cx,cy] of (DATA.plaza&&DATA.plaza.sem)||[]){if(!inZ(cx,cy))continue;let best=null;
-      for(const s of sts)for(let i=0;i+1<s.pts.length;i++){const a=s.pts[i],b=s.pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1)continue;const tx=(b[0]-a[0])/L,ty=(b[1]-a[1])/L;
-        const u=Math.max(0,Math.min(L,(cx-a[0])*tx+(cy-a[1])*ty)),px=a[0]+tx*u,py=a[1]+ty*u,d=Math.hypot(cx-px,cy-py);if(!best||d<best.d)best={d,s,px,py,tx,ty};}
+      for(const st of sts)for(let i=0;i+1<st.pts.length;i++){const a=st.pts[i],b=st.pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1)continue;const ux=(b[0]-a[0])/L,uy=(b[1]-a[1])/L;
+        const u=Math.max(0,Math.min(L,(cx-a[0])*ux+(cy-a[1])*uy)),qx=a[0]+ux*u,qy=a[1]+uy*u,d=Math.hypot(cx-qx,cy-qy);if(!best||d<best.d)best={d,s:st,px:qx,py:qy,tx:ux,ty:uy};}
       if(!best||!J.length)continue;const {s,px,py}=best;let {tx,ty}=best;
       const j=J.reduce((m,q)=>Math.hypot(q[0]-cx,q[1]-cy)<Math.hypot(m[0]-cx,m[1]-cy)?q:m);
       if((cx-j[0])*tx+(cy-j[1])*ty<0){tx=-tx;ty=-ty;} // (tx, ty): toward where the cars come from

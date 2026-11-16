@@ -102,13 +102,13 @@ function deckBridge(S,K,pts,hw,hAt,o){const sm=[];
 const HITOS_T={},HITOS_H=window.__HITOS_HASH?{}:null;window.__hitos={t:HITOS_T,h:HITOS_H};
 function hitoClock(B,S){let t=performance.now();const last={S:[S.nv,S.ni],B:[B.nv,B.ni]};
   const fnv=(h,u)=>{for(let i=0;i<u.length;i++)h=Math.imul(h^u[i],16777619);return h>>>0;};
-  const bytes=a=>new Uint8Array(a.buffer,a.byteOffset,a.byteLength),hex=h=>h.toString(16).padStart(8,'0');
-  const txt=x=>{const s=JSON.stringify(x,(k,v)=>typeof v==='function'?undefined:v instanceof RegExp?String(v):v)??'';let h=0x811c9dc5;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return hex(h>>>0);};
+  const bytes=a=>new Uint8Array(a.buffer,a.byteOffset,a.byteLength),hx=h=>h.toString(16).padStart(8,'0');
+  const txt=x=>{const s=JSON.stringify(x,(k,v)=>typeof v==='function'?undefined:v instanceof RegExp?String(v):v)??'';let h=0x811c9dc5;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return hx(h>>>0);};
   const gb=(G,k)=>{const [v0,i0]=last[k];let h=0x811c9dc5;h=fnv(h,bytes(G.P.subarray(v0*3,G.nv*3)));h=fnv(h,bytes(G.N.subarray(v0*3,G.nv*3)));
-    h=fnv(h,bytes(G.C.subarray(v0*3,G.nv*3)));h=fnv(h,bytes(G.I.subarray(i0,G.ni).map(i=>i-v0)));last[k]=[G.nv,G.ni];return hex(h)+'/'+(G.nv-v0);};
-  const grid=g=>{let h=0x811c9dc5;g.c.forEach((c,i)=>{if(c){h=fnv(h,new Uint8Array(new Uint32Array([i]).buffer));h=fnv(h,c);}});return hex(h);};
+    h=fnv(h,bytes(G.C.subarray(v0*3,G.nv*3)));h=fnv(h,bytes(G.I.subarray(i0,G.ni).map(i=>i-v0)));last[k]=[G.nv,G.ni];return hx(h)+'/'+(G.nv-v0);};
+  const grid=g=>{let h=0x811c9dc5;g.c.forEach((c,i)=>{if(c){h=fnv(h,new Uint8Array(new Uint32Array([i]).buffer));h=fnv(h,c);}});return hx(h);};
   return id=>{const n=performance.now();HITOS_T[id]=Math.round((n-t)*10)/10;
-    if(HITOS_H)HITOS_H[id]={S:gb(S,'S'),B:gb(B,'B'),dy:[S.dy,B.dy],occ:grid(occ),EH:hex(fnv(0x811c9dc5,bytes(EH))),
+    if(HITOS_H)HITOS_H[id]={S:gb(S,'S'),B:gb(B,'B'),dy:[S.dy,B.dy],occ:grid(occ),EH:hx(fnv(0x811c9dc5,bytes(EH))),
       models:txt(MODELS),pads:txt(PADS),glow:txt(GLOW),nolots:txt(NOLOTS),trees:txt(TREES),clear:txt([CLEAR,CLEAR_T,LAMP_SKIP]),
       rail:txt(RAIL_BR),streets:txt(streets.map(s=>[s.c,s.name,s.bridge,s.paint,s.lanes])),usos:txt(USOS.map(u=>u.keep))};
     t=performance.now();};}
@@ -203,7 +203,7 @@ function buildModels(B,S){ // S: models drawn without the window shader
   const wallPath=(pts,closed,h,w,wall,cap,gaps=[],sg=1)=>{
     for(let i=0;i<pts.length-(closed?0:1);i++){const a=pts[i],b=pts[(i+1)%pts.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.5)continue;
       const tx=(b[0]-a[0])/L,ty=(b[1]-a[1])/L,nx=-ty*sg,ny=tx*sg,cuts=[];
-      for(const [gx,gy,gr] of gaps){const t=(gx-a[0])*tx+(gy-a[1])*ty,d=Math.abs((gx-a[0])*nx+(gy-a[1])*ny);if(d<gr+w&&t>-gr&&t<L+gr)cuts.push([t-gr,t+gr]);}
+      for(const [gx,gy,gr] of gaps){const tg=(gx-a[0])*tx+(gy-a[1])*ty,d=Math.abs((gx-a[0])*nx+(gy-a[1])*ny);if(d<gr+w&&tg>-gr&&tg<L+gr)cuts.push([tg-gr,tg+gr]);}
       cuts.sort((p,q)=>p[0]-q[0]);
       const P=(s,o)=>[a[0]+tx*s+nx*o,a[1]+ty*s+ny*o],run=(s,e)=>{if(e-s<.4)return;const n=Math.ceil((e-s)/8);
         for(let k=0;k<n;k++){const s0=s+(e-s)*k/n,s1=s+(e-s)*(k+1)/n,q=[P(s0,0),P(s1,0),P(s1,w),P(s0,w)];S.dy=groundMin(q);

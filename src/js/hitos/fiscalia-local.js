@@ -10,7 +10,7 @@
   // to the box. The Esri imagery predates it (empty lot); the roof follows current Google imagery. Approximate: the
   // east and north faces (no views; drawn like the west face), the box's depth, the louvres' pattern, the rooftop
   // terrace. Method: docs/METODOLOGIA.md §9.
-  {const F=localFrame(-43.7,585.5,Math.PI/2),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(-43.7,585.5,Math.PI/2),{G,Gs,R}=F;
     const K={...KH,slate:C('#737981'),slate2:C('#686E76'),white:C('#E6E4DE'),conc:C('#C9C7C1'),roof:C('#9EA1A0'),deck:C('#B9AF9E'),
       panel:C('#C2C4C3'),panel2:C('#B3B6B6'),louv:C('#A9ADAF'),louv2:C('#868C90'),orange:C('#D27A3E'),
       glass:C('#3E5560'),glass2:C('#34474F'),mull:C('#8C9CA3'),win:C('#3B4653'),steel:C('#ECEBE6'),
@@ -37,7 +37,7 @@
       rect(w.at(.12),s0,s1,13,H,K.white);
       for(let s=s0+2;s<s1-1.5;s+=4.5)for(const d of [-.75,.75])rect(w.at(.12),s+d-.55,s+d+.55,1.5,2.7,K.win);};
     const W=WL([U0,V1],[U0,BV],[-1,0]);side(W,0,W.L,1);
-    const E=WL([U1,V0],[U1,V1],[1,0]);side(E,0,E.L,4);
+    const WE=WL([U1,V0],[U1,V1],[1,0]);side(WE,0,WE.L,4);
     const N=WL([U1,V1],[U0,V1],[0,1]);side(N,0,N.L,2);
     // the front's slate part: courses, two white bands, small framed windows, the big window, emblem and flagpoles
     {const w=WV(V0,-1),w2=WV(V0,-1,.09),w3=WV(V0,-1,.12);slate(w,BU,U1,0.3,H-.45);
@@ -63,4 +63,4 @@
       box(X0+.6,(Y0+BV)/2-.2,BU-.4,(Y0+BV)/2+.2,HB+2.3,HB+2.7,K.steel,K.steel);}
     // roof: terrace deck to the north-east, plant boxes
     S.quadXY(R(2,6,U1-1,V1-1),H+.05,K.deck);box(-10,-6,-4,0,H,H+1.4,K.plant,K.plant);box(-9,6,-4,12,H,H+1.1,K.plant,K.plant);
-    const c=G(0,-2);MODELS['fiscalia-local']={x:c[0],y:c[1],h:18};S.dy=0;}
+    const mc=G(0,-2);MODELS['fiscalia-local']={x:mc[0],y:mc[1],h:18};S.dy=0;}

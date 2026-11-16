@@ -87,9 +87,9 @@
       // pilaster at the vertex
       const pa=G(a[0]*1.01,a[1]*1.01);S.prism(rotRect(pa[0],pa[1],1.3,1.3,ang(i)),HF,ha,K.pil,K.pil);}
     // ---- six entrance wings at the tips (radial, 17 × 9 m, low flat roof with a white coping), taller at the NE and NW
-    for(let k=0;k<6;k++){const a=ang(2*k),c=G(...pol(44,a)),h=(k===1||k===2)?5.6:4.4,wq=rotRect(c[0],c[1],17,9,a),cq=rotRect(c[0],c[1],17.6,9.6,a);
-      S.prism(wq,HF,h,K.wall,K.wall,false);S.prism(cq,h,h+.4,K.white,K.wing);
-      const e=G(...pol(52.5+.06,a)),tx=-Math.sin(a),ty=Math.cos(a),nn=N3(Math.cos(a),Math.sin(a));
+    for(let k=0;k<6;k++){const a=ang(2*k),c=G(...pol(44,a)),h=(k===1||k===2)?5.6:4.4,wq2=rotRect(c[0],c[1],17,9,a),cq=rotRect(c[0],c[1],17.6,9.6,a);
+      S.prism(wq2,HF,h,K.wall,K.wall,false);S.prism(cq,h,h+.4,K.white,K.wing);
+      const e=G(...pol(52.5+.06,a)),tx=-Math.sin(a),ty=Math.cos(a);
       for(const [o0,o1,col] of [[-2.2,-.2,K.glass],[.2,2.2,K.glass],[-.2,.2,K.door]])
         S.face([[e[0]+tx*o0,HF,-(e[1]+ty*o0)],[e[0]+tx*o1,HF,-(e[1]+ty*o1)],[e[0]+tx*o1,HF+2.8,-(e[1]+ty*o1)],[e[0]+tx*o0,HF+2.8,-(e[1]+ty*o0)]],[Math.cos(a),0,-Math.sin(a)],col);}
     // round red kiosks around the walls and a dark shed in the south-west corner of the lawn

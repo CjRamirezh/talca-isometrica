@@ -14,7 +14,7 @@
   // trains leave from that face and the main line's from the east one. Approximate: heights (from the photos'
   // proportions), the roofs' colours (Esri imagery), the annex.
   // The pavilion's wall lamps (seen in the photos) glow at night.
-  {const F=localFrame(1498.8,-217,89.3*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(1498.8,-217,89.3*Math.PI/180),{G,Gs,R}=F;
     const K={...KH,grey:C('#A4A9AA'),grey2:C('#8E9394'),wood:C('#8A4A2E'),
       tile:C('#9CA1A3'),tile2:C('#8D9294'),gable:C('#ECE7DC'),conc:C('#B9B4AA'),conc2:C('#CAC5BB'),void:C('#45423E'),
       sroof:C('#767A7C'),sroof2:C('#6A6E70'),pave:C('#CFC7B0'),plat:C('#C8C2B4'),
@@ -36,7 +36,7 @@
     wing([-2.5,-19],[-2.5,0],[-1,0]);wing([-2.5,14],[-2.5,33],[-1,0]);wing([-2.5,33],[11,33],[0,1]);wing([-7,-25],[11,-25],[0,-1]);wing([-7,-19],[-7,-25],[-1,0]);
     // central pavilion: grey, three tall doors under transoms, a white cornice and a stepped attic
     box(-3.5,0,6,14,0.3,7.6,K.grey,K.tile2);pyramid(S,R(-3.8,-.3,6.3,14.3),7.6,1.8,K.tile);
-    {const w=WV(0,-1),wu=WU(-3.5,-1),wb=WU(-3.5,-1,.09),wp=WU(-3.5,-1,.12);rect(wu,0,14,0.3,FL+.3,K.grey2);rect(wb,0,14,7,7.6,K.white);
+    {const wu=WU(-3.5,-1),wb=WU(-3.5,-1,.09),wp=WU(-3.5,-1,.12);rect(wu,0,14,0.3,FL+.3,K.grey2);rect(wb,0,14,7,7.6,K.white);
       for(const c of [2.4,7,11.6]){rect(wb,c-1.5,c+1.5,FL+.3,FL+5,K.white);rect(wp,c-1.2,c+1.2,FL+.3,FL+3.5,K.wood);rect(wp,c-1.2,c+1.2,FL+3.8,FL+4.7,K.glass);}
       for(const [hw,h0,h1] of [[5,7.6,8.3],[3.4,8.3,9],[1.8,9,9.7]]){box(-3.5,7-hw,-2.3,7+hw,h0,h1,K.grey,K.grey2);rect(WU(-3.5,-1,.09),7-hw,7+hw,h1-.3,h1,K.white);}
       for(const c of [2.4,7,11.6]){const g=G(-4.2,c);GLOW.push(g[0],S.dy+FL+5.4,g[1]);}}
@@ -62,4 +62,4 @@
     RAIL_YARD.push({pts:Gs([[33.5,-130],[33.5,120]]),g:1.676},{pts:Gs([[38.5,-110],[38.5,110]]),g:1.676});
     for(const [u,v,w] of [[33.5,-130.4,2.2],[33.5,120.4,2.2],[38.5,-110.4,2.2],[38.5,110.4,2.2],[8.6,-29.5,1.6]])piece(v,v,()=>box(u-w/2,v-.4,u+w/2,v+.4,0.3,1.4,K.buffer,K.white));
     for(let v=-242;v<S0-1e-6;v+=24){const e=Math.min(S0,v+24);piece(v,e,(a,b)=>{box(10,a,17.4,b,0.3,1.0,K.plat,K.plat);S.quadXY(R(17.4,a,18,b),1.0,K.edge);box(17.4,a,18,b,0.3,0.99,K.plat,K.plat,false);});}
-    const c=G(10,8);MODELS.estacion={x:c[0],y:c[1],h:16};S.dy=0;}
+    const mc=G(10,8);MODELS.estacion={x:mc[0],y:mc[1],h:16};S.dy=0;}

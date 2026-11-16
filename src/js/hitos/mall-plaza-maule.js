@@ -10,7 +10,7 @@
   // a grey band, a white coping and the four-colour logo. Approximate: every height (none measured: ~12 m for the
   // mall, a 2-storey façade; vault and dome from the imagery's shadows; the hotel's slab ~24 m, five floors of rooms
   // on the casino), the dome's size, the hotel's split between slab and podium, the anchors' façades (no photos).
-  {const F=localFrame(3328.2,-322.5,74.7*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(3328.2,-322.5,74.7*Math.PI/180),{G,Gs,V,R}=F;
     const K={...KH,clad:C('#D9D5CC'),clad2:C('#C9C5BC'),roof:C('#B3AFA6'),roof2:C('#A8A49A'),roof3:C('#C4BFB3'),
       brick:C('#B07552'),band:C('#9A9A96'),glass:C('#4D5D66'),glass2:C('#3B4653'),vault:C('#D8D6CE'),vault2:C('#C6C3BA'),
       dome:C('#3E6F80'),dome2:C('#4A8396'),hvac:C('#8F8C86'),asph:C('#65615D'),stall:C('#716D68'),line:C('#E8E4DA'),
@@ -70,4 +70,4 @@
       for(let h=8.6;h<23;h+=3.2)rect(w,1,w.L-1,h,h+1.5,K.glass);
     box(45,-138,87,-119,7,13,K.hotel,K.roof3);S.quadXY(R(48,-134,58,-124),13.03,K.pool);
     for(const [u,v] of [[60,-185],[75,-170],[64,-155],[78,-148]])box(u-2,v-1.5,u+2,v+1.5,24,25.4,K.hvac,K.clad);
-    const m=G(-30,-70);MODELS['mall-plaza-maule']={x:m[0],y:m[1],h:20};S.dy=0;}
+    const mc=G(-30,-70);MODELS['mall-plaza-maule']={x:mc[0],y:mc[1],h:20};S.dy=0;}

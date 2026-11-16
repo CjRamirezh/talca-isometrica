@@ -6,10 +6,10 @@
   // the Esri imagery (date unknown). No photos found of the façades: they are drawn as a plain modern block (light
   // walls, a glazed ground floor, window bands between piers on the five upper floors, a low glazed entrance in
   // the cut corner), so colours, rhythm and the entrance are approximate; the height is OSM's six levels at ~3 m.
-  {const F=localFrame(528.5,309.4,90.8*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(528.5,309.4,90.8*Math.PI/180),{G,Gs}=F;
     const K={...KH,wall:C('#D9D2C2'),glass:C('#4D5D66'),glass2:C('#3B4653'),roof:C('#4A6496'),roof2:C('#3F5684'),
       white:C('#EEE8DA'),tile:C('#4A6496'),tile2:C('#3F5684')};
-    const {box,WL,rect}=facade(S,F,K);
+    const {WL,rect}=facade(S,F,K);
     const P=[[-11.37,-17.52],[9.36,-17.45],[8.46,3.14],[2.66,7.46],[2.43,12.19],[-11.36,12.26]];
     const fp=Gs(P);occMark(fp);
     S.dy=padAt(Math.min(...fp.map(p=>p[0])),Math.min(...fp.map(p=>p[1])),Math.max(...fp.map(p=>p[0])),Math.max(...fp.map(p=>p[1])));
@@ -31,4 +31,4 @@
       const o=2.2,q=[[a[0],a[1]],[b[0],b[1]],[b[0]+out[0]*o,b[1]+out[1]*o],[a[0]+out[0]*o,a[1]+out[1]*o]];S.prism(Gs(q),3.4,3.75,K.rim,K.rim);}
     // blue hipped roof (satellite) behind a low rim
     pyramid(S,fp,TOP,3,K.roof);
-    const c=G(-1.5,-3);MODELS['juzgado-familia']={x:c[0],y:c[1],h:24};S.dy=0;}
+    const mc=G(-1.5,-3);MODELS['juzgado-familia']={x:mc[0],y:mc[1],h:24};S.dy=0;}

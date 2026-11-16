@@ -12,7 +12,7 @@
   // lantern and a curved slope. The north wall carries a mural (photo, 2015), drawn as colour blocks. Approximate:
   // all heights (no measured elevation), the hall's walls and its roof's current state (fire damage unknown), the
   // Oriente pavilions' position and the inner courtyard. No night lights: the building is closed.
-  {const F=localFrame(502,-16,Math.PI/2),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(502,-16,Math.PI/2),{G,Gs,V,N3}=F;
     const K={...KH,wall:C('#DCD5C6'),wallIn:C('#CBC4B5'),white:C('#EFEAE0'),whiteSh:C('#D3CDC0'),plinth:C('#BDB6A8'),
       tile:C('#8A5E48'),tile2:C('#79523F'),gable:C('#DCD5C6'),shed:C('#C9C9C1'),shed2:C('#B5B7B0'),
       hall:C('#CFC8BA'),lantern:C('#DCD6BF'),slope:C('#AEB5A6'),slope2:C('#9DA597'),
@@ -89,4 +89,4 @@
       while(s<40){const e=Math.min(40,s+ws[k%8]);rect(w,s,e,0.9,3.2,K.mural[k%8]);rect(w,s,e,3.2,5.4,K.mural[(k*3+5)%8]);s=e;k++;}
       rect(w,-41,41,0.3,0.9,K.plinth);rect(wb,-41,41,5.8,6.2,K.white);
       for(const [a,b] of [[-54,-41],[41,54]]){rect(w,a,b,0.3,0.9,K.plinth);for(let u=a+2.2;u<b-1;u+=4.3){rect(w,u-1.4,u+1.4,0.9,3.5,K.shutter);rect(w,u-1,u+1,4.5,6.3,K.glass);}}}
-    const c=G(0,8);MODELS['mercado-central']={x:c[0],y:c[1],h:16};S.dy=0;}
+    const mc=G(0,8);MODELS['mercado-central']={x:mc[0],y:mc[1],h:16};S.dy=0;}

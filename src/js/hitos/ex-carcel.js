@@ -32,10 +32,10 @@
     // the yards inside the wall, the parking strip in front
     S.quadXY(R(U0,V0,U1,57),0.32,K.yard);S.quadXY(R(U0,57,U1,VF),0.32,K.pave);
     // perimeter wall: cream, pilasters every ~8 m outside, coiled wire on top; the SW corner is chamfered
-    const CH=5,T=.8,HW=7.5,ring=[[U0,V0+CH],[U0+CH,V0],[U1,V0],[U1,VN],[U0,VN]];
+    const CH=5,TK=.8,HW=7.5,ring=[[U0,V0+CH],[U0+CH,V0],[U1,V0],[U1,VN],[U0,VN]];
     for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]),du=(b[0]-a[0])/L,dv=(b[1]-a[1])/L,nu=dv,nv=-du;
-      const q=[[a[0],a[1]],[b[0],b[1]],[b[0]-nu*T,b[1]-nv*T],[a[0]-nu*T,a[1]-nv*T]];S.prism(Gs(q),0.3,HW,K.wall,K.pil);
-      const qw=[[a[0]-nu*.1,a[1]-nv*.1],[b[0]-nu*.1,b[1]-nv*.1],[b[0]-nu*(T-.1),b[1]-nv*(T-.1)],[a[0]-nu*(T-.1),a[1]-nv*(T-.1)]];S.prism(Gs(qw),HW,HW+.45,K.wire,K.wire);
+      const q=[[a[0],a[1]],[b[0],b[1]],[b[0]-nu*TK,b[1]-nv*TK],[a[0]-nu*TK,a[1]-nv*TK]];S.prism(Gs(q),0.3,HW,K.wall,K.pil);
+      const qw=[[a[0]-nu*.1,a[1]-nv*.1],[b[0]-nu*.1,b[1]-nv*.1],[b[0]-nu*(TK-.1),b[1]-nv*(TK-.1)],[a[0]-nu*(TK-.1),a[1]-nv*(TK-.1)]];S.prism(Gs(qw),HW,HW+.45,K.wire,K.wire);
       if(i===4)continue; // the north side stands behind the front buildings
       const w=WL(a,b,[nu,nv],.25);const n=Math.max(1,Math.round(L/8));for(let k=1;k<n;k++){const s=k*L/n;rect(w,s-.45,s+.45,0.3,HW,K.pil);}
       rect(WL(a,b,[nu,nv],.06),0,L,0.3,1.0,K.pil);}
@@ -78,4 +78,4 @@
     box(16,9,26,23,0.3,4.5,K.conc,K.tile,false);hip(16,9,26,23,4.5,2,K.tile,K.tile2);
     box(28,8,46,36,0.3,6,K.conc,K.blue,false);shed(28,8,46,36,6,1.2,K.blue,K.blue2);
     box(29,-29,48,6.5,0.3,5,K.conc,K.metal,false);shed(29,-29,48,6.5,5,1.3,K.metal,K.metal2);
-    const c=G(2,-8);MODELS['ex-carcel']={x:c[0],y:c[1],h:12};S.dy=0;}
+    const mc=G(2,-8);MODELS['ex-carcel']={x:mc[0],y:mc[1],h:12};S.dy=0;}

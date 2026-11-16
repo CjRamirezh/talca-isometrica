@@ -11,8 +11,8 @@
     for(const k of [0,1]){const [d0]=r5d(k,...A),dir=r5north(k,d0);
       // the last cross-section of the deck (deckBridge's half width hw around the offset co, as r5Deck has them) whose
       // two edges are in the commune
-      const sec=d=>{const p=r5at(k,d);return {p,co:(4.5-6-3.5*p.e)/2,hw:(10.5+3.5*p.e)/2+.6};};
-      let d1=d0;while(Math.abs(d1-d0)<130){const {p,co,hw}=sec(d1+dir*.5);if(!inTerrain(...r5off(p,co+hw))||!inTerrain(...r5off(p,co-hw)))break;d1+=dir*.5;}
+      const sec=d=>{const q=r5at(k,d);return {p:q,co:(4.5-6-3.5*q.e)/2,hw:(10.5+3.5*q.e)/2+.6};};
+      let d1=d0;while(Math.abs(d1-d0)<130){const s1=sec(d1+dir*.5);if(!inTerrain(...r5off(s1.p,s1.co+s1.hw))||!inTerrain(...r5off(s1.p,s1.co-s1.hw)))break;d1+=dir*.5;}
       const Z=r5off(r5at(k,d1),0),hAt=r5Raise(S,K,k,[[...A,null,-100],[...A,H],[...Z,H]],[[A,Z]],{pier:25});
       const {p,co,hw}=sec(d1),V=(o,y)=>{const c=r5off(p,o);return [c[0],y,-c[1]];},h=hAt(d1);
       S.face([V(co-hw,h-1.5),V(co+hw,h-1.5),V(co+hw,h+.9),V(co-hw,h+.9)],[p.tx*dir,0,-p.ty*dir],K.beam);}}

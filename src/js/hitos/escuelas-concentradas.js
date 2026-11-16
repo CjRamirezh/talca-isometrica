@@ -9,11 +9,11 @@
   // de Hombres"). Courts in the yard and the plaza's paving, lawn and sunken amphitheatre from the Esri imagery
   // (undated). Approximate: the heights (proportions from the photos, ~9 m eaves, ~14 m tower), flat roofs (they are
   // low iron roofs behind the parapet), the court side and the north ends (no photos), the wings' widths. No lights.
-  {const F=localFrame(375,15,Math.PI/2),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(375,15,Math.PI/2),{G,Gs,V,R}=F;
     const K={...KH,red:C('#B5433A'),red2:C('#9E3B33'),cream:C('#E6DCC2'),white:C('#F0EADB'),roof:C('#8A6A58'),orange:C('#D88A55'),
       board:C('#B39A62'),dark:C('#2E2C2B'),sign:C('#7FA7C9'),tile:C('#8A6A58'),tile2:C('#7A5E4E'),
       yard:C('#C9B98F'),clay:C('#B0644A'),court:C('#58758C'),line:C('#F3F0E6'),pave:C('#CFC7B0'),pave2:C('#BDB49C'),lawn:C('#8FA85A')};
-    const {box,WL,WV,WU,rect}=facade(S,F,K);
+    const {box,WL,WV,rect}=facade(S,F,K);
     const site=Gs([[-57,-83],[56,-83],[56,34],[-57,34]]);NOLOTS.push(site);
     const fp=[[[-36,-35],[36,-35],[36,-25],[-36,-25]],[[-56,-33],[-36,-33],[-36,-23],[-56,-23]],[[-56,-23],[-46,-23],[-46,34],[-56,34]],
       [[36,-28],[56,-28],[56,-23],[36,-23]],[[46,-23],[56,-23],[56,32],[46,32]],[[36,-33],[56,-33],[56,-28],[36,-28]],[[-57,-83],[56,-83],[56,-36],[-57,-36]]];
@@ -47,4 +47,4 @@
     {const w=WV(-35.6,-1),wp=WV(-35.6,-1,.12);rect(w,-3,3,0.3,GF,K.red);
       for(const s of [-3,2])rect(wp,s,s+1,0.3,14.5,K.orange);for(const s of [-1.5,.6])rect(WV(-35.6,-1,.09),s,s+.9,1.2,10.8,K.dark);
       rect(w,-.9,.9,12,13.4,K.dark);rect(w,-.6,.6,11.7,13.7,K.dark);rect(wp,-.3,.3,12.5,12.9,K.white);rect(w,-2,2,13.85,14.35,K.sign);}
-    const c=G(0,-24);MODELS['escuelas-concentradas']={x:c[0],y:c[1],h:16};S.dy=0;}
+    const mc=G(0,-24);MODELS['escuelas-concentradas']={x:mc[0],y:mc[1],h:16};S.dy=0;}

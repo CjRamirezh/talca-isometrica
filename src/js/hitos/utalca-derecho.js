@@ -140,4 +140,4 @@
         S.prism(ngon(...G(cu,cv),8,16),h,h+2.5,K.W,K.D);}
       else if(sp==='pyr'||sp==='barrel'||sp==='gym'){S.flat(q,h,K[rk]);pyramid(S,q,h,sp==='pyr'?4:3,K[rk]);}
       else S.flat(q,h,K[rk]);}
-    const m=G(0,0);MODELS['utalca-derecho']={x:m[0],y:m[1],h:12};S.dy=0;}
+    const mc=G(0,0);MODELS['utalca-derecho']={x:mc[0],y:mc[1],h:12};S.dy=0;}

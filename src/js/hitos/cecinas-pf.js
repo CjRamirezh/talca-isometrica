@@ -57,10 +57,10 @@
       [[[3232,1623],[3300,1616],[3301,1601],[3232,1609]],9,K.wall2,K.slate,0],                                         // the green shed
       [[[3302,1615],[3329,1613],[3329,1600],[3302,1601]],8,K.wall,K.roof,1]]){slab(ring,h,w,ro,hv);}
     // the long hall (w853342226), its roof in bands of two tones across its length
-    {const A=[[3177,1340],[3211,1485]],B=[[3213,1331],[3247,1477]],n=22,at=(E,t)=>[E[0][0]+(E[1][0]-E[0][0])*t,E[0][1]+(E[1][1]-E[0][1])*t];
+    {const A=[[3177,1340],[3211,1485]],BQ=[[3213,1331],[3247,1477]],n=22,at=(e,t)=>[e[0][0]+(e[1][0]-e[0][0])*t,e[0][1]+(e[1][1]-e[0][1])*t];
       slab([[3211,1485],[3247,1477],[3213,1331],[3177,1340]],13,K.wall,K.roof,0);
-      for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n;S.quadXY(ccwRing([at(A,t0),at(B,t0),at(B,t1),at(A,t1)]),13.03,k%2?K.roof2:K.roof);}
-      for(const t of [.25,.55,.8]){const m=[(at(A,t)[0]+at(B,t)[0])/2,(at(A,t)[1]+at(B,t)[1])/2];S.prism([[m[0]-3,m[1]-1.5],[m[0]+3,m[1]-1.5],[m[0]+3,m[1]+1.5],[m[0]-3,m[1]+1.5]],13,14.4,K.hvac,K.wall2);}}
+      for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n;S.quadXY(ccwRing([at(A,t0),at(BQ,t0),at(BQ,t1),at(A,t1)]),13.03,k%2?K.roof2:K.roof);}
+      for(const t of [.25,.55,.8]){const m=[(at(A,t)[0]+at(BQ,t)[0])/2,(at(A,t)[1]+at(BQ,t)[1])/2];S.prism([[m[0]-3,m[1]-1.5],[m[0]+3,m[1]-1.5],[m[0]+3,m[1]+1.5],[m[0]-3,m[1]+1.5]],13,14.4,K.hvac,K.wall2);}}
     // the tanks (four yellow cylinders, drawn as boxes), the trailers and the small buildings; the north block's tower is above
     for(let k=0;k<4;k++){const x=3267+k*2.7;S.prism([[x-1,1556-4.5],[x+1,1556-4.5],[x+1,1556+4.5],[x-1,1556+4.5]],.34,2.4,K.tank,K.tank);}
     // Plant 4 (OSM w853342238), finished: its roof in bands across, shrunk toward the centre so they stay inside the L

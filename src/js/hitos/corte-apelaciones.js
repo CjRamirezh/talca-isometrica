@@ -11,7 +11,7 @@
   // glass slot on the front, a column of small windows a floor on its west side, flagpole at the corner. Roof
   // blue-grey with plant boxes (Esri imagery). Approximate: the rear and east faces (no photos; windows drawn like the
   // west side's), the depth of the portal and the glass box, the stone's coursing. Method: docs/METODOLOGIA.md §9.
-  {const F=localFrame(-167.1,592.6,91.3*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(-167.1,592.6,91.3*Math.PI/180),{G,Gs,R}=F;
     const K={...KH,stone:C('#ECE8DF'),stone2:C('#E0DBD0'),plinth:C('#ABA9A3'),white:C('#EEEBE3'),roof:C('#8D97A0'),plant:C('#B9B7B1'),
       glass:C('#4C6B78'),glass2:C('#405D69'),mull:C('#8C9CA3'),boxg:C('#6A8B92'),boxg2:C('#5D7D85'),louv:C('#C8D2D0'),
       door:C('#2E3A40'),win:C('#3B4653'),pave:C('#D9D3C5'),pave2:C('#C6BFAF'),red:C('#C8352B'),blue:C('#2D4F9A'),fw:C('#F1EEE6')};
@@ -69,4 +69,4 @@
     // flagpole at the wing's corner, with the Chilean flag
     {const pu=4,pv=-34.5;box(pu-.2,pv-.2,pu+.2,pv+.2,0.3,13,K.mast,K.mast);
       for(const sg of [-1,1]){const fw=WV(pv+sg*.05,sg,0);rect(fw,pu-3,pu-1.2,11.6,12.8,K.fw);rect(fw,pu-1.2,pu,11.6,12.8,K.blue);rect(fw,pu-3,pu,10.4,11.6,K.red);}}
-    const c=G(1,-6);MODELS['corte-apelaciones']={x:c[0],y:c[1],h:27};S.dy=0;}
+    const mc=G(1,-6);MODELS['corte-apelaciones']={x:mc[0],y:mc[1],h:27};S.dy=0;}

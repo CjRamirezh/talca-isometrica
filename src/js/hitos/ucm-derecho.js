@@ -13,7 +13,7 @@
   // every height without building:levels, the cloister's split into ranges (traced from its outline), the rotunda's
   // size. Each building stands on its lowest corner (no pads: the campus slopes ~5 m in the model), and the lawns,
   // lots and track are draped on the terrain (the lawn just under the streets).
-  {const F=localFrame(4106.6,-654.0,74.2*Math.PI/180),{G,Gs,V,N3,R}=F;
+  {const F=localFrame(4106.6,-654.0,74.2*Math.PI/180),{G,Gs,R}=F;
     const K={...KH,block:C('#B9B4A8'),block2:C('#ABA699'),plinth:C('#A9503B'),wood:C('#6B5444'),
       cream:C('#E6E1D3'),light:C('#E3E1DA'),grey:C('#C9C5BC'),glass:C('#4D5D66'),glass2:C('#3B4653'),dark:C('#2E2C2B'),
       roof:C('#C4BFB3'),roofW:C('#D8D6CE'),roofD:C('#5F6468'),roofB:C('#8A6A55'),metal:C('#9AA3A6'),metal2:C('#8C959A'),
@@ -84,7 +84,7 @@
       const c=G(70,-3.5);[[5,0,11,K.cream],[5.4,11,11.6,K.white],[4.6,11.6,13,K.dome],[3.6,13,14.2,K.dome2],[2.2,14.2,15.2,K.dome],[.8,15.2,16.2,K.white]]
         .forEach(([r,h0,h1,col])=>S.prism(ngon(c[0],c[1],r,8,Math.PI/8),h0,h1,col,col));
       for(const [u,v] of [[97,57],[97,-9.5]])rect(WV(v,v>0?1:-1,.12),u-1.5,u+1.5,.3,3,K.glass2);
-      const m=G(96,24);MODELS['ucm-derecho']={x:m[0],y:m[1],h:15};}
+      const mc=G(96,24);MODELS['ucm-derecho']={x:mc[0],y:mc[1],h:15};}
     // Parque Tecnológico: red hipped roof with a dark skylight
     bld([[115.5,54.5],[116,29.5],[159,30.5],[158.5,54],[143.5,53.5],[143.5,39.5],[128,39],[128,54.5]],11,K.light,K.red,3);
     pyramid(S,R(115,29,159.5,55),11,3.2,K.red);S.quadXY(R(131,38,144,46),11.03,K.red2);

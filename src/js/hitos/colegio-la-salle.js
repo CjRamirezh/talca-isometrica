@@ -29,7 +29,7 @@
   // the pads already registered are applied to the terrain while this block is drawn (and undone after, applyPads
   // does it again), every building stands on the final ground in steps of up to ~2.5 m (the step's gable in the darker
   // wall tone; the cross wing and the stairs take the east wing's step), and the ground is draped on it.
-  onFinalTerrain(()=>{const F=localFrame(0,0,Math.PI/2),{G,Gs,V,N3,R}=F;
+  onFinalTerrain(()=>{const F=localFrame(0,0,Math.PI/2),{Gs,V,N3,R}=F;
     const K={...KH,wall:C('#EEE7D3'),wall2:C('#E0D7C0'),plinth:C('#B9B2A2'),dado:C('#D98E70'),maroon:C('#80504A'),white:C('#F3EEE2'),
       blue:C('#2F4F8F'),tile:C('#B4BABC'),tile2:C('#A2A9AC'),flat:C('#A9ACAA'),greenR:C('#5F8A64'),greenR2:C('#7FA37A'),skylight:C('#A9C3C6'),
       gym:C('#E4E0D6'),asph:C('#8E9399'),line:C('#F3F0E6'),cblue:C('#33559F'),cred:C('#C0483A'),cred2:C('#A53A30'),deck:C('#C9B58C'),pool:C('#8EC3CB'),pave:C('#D8D1C1'),pave2:C('#CCC4B2'),sand:C('#D6C59A'),
@@ -93,13 +93,13 @@
     // salmon dado (photo). The north wing is 4 m wide and ends 5 m short of the east wing (the yard's open end on
     // the garden, 2015 imagery)
     range(-11,346,39,359,'u',H2,2.6,2,{ends:[1,0],dado:'N'});
-    const EW=range(39,346,51,444,'v',H2,2.4,2,{dado:'W'});
+    const EWING=range(39,346,51,444,'v',H2,2.4,2,{dado:'W'});
     range(-10,359,2,447,'v',H2,2.4,2,{sides:'E',dado:'E'});
     range(2,443,33.5,447,'u',H2,1.2,2,{sides:'SN',ends:[0,0],dado:'S'});
     // the cross wing on the yard, 4.3 m deep and 10 m long (2015 imagery): it stands on the east wing's floor. On its
     // west face, from the photo: a maroon plinth, a niche with the statue of the founder in the middle, two windows
     // on the ground floor and three tall ones above
-    const dyE=EW.dys[Math.max(0,EW.cuts.findIndex((c,i)=>c<=407&&407<EW.cuts[i+1]))];
+    const dyE=EWING.dys[Math.max(0,EWING.cuts.findIndex((c,i)=>c<=407&&407<EWING.cuts[i+1]))];
     range(35,402,39.2,412,'u',H2,2.2,2,{sides:'SN',ends:[1,0],dy:dyE,dado:'SN',plinth:K.maroon});
     {S.dy=dyE;const w=WU(35,-1,.09);rect(w,402,412,0.3,1.7,K.maroon);rect(WLo(w),402,412,H2-.45,H2,K.white);
       rect(w,405.9,408.1,1.9,4.4,K.stone);rect(w,406.6,407.4,2.1,3.7,K.white);

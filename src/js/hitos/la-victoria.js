@@ -54,4 +54,4 @@
     for(const sg of [-1,1]){const P=(u,h)=>V(mu+u*sg,mv+.35,h),Q=(u,h)=>V(mu+u*sg,mv+.2,h);
       const w=[[.3,19.4],[1.6,20.6],[1.9,22.2],[.5,20.4]];
       S.face(w.map(p=>P(...p)),N3(0,1),K.bronze2);S.face(w.map(p=>Q(...p)),N3(0,-1),K.bronze);}
-    const c=G(mu,mv);MODELS['la-victoria']={x:c[0],y:c[1],h:23};S.dy=0;}
+    const mc=G(mu,mv);MODELS['la-victoria']={x:mc[0],y:mc[1],h:23};S.dy=0;}

@@ -91,4 +91,4 @@
       sq(31.2,31.7,2.45,K.white,K.white);pyramid(S,R(tu-2.2,tv-2.2,tu+2.2,tv+2.2),31.7,7.8,K.spire);}
     // the façade's windows glow at night
     for(const u of [1.2,FM,7.8]){const g=G(u,-32.8);GLOW.push(g[0],S.dy+10,g[1]);}
-    const c=G(4,-4);MODELS.catedral={x:c[0],y:c[1],h:26};S.dy=0;}
+    const mc=G(4,-4);MODELS.catedral={x:mc[0],y:mc[1],h:26};S.dy=0;}
