@@ -1,11 +1,16 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["playwright==1.63"]
+# ///
 """Los hitos uno por uno: cuánto tarda cada uno y una huella exacta de lo que dibuja y cambia, para refactorizarlos sin
 cambiar nada (más fino que tools/regress.py, que solo mira siete vistas).
 
-  uv run --with "playwright==1.63" python tools/hitos.py                         # ms de cada hito (los más caros primero)
-  uv run --with "playwright==1.63" python tools/hitos.py --save shots/hitos-ref.json     # antes del cambio
-  uv run --with "playwright==1.63" python tools/hitos.py --against shots/hitos-ref.json  # después: qué hito cambió y en qué parte
+  uv run tools/hitos.py                         # ms de cada hito (los más caros primero)
+  uv run tools/hitos.py --save shots/hitos-ref.json     # antes del cambio
+  uv run tools/hitos.py --against shots/hitos-ref.json  # después: qué hito cambió y en qué parte
 
-Carga el mapa (open_page() de screenshot.py, ~1 min) con window.__HITOS_HASH, para que buildModels guarde después de
+Carga el mapa (Map de tools/page.py, ~1 min; --gl metal, la GPU del Mac; TALCA_ESPERA=<s> alarga la espera de la
+carga, 300 s por omisión) con window.__HITOS_HASH, para que buildModels guarde después de
 cada hito una huella por parte (hitoClock() en src/js/45-landmarks.js: los vértices e índices nuevos de S y B, occ, el
 relieve EH, MODELS, PADS, GLOW, NOLOTS, TREES, CLEAR, RAIL_BR, las marcas de las calles y los `keep` de los usos), y
 con window.__KEEP, para que las mallas terminadas conserven sus arreglos: también guarda una huella de cada capa de la
@@ -13,12 +18,12 @@ escena al final de la generación (lo que los hitos registran y otros dibujan de
 todo lo demás del mapa). Con --against imprime el primer hito cuya huella cambió (los siguientes suelen cambiar con
 él, porque S sigue creciendo), las partes que cambiaron y las capas de la escena distintas, y sale con 1.
 Los ms se miden sin la huella (que tarda segundos); con --save o --against salen igual, pero de una carga con
-__KEEP. Por omisión imprime solo los ms (__stats.t.hitos), de una carga normal.
+__KEEP. Por omisión imprime solo los ms (__stats.t.hitos), de una carga normal. Sale con 1 si hubo errores de consola.
 """
 import argparse, asyncio, json, sys
 from pathlib import Path
-from playwright.async_api import async_playwright
-from screenshot import open_page
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from page import Map, add_page_args
 
 # a hash of every layer of the finished scene: the attributes, index and draw range of each mesh (the strips share
 # their tiles' buffers and are skipped), the matrices and colours of each InstancedMesh
@@ -34,13 +39,10 @@ SCENE = r'''(()=>{const out={};let n=0;
 
 async def main(a):
     fp = a.save or a.against
-    async with async_playwright() as p:
-        b, pg, logs = await open_page(p, init='window.__HITOS_HASH=1;window.__KEEP=1' if fp else None)
-        r = await pg.evaluate('({t:__hitos.t,h:__hitos.h})')
-        if fp: r['scene'] = await pg.evaluate(SCENE)
-        for l in logs:
-            if l.startswith(('ERROR:', 'error:')): print(l)
-        await b.close()
+    async with Map.from_args(a, init='window.__HITOS_HASH=1;window.__KEEP=1' if fp else None, ready='full', quiet=True) as m:
+        r = await m.page.evaluate('({t:__hitos.t,h:__hitos.h})')
+        if fp: r['scene'] = await m.page.evaluate(SCENE)
+        if m.print_logs(): raise SystemExit('hitos: errores de consola')
     t = r['t']
     print(f'hitos: {sum(t.values()):.0f} ms;', ', '.join(f'{k} {v}' for k, v in sorted(t.items(), key=lambda kv: -kv[1])[:a.top]))
     if a.save:
@@ -66,4 +68,5 @@ if __name__ == '__main__':
     ap.add_argument('--against', help='compara con las huellas guardadas')
     ap.add_argument('--all', action='store_true', help='todos los hitos distintos, no solo el primero')
     ap.add_argument('--top', type=int, default=12, help='cuántos hitos imprimir (los más caros)')
+    add_page_args(ap, only=('gl',))
     asyncio.run(main(ap.parse_args()))

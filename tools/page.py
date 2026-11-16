@@ -23,7 +23,7 @@ site_assets. Tiene:
                    'full'   la generación terminó (window.__stats; es cuando se llena __stats.load.full), sin esperar
                    'shown'  el primer cuadro está en pantalla (window.__three): la segunda etapa sigue en tajadas
                    None     no carga la página (m.url; luego m.load())
-                 settle() espera a window.__idle() (con un dist/ anterior a él, 2,5 s); run(js) corre JS y espera;
+                 La carga espera hasta 300 s (TALCA_ESPERA=<s> la cambia); settle() espera a window.__idle() (con un dist/ anterior a él, 2,5 s); run(js) corre JS y espera;
                  hide() esconde la interfaz (HIDE); errors(), los errores de consola y de la página.
   add_page_args  --size --dpr --gl --init, iguales en todas; Map.from_args(a) los lee
   parse_views    las vistas y variantes «nombre=js» (la forma vieja «Nombre:js» sirve, con un aviso)
@@ -34,7 +34,9 @@ import asyncio, email.utils, functools, gzip, http.server, mimetypes, os, subpro
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LOAD_MS = 300_000  # the longest a load may take (a phone, a slow network, SwiftShader with a cold cache)
+# the longest a load may take (a phone, a slow network, SwiftShader with a cold cache, a machine busy with other
+# sessions): TALCA_ESPERA=<s> changes it
+LOAD_MS = int(float(os.environ.get('TALCA_ESPERA', 300)) * 1000)
 _SERVED = {}
 
 
