@@ -1,4 +1,4 @@
-/* =============== decode data =============== */
+// ==== decode data ====
 // block t: 0 census data, 1 no data, 2 village, 3 no data but built (config/manzanas.json). Only built blocks get lots.
 function dec(a){const o=new Array(a.length/2);let x=0,y=0;for(let i=0,j=0;i<a.length;i+=2,j++){x+=a[i];y+=a[i+1];o[j]=[x,y];}return o;}
 const [XMIN,XMAX,YMIN,YMAX]=DATA.ext;

@@ -1,4 +1,4 @@
-/* =============== overlay: pins + labels =============== */
+// ==== overlay: pins + labels ====
 const overlay=$('#overlay');
 const pinEls=new Map();
 POIS.forEach(p=>{const b=document.createElement('button');b.className='pin';b.style.setProperty('--cc',`var(--c-${p.c})`);b.setAttribute('aria-label',p.n);
@@ -70,7 +70,7 @@ function layout(){
   // compass
   const n0=proj(view.tx,view.ty,0),n1=proj(view.tx,view.ty+100,0);const ca=Math.atan2(n1[0]-n0[0],-(n1[1]-n0[1]));layMove(compassSvg,`rotate(${ca}rad)`);
   // scale bar
-  const mpp=wpp();const target=90*mpp;const nice=SCALES.find(v=>v>=target)||5000,bw=(nice/mpp).toFixed(0)+'px',bt=nice>=1000?`${nice/1000} km`:`${nice} m`,st=laySt(scaleBar);
-  if(st.w!==bw){st.w=bw;scaleBar.style.width=bw;}if(st.x!==bt){st.x=bt;scaleTxt.textContent=bt;}
+  const mpp=wpp();const target=90*mpp;const nice=SCALES.find(v=>v>=target)||5000,barW=(nice/mpp).toFixed(0)+'px',bt=nice>=1000?`${nice/1000} km`:`${nice} m`,st=laySt(scaleBar);
+  if(st.w!==barW){st.w=barW;scaleBar.style.width=barW;}if(st.x!==bt){st.x=bt;scaleTxt.textContent=bt;}
 }
 

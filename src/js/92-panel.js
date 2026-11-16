@@ -1,4 +1,4 @@
-/* =============== selection / card =============== */
+// ==== selection / card ====
 let selId=null,tour=null;
 const card=$('#card');
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -40,7 +40,7 @@ function renderCard(p){
 function startTour(k){tour={k,i:0};select(PD.tours[k].s[0],true);}
 function stepTour(d){const s=PD.tours[tour.k].s;const i=tour.i+d;if(i>=s.length){closeCard();flyTo(420,260,0.9);return;}tour.i=Math.max(0,i);select(s[tour.i],true);}
 
-/* =============== panel =============== */
+// ==== panel ====
 function buildPanel(){
   const counts={};POIS.forEach(p=>{counts[p.c]=(counts[p.c]||0)+1;});
   const mk=(c,host)=>{const b=document.createElement('button');b.className='chip';b.style.setProperty('--cc',`var(--c-${c})`);b.setAttribute('aria-pressed','true');b.innerHTML=`<i></i>${CATS[c].n} <b>${counts[c]||0}</b>`;
@@ -67,7 +67,7 @@ function renderList(){
   if(!host.children.length)host.innerHTML='<p style="color:var(--ink-3);margin:0">Sin resultados. Pruebe con otra palabra o active más capas.</p>';
 }
 
-/* =============== day / night =============== */
+// ==== day / night ====
 let night=false,lampPts=null;
 function setNight(v){night=v;$('#night').setAttribute('aria-pressed',v);$('#stage').classList.toggle('night',v);
   uni.uNight.value=v?1:0;hemi.intensity=v?0.55:HEMI_I;hemi.color.set(v?0x8C9CD0:0xF4F1E6);hemi.groundColor.set(v?0x2A3048:0x8E8A70);sun.intensity=v?0.22:SUN_I;sun.color.set(v?0x9DB0E0:0xFFF3DD);sun.castShadow=!v;

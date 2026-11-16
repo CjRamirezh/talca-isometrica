@@ -27,7 +27,7 @@
 //    bring their own yards). Merged into rectangles of slab like cityGen's lots (Y, 0.2 m over the ground). Each block
 //    is a piece of the startup with its own key (2.5e7 + its place in DATA.ed): the first view's blocks come before
 //    the first frame, the rest in rest() (trap «El arranque en dos etapas»).
-// window.__ed: counts, the buildings left out for a landmark, and the ms taken.
+// window.__ed (EDS): counts, the buildings left out for a landmark, and the ms taken.
 const ED_GAP=2,ED_SOLID=6e4;
 const ED_T0=performance.now(),ED=(()=>{const D=DATA.ed;if(!D)return {list:[],surf:[],bks:[]};const dm=a=>dec(a).map(p=>[p[0]/10,p[1]/10]);
   const box=bbox;
@@ -160,7 +160,7 @@ function edificiosBase(B,Z,Y,bks){const t0=performance.now();
   for(const bk of bks){edHulls(bk);B.k=Z.k=Y.k=2.5e7+bk.k; // after the Cerro (2e7), before the city (3e7 +)
     const t1=performance.now();for(const e of bk.eds)if(!e.skip)edificio(B,Z,e);const t2=performance.now();edificiosGround(Y,bk);
     EDS.msEd=(EDS.msEd||0)+t2-t1;EDS[bk.mix?'msGx':'msGm']=(EDS[bk.mix?'msGx':'msGm']||0)+performance.now()-t2;}
-  B.dy=Z.dy=Y.dy=0;EDS.ms+=performance.now()-t0;window.__ed=EDS;}
+  B.dy=Z.dy=Y.dy=0;EDS.ms+=performance.now()-t0;}
 function edificio(B,Z,e){const r=rng(e.seed),R=e.R[0],holes=e.R.slice(1),t=e.t;
   let lv=e.lv,h=e.h;if(e.est&&(t==='casa'||t==='otro'||t==='comercio')){lv=r()<.7?1:2;h=lv*3+.5;} // no height in OSM: one or two storeys, as the centre's
   // measured in photos (config/fachadas.json): the height to the top of the parapet, or to the eaves under a tiled
@@ -286,8 +286,8 @@ function edRaster(Y,bk,bb){const C=bk.ml?2:1,FRONT=3.2,{bi,mix,surf}=bk,xs=ED_XS
   // ground is not a plane (the plaza's pad and the city rising to the east), and 103 of 128 rose more than 0.5 m
   // above it somewhere (the strip along 1 Sur, south of the plaza, up to 2.5 m) or sank under it
   let open=new Map();const emit=(x0,x1,y0,y1,v)=>{const col=colOf(v);if(!col)return;const q=[[X0+x0*C,Y0+y0*C],[X0+x1*C,Y0+y0*C],[X0+x1*C,Y0+y1*C],[X0+x0*C,Y0+y1*C]];EDS.rects++;
-    if(mix){drapeQ(Y,q,.135,col);return;}
-    const o=v===-2||v===-4?.18:.2;Y.dy=0;drapeQ(Y,q,o,col);
+    if(mix){drapeQ(Y,q,Y_LAYER.mixedYard,col);return;}
+    const o=v===-2||v===-4?Y_LAYER.edWalk:Y_LAYER.edSlab;Y.dy=0;drapeQ(Y,q,o,col);
     // an underlay 3 cm lower, wider by 0.25 m on the sides with a laid neighbour: the raster leaves pixel gaps at the
     // T-junctions between rectangles, and they show it, in the same colour, instead of the ground (an outlined dot)
     const out=[[(x0+x1)/2,y0-.5],[x1+.5,(y0+y1)/2],[(x0+x1)/2,y1+.5],[x0-.5,(y0+y1)/2]];

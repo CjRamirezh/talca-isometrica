@@ -10,6 +10,9 @@ Comprueba:
     `// ==== hito: <id> ====` y no tenga otra, y que cada fuente termine en un salto de línea;
   - que un hito no use un nombre que declara otro (lo que comparten va en la cabecera de buildModels) ni lea
     MODELS['<id>'] antes del hito que lo pone (hitos_deps());
+  - que las capas planas que se tocan (Y_OVER de src/js/30-geometry.js) queden separadas al menos Y_STEP (layer_heights);
+  - que las secciones del script empiecen con «// ==== nombre ====» (section_headers);
+  - que src/style.css no tenga colores fijos fuera de los tokens y que sus dos bloques oscuros coincidan (css_tokens);
   - que data/pois.json tenga ids únicos y que cada recorrido apunte a lugares que existen;
   - que el script de dist/assets/ compile (node --check; el error da el archivo de src/ y la línea, con build.where()),
     que cada archivo que pide dist/index.html (src, href, srcset y lo que pide desde JS en assets/) exista en dist/, y que
@@ -95,6 +98,49 @@ def hitos_deps(fail):
             if s and s != h and pos[s] > pos[h]:
                 fail(f'src/js/hitos/{h}.js:{t.count(chr(10), 0, m.start()) + 1}: lee MODELS[\'{m.group(1)}\'], que src/js/hitos/{s}.js pone más abajo en ORDER (todavía no existe)')
 
+def css_tokens(fail):
+    """The colours of src/style.css are tokens (CLAUDE.md, Convenciones → Tema): no colour literal outside a `--token:`
+    definition, and the two dark blocks (the media query and [data-theme="dark"]) define the same tokens with the same
+    values, so that the dark theme does not depend on which of the two applies."""
+    css = (build.SRC / 'style.css').read_text()
+    body = re.sub(r'--[\w-]+:[^;}]*', '', re.sub(r'/\*.*?\*/', '', css, flags=re.S))
+    for m in re.finditer(r'#[0-9A-Fa-f]{3,8}\b|\b(?:rgba?|hsla?)\(', body):
+        fail(f'src/style.css: color fijo «{m.group(0)}» fuera de un token: defínalo en :root y en los dos bloques oscuros')
+    def block(start):
+        i = css.find(start)
+        if i < 0: return None
+        i = css.index('{', i + len(start) - 1) + 1; depth = 1; j = i
+        while depth:
+            depth += {'{': 1, '}': -1}.get(css[j], 0); j += 1
+        return dict(re.findall(r'(--[\w-]+):\s*([^;]+?)\s*;', css[i:j - 1]))
+    a, b = block(':root:not([data-theme="light"])'), block(':root[data-theme="dark"]')
+    if a is None or b is None: fail('src/style.css: falta uno de los dos bloques del tema oscuro'); return
+    for k in sorted(set(a) | set(b)):
+        if a.get(k) != b.get(k): fail(f'src/style.css: {k} difiere entre los dos bloques oscuros ({a.get(k)} / {b.get(k)})')
+
+def section_headers(fail):
+    """A section of the script starts with a line `// ==== name ====` (the hitos' `// ==== hito: <id> ====` too):
+    one style, so that a search for `// ====` lists them all; the block comment /* ==== */ is not used."""
+    for f in sorted((build.SRC / 'js').rglob('*.js')):
+        for k, line in enumerate(f.read_text().splitlines(), 1):
+            if re.match(r'\s*/\*\s*=+', line):
+                fail(f'{f.relative_to(ROOT)}:{k}: encabezado de sección como /* ==== */: use una línea «// ==== nombre ====»')
+
+def layer_heights(fail):
+    """The flat layers' heights (Y_LAYER in src/js/30-geometry.js): every pair of Y_OVER, [upper, lower], is in that order
+    and at least Y_STEP apart (a step of half a centimetre flickers: CLAUDE.md, «Capas planas sin explanada»);
+    street_top is the top class of street (street + 7 street_step)."""
+    src = (build.SRC / 'js' / '30-geometry.js').read_text()
+    m = re.search(r'const Y_LAYER=\{(.*?)\};', src, re.S); s = re.search(r'Y_STEP=([\d.]+)', src); o = re.search(r'Y_OVER=\[(.*?)\];', src, re.S)
+    if not (m and s and o): fail('src/js/30-geometry.js: no se encuentran Y_LAYER, Y_STEP o Y_OVER'); return
+    Y = {k: float(v) for k, v in re.findall(r'(\w+):([\d.]+)', m.group(1))}
+    if 'street' in Y and 'street_step' in Y: Y['street_top'] = Y['street'] + 7 * Y['street_step']
+    step = float(s.group(1))
+    for up, lo in re.findall(r"\['(\w+)','(\w+)'\]", o.group(1)):
+        if up not in Y or lo not in Y: fail(f'src/js/30-geometry.js: Y_OVER nombra una capa que Y_LAYER no tiene: {up if up not in Y else lo}'); continue
+        if Y[up] - Y[lo] < step - 1e-9:
+            fail(f'src/js/30-geometry.js: la capa {up} ({Y[up]}) debe quedar al menos {step} m sobre {lo} ({Y[lo]})')
+
 def main(dist=True):
     t0 = time.time(); bad = []
     fail = lambda m: bad.append(m)
@@ -125,6 +171,8 @@ def main(dist=True):
         if not f.exists(): continue
         t, name = f.read_text(), f.relative_to(ROOT)
         if not t.endswith('\n'): fail(f'{name}: no termina en un salto de línea (build.py lo pegaría al siguiente)')
+
+    css_tokens(fail); section_headers(fail); layer_heights(fail)
 
     pois = json.load(open(ROOT / 'data' / 'pois.json'))
     ids = [p['id'] for p in pois['pois']]

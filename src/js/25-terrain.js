@@ -1,4 +1,4 @@
-/* =============== terrain =============== */
+// ==== terrain ====
 // DATA.elev: nodes every ES m, real heights in dm relative to the plaza (pipeline/elevation.py).
 // ER keeps the real relief (vegetation, slopes). EH is the model's relief: ~3× on the plain, less on the hills
 // (relief()), with flat pads under the landmarks. The whole scene stands on EH through E(x,y).

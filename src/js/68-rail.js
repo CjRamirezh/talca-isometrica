@@ -17,9 +17,9 @@
 // cantilevers on the Línea Central; signals (DATA.rsig) lit at night. The raised parts
 // and everything standing are one mesh of their own (not draped), which casts shadows. RAILP keeps each line as a
 // sampled path {x, y, s, h: the railhead's height, kind: 0 ground, 1 embankment, 2 deck, 3 bridge, 4 level crossing}
-// for the train (window.__rail).
+// for the train (window.__rail, 99-boot.js).
 const RAIL_BR=[],RAIL_YARD=[],RAILP={};
-const RAIL_HU=3,RAIL_G=16,RAIL_FILL=160,RS=0.7,RAIL_Y=0.2;
+const RAIL_HU=3,RAIL_G=16,RAIL_FILL=160,RS=0.7,RAIL_Y=Y_LAYER.rail;
 function railSample(pts,step){const P=[];let s=0;
   for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1e-6)continue;
     const n=Math.max(1,Math.round(L/step)),dx=(b[0]-a[0])/L,dy=(b[1]-a[1])/L;
@@ -145,7 +145,7 @@ function railBase(B){const t0=performance.now(),R=new GB(1<<16),RX=DATA.railx||[
   // the station's yard tracks, draped
   for(const y of RAIL_YARD){const P=railSample(y.pts,RS);flatTrack(P,0,P.length-1,{...LINES[0],g:y.g||1.676});}
   if(R.nv){const m=tiled(R,matFlat);m.name='via';m.traverse(o=>o.castShadow=o.receiveShadow=true);scene.add(m);}
-  STREET.railVerts=R.nv;STREET.railMs=Math.round(performance.now()-t0);window.__rail=RAILP;}
+  STATS.rail.verts=R.nv;STATS.rail.ms=Math.round(performance.now()-t0);}
 // The girders of a rail bridge from a to b (grid metres), hw its half width, hAt(p) its deck's height, in palette K
 // (steel, steel2): o.plates, the depth of plate girders under the deck, whose faces get stiffener panels in two tones;
 // o.spans and o.h, half-through lattice girders above the deck on both sides, one per span (chords, verticals with

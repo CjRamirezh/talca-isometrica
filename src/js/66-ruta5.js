@@ -49,8 +49,7 @@ const r5off=(p,o)=>[p.x+p.nx*o,p.y+p.ny*o],R5R=p=>-(6+3.5*p.e);
 function r5d(k,x,y){let best=1e18,bd=0,bo=0;const P=R5C[k].P;for(let i=0;i<P.length-1;i++){const a=P[i],b=P[i+1],dx=b.x-a.x,dy=b.y-a.y,L2=dx*dx+dy*dy||1;
   let t=((x-a.x)*dx+(y-a.y)*dy)/L2;t=t<0?0:t>1?1:t;const ex=x-a.x-dx*t,ey=y-a.y-dy*t,q=ex*ex+ey*ey;if(q<best){best=q;bd=a.d+(b.d-a.d)*t;bo=(-dy*ex+dx*ey)/Math.sqrt(L2);}}
   return [bd,bo];}
-const r5gh=(k,d)=>{const p=r5at(k,d);return E(...r5off(p,(4.5+R5R(p))/2))+.16;}; // the pavement's height on the ground
-window.__E=(x,y)=>E(x,y); // the ground's height (grid metres), to measure the structures from tools/screenshot.py --js
+const r5gh=(k,d)=>{const p=r5at(k,d);return E(...r5off(p,(4.5+R5R(p))/2))+Y_LAYER.r5;}; // the pavement's height on the ground
 const r5gap=(k,d)=>R5C[k].gaps.find(g=>d>=g[0]&&d<=g[1]);
 // calls f(p, q) for the pieces of carriageway k between d0 and d1 that are off the gaps and whose start passes ok(p)
 function r5each(k,d0,d1,ok,f){const P=R5C[k].P,gaps=R5C[k].gaps;
@@ -66,16 +65,18 @@ const r5under=(x,y)=>R5X.some(([pts,hw])=>pts.some((a,i)=>i<pts.length-1&&segDis
 // sidewalks off them (occ), with a metre to spare.
 function ruta5Base(B){const K=R5K;
   for(let k=0;k<2;k++){
-    r5band(B,k,()=>4.5,R5R,0.16,K.asph);
-    r5band(B,k,()=>3.25,()=>3.75,0.172,K.line);r5band(B,k,p=>-3.75-3.5*p.e,p=>-3.25-3.5*p.e,0.172,K.line);
-    r5dash(B,k,()=>0,0.172,K.line);r5dash(B,k,()=>-3.5,0.172,K.line,p=>p.e>.5);
-    r5band(B,k,()=>4.5,p=>p.hs,0.16,K.conc,p=>p.hs>4.55&&p.hs<5.75);r5band(B,k,()=>4.5,p=>p.hs,0.16,K.grass,p=>p.hs>=5.75&&p.hs<14);
+    r5band(B,k,()=>4.5,R5R,Y_LAYER.r5,K.asph);
+    r5band(B,k,()=>3.25,()=>3.75,Y_LAYER.curb,K.line);r5band(B,k,p=>-3.75-3.5*p.e,p=>-3.25-3.5*p.e,Y_LAYER.curb,K.line);
+    r5dash(B,k,()=>0,Y_LAYER.curb,K.line);r5dash(B,k,()=>-3.5,Y_LAYER.curb,K.line,p=>p.e>.5);
+    r5band(B,k,()=>4.5,p=>p.hs,Y_LAYER.r5,K.conc,p=>p.hs>4.55&&p.hs<5.75);r5band(B,k,()=>4.5,p=>p.hs,Y_LAYER.r5,K.grass,p=>p.hs>=5.75&&p.hs<14);
     r5each(k,0,R5C[k].L,null,(p,q)=>{for(const r of [p,q])occMark(rotRect(...r5off(r,(4.5+R5R(r))/2),3,12.5+3.5*r.e,Math.atan2(r.ty,r.tx)));});}
   for(const r of R5.k){const w=r[0]*3.5+2.5;let x=0,y=0;const pts=[];for(let i=1;i<r.length;i+=2){x+=r[i];y+=r[i+1];pts.push([x/10,y/10]);}
-    ribbon(B,pts,w,0.16,K.asph);for(const s of [1,-1])sideRibbon(B,pts,s,w/2-1,.5,0.172,K.line);
+    ribbon(B,pts,w,Y_LAYER.r5,K.asph);for(const s of [1,-1])sideRibbon(B,pts,s,w/2-1,.5,Y_LAYER.curb,K.line);
     for(let i=0;i<pts.length-1;i++)occBand(pts[i],pts[i+1],w/2+1);}}
 // The Ruta 5's objects, after buildBase: the median barrier, the lamp posts (their lights go to GLOW) and the cars.
 // Returns the meshes for the scene (they cast shadows).
+// (R5_CARS: their cars, which r5Cars(on) shows or hides: window.__r5cars)
+let R5_CARS=null;const r5Cars=on=>{if(R5_CARS){R5_CARS.visible=on;shDirty=dirty=true;}};
 function ruta5Objects(){const K=R5K,G=new GB(1<<15),A=R5C[0];
   // barrier: 0.6 m wide, 0.85 m over the pavement, on the median's middle line, as long as the median is narrow (and in
   // the commune: the carriageways run on 300 m past its limit)
@@ -93,15 +94,14 @@ function ruta5Objects(){const K=R5K,G=new GB(1<<15),A=R5C[0];
     else{const c=r5off(p,R5R(p)-1),h=r5off(p,R5R(p)+2);if(r5under(...c))continue;post(...c,[h]);posts++;}}
   // cars: one every ~110 m in each direction, a fifth of them lorries in the right lane; on the decks at their height
   const r=rng(5005),list=[];
-  const H=(k,d)=>{const g=r5gap(k,d);if(g)return g[2](d);const p=r5at(k,d);return E(p.x,p.y)+.16;};
+  const H=(k,d)=>{const g=r5gap(k,d);if(g)return g[2](d);const p=r5at(k,d);return E(p.x,p.y)+Y_LAYER.r5;};
   for(let k=0;k<2;k++)for(let d=30+r()*60;d<R5C[k].L-10;d+=20+r()*180){const p=r5at(k,d);if(!inTerrain(p.x,p.y))continue;
     const truck=r()<.2,o=truck||r()<.55?-1.75:1.75,c=r5off(p,p.e>.9&&r()<.3?-5.25:o),len=truck?2.4+r()*.4:(4.1+r()*.6)/4.5;
     const col=CAR_COLS[wpick(r,CAR_COLS,cc=>cc[3])];
     list.push([c[0],c[1],p.tx,p.ty,len,truck?2.1:1,col,r(),(H(k,d-2)+H(k,d+2))/2,Math.atan2(H(k,d+2)-H(k,d-2),4)]);}
   const cars=carsMesh(list);
-  Object.assign(STREET,{r5posts:posts,r5cars:list.length,r5gaps:R5C.map(c=>c.gaps.length)});
+  Object.assign(STATS.r5,{posts,cars:list.length,gaps:R5C.map(c=>c.gaps.length)});R5_CARS=cars;
   const mesh=tiled(G,matFlat);for(const o of [mesh,cars])o.traverse(c=>c.castShadow=true);
-  window.__r5cars=on=>{cars.visible=on;shDirty=dirty=true;};
   mesh.name='ruta5';cars.name='autos-ruta5';return [mesh,cars];}
 // Carriageway k on a bridge or an embankment from d0 to d1 (landmarks, from buildModels): the deck (deckBridge: its
 // pavement, parapets and beam, piers every o.pier m where it stands 2.5 m over the ground) at h(d), an absolute height

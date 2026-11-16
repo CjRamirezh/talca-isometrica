@@ -1,4 +1,4 @@
-/* =============== base layers =============== */
+// ==== base layers ====
 function chaikin(pts,it=2){for(let k=0;k<it;k++){const o=[pts[0]];for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];o.push([a[0]*.75+b[0]*.25,a[1]*.75+b[1]*.25],[a[0]*.25+b[0]*.75,a[1]*.25+b[1]*.75]);}o.push(pts[pts.length-1]);pts=o;}return pts;}
 function ribbon(B,pts,w,y,col,joins=true){
   for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];const dx=b[0]-a[0],dy=b[1]-a[1];const L=Math.hypot(dx,dy);if(L<0.01)continue;const nx=-dy/L*w/2,ny=dx/L*w/2;
@@ -35,7 +35,7 @@ function sideRibbon(B,pts,side,off,w,y,col){
 let riverWater=null; // the rivers' water, draped: its own mesh (matWater), drawn over coplanar layers
 function riverBase(B,BW,k,[w,rb]){
   for(const [outer,...isl] of RIV[k]){const all=outer.concat(...isl);
-    for(const t of triangulate(outer,isl)||[])BW.face(t.map(i=>[all[i][0],0.11,-all[i][1]]),[0,1,0],PAL.water);}
+    for(const t of triangulate(outer,isl)||[])BW.face(t.map(i=>[all[i][0],Y_LAYER.water,-all[i][1]]),[0,1,0],PAL.water);}
   // shore strips, outside the water: right of a counter-clockwise outer ring, left of a counter-clockwise island.
   // None on ring edges the clip laid along the model's border, nor on the edge where the area ends across the river,
   // and in water colour where it would lie in another river's water, or in another piece of the same river's: the
@@ -49,14 +49,14 @@ function riverBase(B,BW,k,[w,rb]){
     const side=(ringArea(r)>0?1:-1)*(j?1:-1);let run=[],cls=0;
     const inOther=(a,b)=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1])||1;return [[.5,.3],[.5,.9],[.15,.6],[.85,.6]].some(([t,f])=>{const d=rb*f/L*side;
       return wet([a[0]+(b[0]-a[0])*t-(b[1]-a[1])*d,a[1]+(b[1]-a[1])*t+(b[0]-a[0])*d]);});};
-    const flush=()=>{if(run.length>1){if(cls===1)sideRibbon(B,run,side,0,rb,0.11,PAL.bank);else if(cls===2)sideRibbon(BW,run,side,0,rb,0.11,PAL.water);}run=[];};
+    const flush=()=>{if(run.length>1){if(cls===1)sideRibbon(B,run,side,0,rb,Y_LAYER.water,PAL.bank);else if(cls===2)sideRibbon(BW,run,side,0,rb,Y_LAYER.water,PAL.water);}run=[];};
     for(let i=0;i<=r.length;i++){const a=r[i%r.length],b=r[(i+1)%r.length];
       const c=i<r.length&&!skip(a,b)?(inOther(a,b)?2:1):0;if(c!==cls){flush();cls=c;}
       if(c){if(!run.length)run.push(a);run.push(b);}}flush();});
   // the ribbon's strips stop where it enters another river's water
-  for(const run of riverRuns(k)){ribbon(BW,run,w,0.11,PAL.water);
+  for(const run of riverRuns(k)){ribbon(BW,run,w,Y_LAYER.water,PAL.water);
     let dry=[];for(const p of run.concat([null])){if(p&&!wet(p)){dry.push(p);continue;}
-      if(dry.length>1)for(const sd of [1,-1])sideRibbon(B,dry,sd,w/2,rb,0.11,PAL.bank);dry=[];}}
+      if(dry.length>1)for(const sd of [1,-1])sideRibbon(B,dry,sd,w/2,rb,Y_LAYER.water,PAL.bank);dry=[];}}
 }
 // The water lies level across its channel. The relief does not follow the real rivers everywhere (at the Parque Río
 // Claro the terrain fell 10 m across the jetty), so the draped water tilted. The terrain nodes in a channel (inside

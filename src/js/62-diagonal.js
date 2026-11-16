@@ -19,7 +19,7 @@ const DIAG={a:[-72,64],b:[-440,469],ne:[[-62,74],[-71,81],[-173,191],[-192,213],
 function inMedian(x,y){const [u,v]=DIAG.uv(x,y);if(v<DIAG.cw||v>16)return false;
   for(const [u0,u1] of DIAG.runs)if(u>=u0&&u<=u1)return v<=DIAG.vNE(u)-DIAG.cw;return false;}
 function diagonalBase(G,D){const B=draped(G),{P,cw,L}=DIAG,K={curb:hex('#E8E5DC'),bed:hex('#6F8748'),walk:hex('#CFC7B6'),walk2:hex('#C4BBA8'),
-    shrub:hex('#4E6A36'),shrub2:hex('#5C7A3E'),iron:hex('#3B4240'),lamp:hex('#F1E6C4')},r=rng(4242);
+    shrub:hex('#4E6A36'),shrub2:hex('#5C7A3E'),iron:hex('#3B4240'),lamp:hex('#F1E6C4')},r=rng(4242); // (the farmland parcels' seed too, buildBase: two streams of their own; changing either seed changes the map)
   const cross=([x,y])=>{const ids=segsAt(x,y);if(!ids)return true;
     for(const id of ids){const s=segs[id],st=streets[s[5]];if(st.c>=6||st.rows)continue;const R=s[4]+0.5;if(segDist2(x,y,s[0],s[1],s[2],s[3])<R*R)return true;}
     return occAt(x,y)===1;};
@@ -46,4 +46,4 @@ function diagonalBase(G,D){const B=draped(G),{P,cw,L}=DIAG,K={curb:hex('#E8E5DC'
         D.dy=Math.min(...q.map(p=>E(p[0],p[1])))+CURB_Y;D.prism(q,0,.55,K.shrub,K.shrub2);}}
     for(let u=a+12;u<b-4;u+=30){const [x,y]=P(u,mid(u)+1.45),q=rotRect(x,y,.3,.3),h=E(x,y)+CURB_Y;D.dy=h;
       D.prism(q,0,4.6,K.iron,K.iron);D.prism(rotRect(x,y,.9,.9),4.6,5,K.iron,K.lamp);GLOW.push(x,h+4.8,y);}}
-  D.dy=0;Object.assign(STREET,{diagonal:DIAG.runs.length,diagTrees:nt});}
+  D.dy=0;Object.assign(STATS.diagonal,{runs:DIAG.runs.length,trees:nt});}

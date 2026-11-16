@@ -111,6 +111,8 @@ tools/relieve.py         qué mueve un cambio de data/elevation.json: alturas so
 tools/sentinel.py        Sentinel-2 L2A (uv run --with rasterio): escenas sin nubes, recorte en color y NDVI de una caja, usos de suelo que hoy se ven construidos o pelados
 tools/regress.py         ¿sale el mismo mapa?: capturas fijas y __stats de referencia (--save) y comparación píxel a píxel (--against)
 tools/profile.py         perfil de CPU del arranque: ms por función de src/ (propio, total, --callers), en Chromium o en el teléfono (--android); por etapa (--etapa) y las tareas largas de la segunda (--tareas)
+tools/heap.py            la memoria del arranque: el montón de JS por fase (window.__mem), su pico, lo que queda tras un GC y quién asigna o retiene más (MB por función de src/)
+tools/lint.py            ESLint sobre el script unido (make lint; reglas en tools/eslint.config.mjs), con el archivo y la línea de src/
 scripts/deploy-cloudflare.sh  publica dist/ en Cloudflare Pages (make deploy); .githooks/pre-push lo corre al empujar main
 tools/ml_buildings.py    huellas de edificios de Overture (Microsoft, Google) y alturas de Google 2.5D Temporal -> raw/edificios-ml/, para edificios.py (make edificios-ml)
 tools/export.py          la maqueta generada a glTF (Blender, Godot; --teselas: un archivo por km²) y a STL cerrado para impresión 3D (tools/export.js corre en la página)

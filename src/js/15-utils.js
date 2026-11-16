@@ -1,5 +1,8 @@
-/* =============== utils =============== */
+// ==== utils ====
 function rng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+// STATS: the generation's counts and times, by section, that __stats shows (boot puts them together at the end): city
+// (cityGen: CITY), street (sidewalks, crosswalks, street trees, parked cars: STREET), rail, r5, trains, diagonal, paseos
+const STATS={city:{},street:{},rail:{},r5:{},trains:{},diagonal:{},paseos:{}};
 // T.ShapeUtils.triangulateShape on [x,y] rings: index triples into the ring followed by its holes, or null when it
 // throws (a degenerate ring). Every polygon dropped that way is counted in TRI_FAIL (__stats.triFail), so that it is
 // not lost in silence: tools/screenshot.py --strict (make smoke) fails when it is not 0

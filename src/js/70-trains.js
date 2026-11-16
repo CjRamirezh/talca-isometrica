@@ -1,4 +1,4 @@
-/* =============== trains =============== */
+// ==== trains ====
 // A train on each line (docs/PLAN-TREN.md 2.4-2.5), moving on the paths railBase leaves in RAILP: every car sits at
 // its own s (the head's minus the cars before it), at the railhead's height h, and turns with the tangent between
 // its two bogies, so it follows the curves and the 1:16 ramps of the underpasses. What runs through Talca today,
@@ -130,13 +130,14 @@ function trainsInit(){if(!RAILP.main||!RAILP.ramal)return;const t0=performance.n
   for(const t of TRAIN.list){t.grp.name='trenes';scene.add(t.grp);trainPlace(t);}
   if(!TRAIN.reduced){trainHide(sfb);trainHide(carga);}
   let verts=0,cars=0;for(const k in TRAIN.geo){verts+=TRAIN.geo[k].body.attributes.position.count+TRAIN.geo[k].win.attributes.position.count;}
-  for(const t of TRAIN.list)cars+=t.cars.length;STREET.trains={cars,verts,ms:Math.round(performance.now()-t0)};
-  window.__train=(line,s,kind,dir=1)=>{if(line==null){TRAIN.hold=false;for(const t of TRAIN.list)if(t.run||t===adm)trainPlace(t);dirty=true;return null;}
+  for(const t of TRAIN.list)cars+=t.cars.length;Object.assign(STATS.trains,{cars,verts,ms:Math.round(performance.now()-t0)});TRAIN.adm=adm;}
+// trainHold(line, s, kind, dir): window.__train, below; trainsList(): window.__trains
+function trainHold(line,s,kind,dir=1){if(line==null){TRAIN.hold=false;for(const t of TRAIN.list)if(t.run||t===TRAIN.adm)trainPlace(t);dirty=true;return null;}
     TRAIN.hold=true;const tr=TRAIN.list.find(e=>e.line===line&&(kind?e.kind===kind:true));if(!tr)return null;
     for(const o of TRAIN.list)if(o!==tr)trainHide(o);
-    if(tr.dir!==dir)trainTurn(tr,false);tr.s=s;tr.v=0;trainPlace(tr);dirty=true;return tr.mid;};
-  window.__trains=()=>TRAIN.list.map(t=>({line:t.line,kind:t.kind,dir:t.dir,s:Math.round(t.s),v:Math.round(t.v),len:Math.round(t.len),
-    run:!!t.run,shown:t.grp.visible,inView:t.inView,mid:t.mid.map(Math.round)}));}
+    if(tr.dir!==dir)trainTurn(tr,false);tr.s=s;tr.v=0;trainPlace(tr);dirty=true;return tr.mid;}
+const trainsList=()=>TRAIN.list.map(t=>({line:t.line,kind:t.kind,dir:t.dir,s:Math.round(t.s),v:Math.round(t.v),len:Math.round(t.len),
+    run:!!t.run,shown:t.grp.visible,inView:t.inView,mid:t.mid.map(Math.round)}));
 // the frame hook (loop): advance the timetable and the trains by dt seconds; true when the frame should be drawn
 const TR_FR=new T.Frustum(),TR_M=new T.Matrix4(),TR_SPH=new T.Sphere();
 function trainsTick(now){const dt=Math.min(.5,(now-TRAIN.last)/1000);TRAIN.last=now;if(TRAIN.reduced||TRAIN.hold||!TRAIN.list.length)return false;
@@ -167,4 +168,4 @@ function trainsNight(v){matTrainWin.emissive.set(v?0x8C6A2E:0x000000);if(TRAIN.p
 // (the render calls; the GPU's time shows up as a lower rate), to measure on a real GPU with a train in the view
 const TRAIN_FR=[];
 function trainFrame(now,ms){TRAIN_FR.push(now);while(TRAIN_FR.length&&TRAIN_FR[0]<now-2000)TRAIN_FR.shift();TRAIN.ms=TRAIN.ms?TRAIN.ms*.9+ms*.1:ms;}
-window.__trainFps=()=>({fps:TRAIN_FR.length/2,drawMs:+(TRAIN.ms||0).toFixed(1)});
+const trainFps=()=>({fps:TRAIN_FR.length/2,drawMs:+(TRAIN.ms||0).toFixed(1)}); // window.__trainFps

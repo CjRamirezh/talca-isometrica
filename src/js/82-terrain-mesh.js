@@ -1,4 +1,4 @@
-/* =============== terrain mesh + diorama cut =============== */
+// ==== terrain mesh + diorama cut ====
 // The terrain of the commune: the cells inside the limit share the grid's nodes; the cells it crosses add their
 // commune part (LIMT clipped to each terrain triangle) with vertices of their own, on the same planes (E, the node
 // colours and EN interpolated). The cut sides follow the limit and the terrain's profile along it.

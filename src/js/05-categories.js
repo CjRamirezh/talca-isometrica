@@ -1,4 +1,4 @@
-/* =============== categories =============== */
+// ==== categories ====
 const CATS={
   tribunales:{n:'Tribunales',ic:'M10 3v13M5 16h10M4 6h12M4 6l-2.5 5a2.5 2.5 0 0 0 5 0zM16 6l-2.5 5a2.5 2.5 0 0 0 5 0z'},
   fiscalia:{n:'Fiscalía y defensa',ic:'M10 2.5l6 2.5v4.5c0 3.8-2.6 6.4-6 8-3.4-1.6-6-4.2-6-8V5z'},

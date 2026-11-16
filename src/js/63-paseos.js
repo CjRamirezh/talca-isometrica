@@ -19,11 +19,11 @@ function paseosBase(G,D){const B=draped(G),r=rng(5150);let n=0;
     for(let i=0;i<s.pts.length-1;i++){const a=s.pts[i],b=s.pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1)continue;
       const tx=(b[0]-a[0])/L,ty=(b[1]-a[1])/L,nx=-ty,ny=tx,P=(u,v)=>[a[0]+tx*u+nx*v,a[1]+ty*u+ny*v];
       // paving: bands of 3 m across, alternating tones (ESTETICA §3)
-      const nb=Math.max(1,Math.round(L/3));for(let k=0;k<nb;k++){const u0=L*k/nb,u1=L*(k+1)/nb;B.quadXY([P(u0,-hw),P(u1,-hw),P(u1,hw),P(u0,hw)],0.124,k%2?PASEO_K.pave2:PASEO_K.pave);}
+      const nb=Math.max(1,Math.round(L/3));for(let k=0;k<nb;k++){const u0=L*k/nb,u1=L*(k+1)/nb;B.quadXY([P(u0,-hw),P(u1,-hw),P(u1,hw),P(u0,hw)],Y_LAYER.paseo,k%2?PASEO_K.pave2:PASEO_K.pave);}
       const off=Math.max(1.5,hw-3);
       for(const [side,ph] of [[-1,0],[1,4.5]]){
         for(let u=4+ph;u<L-3;u+=9){const [x,y]=P(u,side*off);if(cross(x,y,si))continue;
           if(Math.round((u-4-ph)/9)%2===1){const q=rotRect(x,y,.3,.3),h=E(x,y)+0.124;D.dy=h;D.prism(q,0,4.2,PASEO_K.iron,PASEO_K.iron);D.prism(rotRect(x,y,.8,.8),4.2,4.6,PASEO_K.iron,PASEO_K.lamp);GLOW.push(x,h+4.4,y);}
           else{TREES.push([x,y,.75+r()*.15,r()]);n++;}}}
       for(let u=12;u<L-6;u+=24){const [x,y]=P(u,0);if(cross(x,y,si))continue;const q=rotRect(x,y,1.6,1.6,Math.atan2(ty,tx));D.dy=E(x,y)+0.124;D.prism(q,0,.6,PASEO_K.planter,PASEO_K.shrub);}}});
-  D.dy=0;STREET.paseoTrees=n;}
+  D.dy=0;STATS.paseos.trees=n;}

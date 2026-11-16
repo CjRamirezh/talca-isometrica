@@ -1,4 +1,4 @@
-/* =============== camera =============== */
+// ==== camera ====
 const EL=Math.PI/6;
 const MOB=matchMedia('(max-width:760px)').matches;
 // The initial view: the Plaza de Armas at the default rotation, close enough for the Cathedral to be recognisable
@@ -95,7 +95,7 @@ function flyTo(x,y,z,az){const s={tx:view.tx,ty:view.ty,zoom:view.zoom,az:view.a
     const hop=Math.sin(Math.PI*k)*Math.min(0.9,Math.hypot(e.tx-s.tx,e.ty-s.ty)/2500);
     view.tx=s.tx+(e.tx-s.tx)*k;view.ty=s.ty+(e.ty-s.ty)*k;view.zoom=Math.exp(lz-hop);view.az=s.az+(e.az-s.az)*k;placeCam();if(t>=1)anim=null;};}
 
-/* =============== input =============== */
+// ==== input ====
 const ptrs=new Map();let lastPinch=0;
 canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);anim=null;canvas.classList.add('drag');if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastPinch=Math.hypot(a[0]-b[0],a[1]-b[1]);}});
 canvas.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;const rect=canvas.getBoundingClientRect();

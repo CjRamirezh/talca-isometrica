@@ -27,7 +27,7 @@
 // sports ground with a pitch and bleachers), golf, parque, huerto, vina, potrero, feria, terminal (bus platforms),
 // conjunto (rows of identical semi-detached houses where the map has no streets), parcelas, bosque, eriazo. The
 // `vivienda` entries never get here: build.py turns them into built census blocks for cityGen.
-// window.__usos: counts per use, skipped entries, trees (tt: per use) and the time taken (tk: ms per use).
+// window.__usos (USTAT): counts per use, skipped entries, trees (tt: per use) and the time taken (tk: ms per use).
 const USOS=(()=>{const D=DATA.usos||{k:[],u:[]};return D.u.map(([k,rr,o],i)=>{const r=dec(rr),A=ringArea(r),bb=bbox(r);
   if(A<0)r.reverse();return {i,k:D.k[k],r,o:o||{},A:Math.abs(A),bb,kids:[],skip:false};});})();
 const USO_GROUND=new Set(['industrial','cementerio','militar','educacional','salud','deportivo','golf','parque','huerto','vina','potrero','feria','conjunto','terminal']);
@@ -95,7 +95,7 @@ function usoBand(fr,v0,v1){const A=usoSpans(fr,v0),B=usoSpans(fr,v1),o=[];for(co
 // usosBase(B, S, UG, list): draws the uses of list (boot: those in the first view, then the rest in pieces), their
 // ground in UG (boot tiles it); each draws only from what was there before the uses (OCC0, the streets) with its own
 // rng, so the order does not matter. usosDone() lets OCC0 go. The urban fringe (usosFringe) goes before, on its own.
-function usosDone(verts){USTAT.ms=Math.round(USTAT.ms);USTAT.verts=verts;window.__usos=USTAT;OCC0=null;}
+function usosDone(verts){USTAT.ms=Math.round(USTAT.ms);USTAT.verts=verts;OCC0=null;}
 // the uses' palette (usoKit's K) and the orchards' tones by species (HUERTO)
 const USO_K={yard:hex('#ABA79C'),yard2:hex('#9E9A90'),swalls:['#D4D0C6','#C9C6BE','#B9B5AC','#D8CDB8','#C4BFB2'].map(hex),zinc:['#A9ADB0','#C2C4C3','#9CA3A6','#8F969A','#B4B0A6'].map(hex),
     tank:hex('#DAD7D0'),truck:hex('#E8E6E0'),dust:hex('#B9AC92'),timber:['#D9BE8C','#CBAA74','#E2CB9E'].map(hex),logs:hex('#86664A'),cab:['#B4372C','#3E6D9C','#E8E6E0','#3A3A3A'].map(hex),fence:hex('#BDB8AC'),
@@ -135,7 +135,7 @@ function usoKit(B,S,UG){const C=hex,K=USO_K,HUERTO=USO_HUERTO,kit={B,S,UG,cur:nu
   const PX={onGround:dry};
   const lay=(u,col)=>{const holes=u.kids.filter(k=>!k.skip&&USO_GROUND.has(k.k)).map(k=>k.r);
     const t=triangulate(u.r,holes);if(!t)return;
-    const all=u.r.concat(...holes);for(const [a,b,c] of t)drapeQ(PX,toCCW([all[a],all[b],all[c]]),0.11+(u.lift||0),col);};
+    const all=u.r.concat(...holes);for(const [a,b,c] of t)drapeQ(PX,toCCW([all[a],all[b],all[c]]),Y_LAYER.uso+(u.lift||0),col);};
   const flatD=(q,y,col)=>drapeQ(PX,toCCW(q),y,col); // a small convex detail, draped (no street test)
   // a strip along u from ua to ub between v0 and v1, cut where it meets a street or what was there before
   const strip=(fr,v0,v1,ua,ub,y,col,step=4)=>{const vm=(v0+v1)/2;let s=null,last=ua;

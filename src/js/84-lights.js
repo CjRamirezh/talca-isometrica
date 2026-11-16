@@ -1,4 +1,4 @@
-/* =============== street lights (night) =============== */
+// ==== street lights (night) ====
 // where a landmark puts its own street lamps (they go in GLOW): [[x0, y0, x1, y1], street-name regex], the generic
 // ones of those streets left out (hitos/calles-plaza.js)
 const LAMP_SKIP=[];
@@ -15,7 +15,7 @@ const GLOWPTS=[];
 function glowMat(){const c=document.createElement('canvas');c.width=c.height=32;const x=c.getContext('2d');const gr=x.createRadialGradient(16,16,0,16,16,16);gr.addColorStop(0,'rgba(255,225,150,1)');gr.addColorStop(.35,'rgba(255,200,110,.5)');gr.addColorStop(1,'rgba(255,190,90,0)');x.fillStyle=gr;x.fillRect(0,0,32,32);
   return new T.PointsMaterial({size:9,sizeAttenuation:false,map:new T.CanvasTexture(c),transparent:true,depthWrite:false,blending:T.AdditiveBlending});}
 
-/* =============== selection ring =============== */
+// ==== selection ring ====
 const selRing=new T.Mesh(new T.RingGeometry(0.8,1,48),new T.MeshBasicMaterial({color:0x7A1F3D,transparent:true,opacity:.9,depthWrite:false}));
 selRing.rotation.x=-Math.PI/2;selRing.visible=false;selRing.renderOrder=5;scene.add(selRing);
 // the pulse: RING_PULSES rings that grow and fade after select() (it sets userData.t0), then the ring hides. Every pulse

@@ -1,4 +1,4 @@
-/* =============== trees (instanced) =============== */
+// ==== trees (instanced) ====
 function treeGeo(kind){
   const g1=kind==='poplar'?new T.CylinderGeometry(0.01,1.6,9,6,1):new T.IcosahedronGeometry(3.2,0);
   if(kind!=='poplar'){g1.scale(1,1.05,1);g1.translate(0,5.4,0);}else g1.translate(0,7.2,0);
@@ -27,7 +27,7 @@ function treeFar(kind){const P=[],C=[],cg=kind==='poplar'?[.42,.56,.28]:[.40,.54
 // tools/variants.py)
 let lodFar=null,lodHold=null;
 function setLod(a){const far=lodHold?lodHold==='far':a>=LOD_A;if(far===lodFar)return;lodFar=far;for(const m of LODS)m.geometry=m.userData.lod[far?1:0];shDirty=true;}
-window.__lod=v=>{lodHold=v||null;lodFar=null;dirty=true;};
+const holdLod=v=>{lodHold=v||null;lodFar=null;dirty=true;}; // window.__lod
 const instTrees=(list,kind)=>drain(instTreesGen(list,kind));
 function* instTreesGen(list,kind){list=list.filter(t=>inTerrain(t[0],t[1])); // only in the commune (instTiledGen: rest() runs it in slices)
   const q=new T.Quaternion(),s=new T.Vector3(),p=new T.Vector3(),Y=new T.Vector3(0,1,0);

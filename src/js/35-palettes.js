@@ -1,4 +1,4 @@
-/* =============== palettes =============== */
+// ==== palettes ====
 const PAL={
   field:hex('#BDB98A'), fields:['#B9B783','#C5BE8E','#AEB27A','#C9B98A','#A7AE73','#BFB585','#9FAA6E','#CDBF93'].map(hex),
   lot:hex('#CBC4AA'), park:hex('#A3B06C'), open:hex('#B7B884'), plaza:hex('#CFC7B0'),

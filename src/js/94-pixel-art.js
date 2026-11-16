@@ -1,4 +1,4 @@
-/* =============== pixel art =============== */
+// ==== pixel art ====
 // The map is always drawn as pixel art (docs/PROYECTOS-SIMILARES.md, point 3). The scene is drawn at 1/k of the
 // screen into a target with depth. A screen pass shows each low-resolution pixel as k x k screen pixels and
 //  - outline 1: darkens the pixels of a surface whose neighbour is more than `edge` metres farther away (the
@@ -98,8 +98,9 @@ const lv=GLOWPTS.map(p=>p.visible),rv=selRing.visible;for(const p of GLOWPTS)p.v
   U.cDepth.value=dc?1:0;U.fold.value=o.fold;U.art.value=a;
   const P=o.palette?paPalette(o.rt,Math.min(64,o.palette)):[];U.npal.value=P.length;P.forEach((c,i)=>U.pal.value[i].set(c[0],c[1],c[2]));
   renderer.setRenderTarget(null);renderer.render(paQuad.sc,paQuad.cam);}
-window.__pixelArt=o=>{if(!o){PA=null;for(const p of GLOWPTS)p.material.size=9;dirty=true;return 0;}
+// pixelArt(o): window.__pixelArt (99-boot.js)
+function pixelArt(o){if(!o){PA=null;for(const p of GLOWPTS)p.material.size=9;dirty=true;return 0;}
   PA=Object.assign({k:2,m:0,outline:null,palette:0,dark:.55,crease:'depth',fold:.8},o);if(o.k&&!o.m)PA.m=0;else if(!o.k&&!o.m)PA.m=0.5;
-  PA.edgeAuto=o.edge===undefined;dirty=true;return paFit(PA);};
-window.__pixelArt({m:0.5});
+  PA.edgeAuto=o.edge===undefined;dirty=true;return paFit(PA);}
+pixelArt({m:0.5});
 

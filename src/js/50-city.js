@@ -1,7 +1,12 @@
-/* =============== procedural city =============== */
+// ==== procedural city ====
+// The distance to the plaza is measured from two points. The blocks' style (styleFor), the barrios' recipes (barrios)
+// and the large blocks of sheds (recipeOf) take it from PLAZA_C, near the middle of the Plaza de Armas' block; cityGen's
+// shops and floors (dc) and the streets' order (CITY_DIST) from the grid's origin, the plaza's point in data/pois.json,
+// ~11 m away. Either one moved changes the city that is generated (November 2026: kept as they are, named here).
+const PLAZA_C=[-8,-7];
 function styleFor(bi){
   const b=blocks[bi];if(b._s)return b._s;
-  const dc=Math.hypot(b.cx+8,b.cy+7);const ha=b.A/1e4;const dens=b.viv/Math.max(ha,.05);
+  const dc=Math.hypot(b.cx-PLAZA_C[0],b.cy-PLAZA_C[1]);const ha=b.A/1e4;const dens=b.viv/Math.max(ha,.05);
   let s;
   if(dc<720||(dc<1250&&(b.pers===0||dens<14)))s='core';
   else if(b.pers===0&&b.viv===0)s=(ha>1.2?'ind':'core2');
@@ -70,7 +75,7 @@ const tone=(f,k)=>CP.roof[f][k&1];
 // condominiums are the outskirts, and dense barrios are villas of small lots. A block in seven takes the barrio's second
 // recipe (a villa squeezed into a población). The recipe sets the house type, the lot width and its regularity, the
 // floors, the roof family, the wall and yard colours, trees, sheds and corner shops.
-const BAR_G=280,CITY={}; // CITY: counts for __stats
+const BAR_G=280,CITY=STATS.city; // CITY: counts for __stats
 let BARS=null;
 function barrioId(x,y){const gx=Math.floor(x/BAR_G),gy=Math.floor(y/BAR_G);let best=1e18,id=0;
   for(let i=gx-1;i<=gx+1;i++)for(let j=gy-1;j<=gy+1;j++){const q=rng((i+999)*7919+(j+999)*104729),sx=(i+.1+.8*q())*BAR_G,sy=(j+.1+.8*q())*BAR_G,d=(x-sx)**2+(y-sy)**2;
@@ -87,12 +92,12 @@ function houseRecipe(r,dc,D){const W=dc<1400?[60,30,10,0,0]:dc<2600?[6,49,25,11,
 function barrios(){BARS=new Map();
   blocks.forEach(b=>{if(!b.built)return;const id=b._bar=barrioId(b.cx,b.cy);let s=BARS.get(id);if(!s)BARS.set(id,s={A:0,Ac:0,viv:0,x:0,y:0});
     s.A+=b.A;s.x+=b.cx*b.A;s.y+=b.cy*b.A;if(b.t===0){s.Ac+=b.A;s.viv+=b.viv;}});
-  for(const [id,s] of BARS){const r=rng(id*31+7),dc=Math.hypot(s.x/s.A+8,s.y/s.A+7),D=s.Ac?s.viv/(s.Ac/1e4):40;
+  for(const [id,s] of BARS){const r=rng(id*31+7),dc=Math.hypot(s.x/s.A-PLAZA_C[0],s.y/s.A-PLAZA_C[1]),D=s.Ac?s.viv/(s.Ac/1e4):40;
     s.h=houseRecipe(r,dc,D);s.alt=houseRecipe(r,dc,D);
     s.a={perp:r()<.6,fl:r()<.75?3:4,gab:r()<.6,wl:[pick(r,CP.wallsApt),pick(r,CP.wallsApt)],rf:fam(r,MIX.apt)};}
   CITY.barrios=BARS.size;}
 function recipeOf(bi){const b=blocks[bi];if(b._rec)return b._rec;if(!BARS)barrios();const s=BARS.get(b._bar);
-  const ha=b.A/1e4,big=b.t===0&&ha>=2&&b.viv/ha<8&&Math.hypot(b.cx+8,b.cy+7)>=1250;
+  const ha=b.A/1e4,big=b.t===0&&ha>=2&&b.viv/ha<8&&Math.hypot(b.cx-PLAZA_C[0],b.cy-PLAZA_C[1])>=1250;
   return b._rec={h:rng(bi*977+3)()<.14?s.alt:s.h,a:s.a,ind:big?.4:0};}
 // Helpers on a lot's frame P(u, v) (u along the street, v away from it; the street is at -v). F holds the scene normals
 // of the frame's directions: f toward the street, b away from it, l toward -u, r toward +u.

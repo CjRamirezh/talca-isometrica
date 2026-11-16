@@ -16,8 +16,9 @@ function alamedaPlan(bi){const b=blocks[bi];if(b._al)return b._al;
   return b._al={x0:x0+5,x1:x1-5,y0:y0+3,y1:y1-3,cy,px,lm,pr:lm?11:8};}
 function alamedaGround(B){const box=(x0,y0,x1,y1)=>[[x0,y0],[x1,y0],[x1,y1],[x0,y1]];
   ALAM.forEach(bi=>{const a=alamedaPlan(bi);if(a.x1-a.x0<20)return;const {x0,x1,cy,px,pr}=a;
-    B.quadXY(box(x0,cy-6.5,x1,cy+6.5),0.107,PAL.edging);B.quadXY(box(px-4.5,a.y0,px+4.5,a.y1),0.107,PAL.edging);B.flat(ngon(px,cy,pr+2,20),0.107,PAL.edging);
-    B.quadXY(box(x0,cy-4.5,x1,cy+4.5),0.114,PAL.gravel);B.quadXY(box(px-2.5,a.y0,px+2.5,a.y1),0.114,PAL.gravel);B.flat(ngon(px,cy,pr,20),0.114,PAL.gravel);});
+    const ye=Y_LAYER.alamEdge,yg=Y_LAYER.alamGravel;
+    B.quadXY(box(x0,cy-6.5,x1,cy+6.5),ye,PAL.edging);B.quadXY(box(px-4.5,a.y0,px+4.5,a.y1),ye,PAL.edging);B.flat(ngon(px,cy,pr+2,20),ye,PAL.edging);
+    B.quadXY(box(x0,cy-4.5,x1,cy+4.5),yg,PAL.gravel);B.quadXY(box(px-2.5,a.y0,px+2.5,a.y1),yg,PAL.gravel);B.flat(ngon(px,cy,pr,20),yg,PAL.gravel);});
 }
 // alamedaPark(B, bis): the stretches of the Alameda in bis (blocks of ALAM; their trees test the city's lots, so boot
 // calls it once the lots around each stretch are laid)

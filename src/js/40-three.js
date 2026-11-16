@@ -1,4 +1,4 @@
-/* =============== three setup =============== */
+// ==== three setup ====
 const canvas=$('#gl');
 let renderer;
 // no antialias: the scene is drawn into the pixel art's own target (without it), and the screen only gets the quad that

@@ -1,4 +1,4 @@
-/* =============== geometry builder =============== */
+// ==== geometry builder ====
 class GB{
   constructor(cap=1<<15){this.cap=cap;this.P=new Float32Array(cap*3);this.N=new Int8Array(cap*3);this.C=new Uint8Array(cap*3);this.icap=cap*2;this.I=new Uint32Array(this.icap);this.nv=0;this.ni=0;this.dy=0;this.lk=NaN;}
   // the run log (startup): k is the key of what is being emitted, in the order of a startup at once; each change of
@@ -164,7 +164,7 @@ function stripLod(c){stripFr.setFromProjectionMatrix(stripM.multiplyMatrices(c.p
   for(const S of STRIPS){const b=S.box;let on=stripsOn;
     for(const p of stripFr.planes){const n=p.normal;stripV.set(n.x>0?b.min.x:b.max.x,n.y>0?b.min.y:b.max.y,n.z>0?b.min.z:b.max.z);if(p.distanceToPoint(stripV)<0){on=false;break;}}
     if(on!==S.on){S.on=on;S.c.visible=on;for(const m of S.f)m.visible=!on;}}}
-window.__strips=on=>{stripsOn=on!==false;dirty=true;};
+const setStrips=on=>{stripsOn=on!==false;dirty=true;}; // window.__strips
 // instTiled(geo, mat, list, set): an InstancedMesh per tile (trees, cars); set(item, m, col) writes an instance's
 // matrix and colour. r128 never culls an InstancedMesh (frustumCulled false: it would test the sphere of a single
 // tree at the grid origin), so the 215 thousand trees were drawn whole in every pass. Each tile's geometry shares
@@ -205,6 +205,19 @@ function drapeQ(G,q0,off,col){let polys=[q0];
   for(const q of polys){let cx=0,cy=0;for(const p of q){cx+=p[0];cy+=p[1];}
     const c=cellOf(cx/q.length,cy/q.length);if(c<0||!CM[c])continue;
     if(CM[c]===1)G.onGround(q,off,col);else for(const t of LIMT.get(c)){const r=clipTo(q,t);if(r.length>2)G.onGround(r,off,col);}}}
+// ==== the flat layers' heights ====
+// Y_LAYER: the height over the ground (m) of each flat layer, draped on the terrain (drape, drapeQ, onGround), from the
+// bottom up. Where two of them meet, the upper one must stand clear of the lower (the depth buffer spans ±30 km, and a
+// step of half a centimetre flickers): Y_OVER lists those pairs, [upper, lower], and tools/check.py (layer_heights)
+// fails if one is less than Y_STEP apart or out of order. Two layers at the same height never overlap (the water and
+// the gravel strips of the rivers; the land uses and the water, which cuts them, usosBase). The streets lie from
+// street (class 7) up in steps of street_step by class to street+7*street_step (class 0): the classes cross each other
+// at that step. The details over a land use go up in 1 cm steps from uso (uso+.01: a pitch, +.02: rows, +.03: lines).
+const Y_LAYER={field:.02,bankGreen:.03,bank:.05,waterRibbon:.07,block:.1,alamEdge:.107,uso:.11,water:.11,alamGravel:.114,
+  street:.12,street_step:.004,paseo:.124,mixedYard:.135,walk:.16,r5:.16,curb:.172,edWalk:.18,edSlab:.2,rail:.2};
+const Y_STEP=.007,Y_OVER=[['bankGreen','field'],['bank','bankGreen'],['waterRibbon','bank'],['block','field'],['alamEdge','block'],
+  ['alamGravel','alamEdge'],['uso','block'],['water','block'],['street','water'],['street','uso'],['paseo','block'],['mixedYard','block'],
+  ['walk','street_top'],['r5','street_top'],['curb','walk'],['edWalk','block'],['edSlab','edWalk'],['rail','street_top']];
 // Progressive startup (boot): STAGE is the box of grid metres [x0, y0, x1, y1] the first view needs; what lies outside
 // it (a triangle of a ground layer, a land use, a sidewalk's trees) waits in a list for the rest of the generation,
 // after the first frame. null: everything at once (outside the startup, or window.__STAGE=0 before the page loads).

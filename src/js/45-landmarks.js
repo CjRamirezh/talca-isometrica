@@ -1,4 +1,4 @@
-/* =============== landmark models =============== */
+// ==== landmark models ====
 const MODELS={}; // id -> {x,y,h}
 const GLOW=[]; // extra night lights [x, height, y] (the stadium's masts)
 const NOLOTS=[]; // polygons (grid metres) where cityGen places no lots: fenced grounds modelled on their own

@@ -1,4 +1,4 @@
-/* spatial grids */
+// ==== spatial grids ====
 const BG=100, bgW=Math.ceil((XMAX-XMIN)/BG), bgH=Math.ceil((YMAX-YMIN)/BG);
 const bgrid=Array.from({length:bgW*bgH},()=>[]);
 blocks.forEach((b,i)=>{for(let gx=Math.max(0,Math.floor((b.bb[0]-XMIN)/BG));gx<=Math.min(bgW-1,Math.floor((b.bb[2]-XMIN)/BG));gx++)for(let gy=Math.max(0,Math.floor((b.bb[1]-YMIN)/BG));gy<=Math.min(bgH-1,Math.floor((b.bb[3]-YMIN)/BG));gy++)bgrid[gy*bgW+gx].push(i);});
@@ -48,7 +48,7 @@ function segsInBox(x0,y0,x1,y1,f){const st=++segStamp;
     for(const id of sgrid[gy*sgW+gx]){if(SEG_SEEN[id]===st)continue;SEG_SEEN[id]=st;if(f(id,segs[id])===false)return false;}
   return true;}
 function nearStreet(x,y,pad){const ids=segsAt(x,y);if(!ids)return false;for(const id of ids){const s=segs[id];const r=s[4]+pad;if(segDist2(x,y,s[0],s[1],s[2],s[3])<r*r)return true;}return false;}
-/* occupancy raster */
+// ==== occupancy raster ====
 const OC=2.5, ocW=Math.ceil((XMAX-XMIN)/OC), ocH=Math.ceil((YMAX-YMIN)/OC);
 // The commune's box is ~8 300 × 9 500 cells and most of it stays empty, so a raster over it (occ, and the masks built
 // like it) is kept in chunks of 128 × 128 cells, allocated when a cell is first written: get(gx, gy) and set(gx, gy, v)

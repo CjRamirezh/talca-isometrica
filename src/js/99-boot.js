@@ -1,4 +1,4 @@
-/* =============== boot =============== */
+// ==== boot ====
 function loop(now){
   if(anim){anim(now);}
   if(ringTick(now))dirty=true; // the selection ring's pulse, at RING_FPS for a few seconds after select()
@@ -31,9 +31,14 @@ function loadTimes(){if(window.__posterT)LOAD.poster=window.__posterT;const n=pe
 // that the map can be moved meanwhile: gen is a generator that yields between pieces of work. A MessageChannel instead
 // of setTimeout(0), which the browser stretches to 4 ms after a few in a row.
 const SLICE_MS=40,SLICE_BUSY=8;
+// The JS heap during the generation (window.__mem, MB; Chromium's performance.memory, exact with
+// --enable-precise-memory-info: tools/heap.py): after each phase of the first stage, its peak over those and the
+// slices of rest(), and at the end (end; after a forced GC, what stays, is tools/heap.py's)
+const MEM={peak:0},memMB=()=>performance.memory?Math.round(performance.memory.usedJSHeapSize/1048576):0;
+function memAt(k){const m=memMB();if(k)MEM[k]=m;if(m>MEM.peak)MEM.peak=m;}
 function sliced(gen,done){const ch=new MessageChannel();let ms=0;
   ch.port1.onmessage=()=>{const t=performance.now(),b=t-camT<300||anim?SLICE_BUSY:SLICE_MS;let r;
-    do{r=gen.next();}while(!r.done&&performance.now()-t<b);ms+=performance.now()-t;
+    do{r=gen.next();}while(!r.done&&performance.now()-t<b);ms+=performance.now()-t;memAt();
     if(r.done){ch.port1.close();done(Math.round(ms),r.value);}else ch.port2.postMessage(0);};
   ch.port2.postMessage(0);}
 // the box of the first view (STAGE): the ground under the edges of the screen, plus STAGE_M for the shadows of what
@@ -73,7 +78,7 @@ function boot(){
   buildPanel(); // the panel first: over the poster it is on screen during the generation
   setTimeout(()=>{
     const B=new GB(1<<19),S=new GB(1<<16);
-    const TT={};let tl=performance.now();const tm=k=>{const n=performance.now();TT[k]=Math.round(n-tl);tl=n;}; // ms per phase: __stats.t
+    const TT={};let tl=performance.now();const tm=k=>{const n=performance.now();TT[k]=Math.round(n-tl);tl=n;memAt(k);}; // ms per phase: __stats.t; the heap: __mem
     riversLevel();riversOcc();linesOcc();tm('rivers');   // level water; no lots or trees in the rivers, the Ruta 5 or the rail
     buildModels(B,S);tm('models');TT.hitos=HITOS_T; // records the landmark pads... (ms per landmark: __stats.t.hitos)
     edificiosPlan();tm('edPlan');           // the OSM buildings: those the landmarks leave, cut at the sidewalks, in occ (3)
@@ -139,15 +144,7 @@ function boot(){
     for(const m of cast){m.traverse(o=>o.castShadow=o.receiveShadow=true);if(!m.parent)scene.add(m);}
     scene.traverse(o=>{if(o.castShadow)CASTERS.push(o);});SH=null;shOff=false;placeCam(); // what casts shadows, switched off together by fitShadow when far; the shadow box for the first view
     tm('meshes');LOAD.gen=Math.round(performance.now());
-    // for tools/screenshot.py --js: centre the camera on a ground point (grid metres), at a zoom (4 = the card's) and azimuth
-    window.__home=z=>homeView(z); // the initial view, at another zoom (to choose one: tools/screenshot.py --view)
-    window.__look=(x,y,zoom=4,az=view.az)=>{view.az=az;view.zoom=zoom;[view.tx,view.ty]=lift(x,y,az);placeCam();};
-    window.__trees=on=>{for(const m of trees)m.visible=on;shDirty=dirty=true;}; // hide the trees to see the ground under them (tools/variants.py)
-    window.__cars=on=>{for(const m of cars)m.visible=on;shDirty=dirty=true;}; // the parked cars, likewise
-    // for tools/perf.py: the renderer and what a frame depends on (timing each pass, panning, forcing a shadow refit)
-    window.__three={renderer,scene,cam,sun,pan,placeCam,fitShadow,get PA(){return PA;}};
-    window.__export={PD,E,inTerrain,ext:[XMIN,XMAX,YMIN,YMAX],matBld}; // for tools/export.py (with window.__KEEP)
-    window.__pads=PADS; // the landmark pads [x0,y0,x1,y1,h], for pipeline/traces.py check --pads
+    hooksView(trees,cars);
     $('#loading').style.opacity=0;setTimeout(()=>$('#loading').hidden=true,500);
     requestAnimationFrame(loop);
     if(STAGE)$('#more').hidden=false;
@@ -188,11 +185,36 @@ function boot(){
       lampPts=lamps();lampPts.visible=night;scene.add(lampPts);STAGE=null;$('#more').hidden=true;shDirty=dirty=true;
       LOAD.full=Math.round(performance.now());
       const sum=a=>a.reduce((s,v)=>s+v,0);CITY.zVerts=sum(zv);
-      window.__stats={buildings:nb,lots:LOTS.length-EDS.hulls,verts:sum(bv),yards:sum(yv),ground:sum(gnd),street:STREET,trees:C.round.length,poplars:C.poplar.length,triFail:TRI_FAIL,ms:Math.round(performance.now()-t0),t:TT};
-      window.__stats.city=CITY;Object.defineProperty(window.__stats,'load',{get:loadTimes,enumerable:true}); // cityGen: barrios, house types, the Z mesh (procedural city)
+      const st={buildings:nb,lots:LOTS.length-EDS.hulls,verts:sum(bv),yards:sum(yv),ground:sum(gnd),...STATS,trees:C.round.length,poplars:C.poplar.length,triFail:TRI_FAIL,ms:Math.round(performance.now()-t0),t:TT};
+      Object.defineProperty(st,'load',{get:loadTimes,enumerable:true});hooksDone(st);
     }),0);
   },30);
 }
+// ==== window.__* ====
+// What the page gives tools/ and the console, all set here (the names tools/ and CLAUDE.md use). Read before the page
+// loads: window.__STAGE (boot: the first view's box, tools/regress.py --init) and window.__KEEP (30-geometry.js:
+// the meshes keep their arrays, for tools/export.py). hooksView: the controls and what the generation has laid, once
+// the first view is up (boot); hooksDone: the records of the whole generation, with __stats last (tools wait for it)
+function hooksView(trees,cars){Object.assign(window,{
+  __look:(x,y,zoom=4,az=view.az)=>{view.az=az;view.zoom=zoom;[view.tx,view.ty]=lift(x,y,az);placeCam();}, // centre a ground point (grid metres) at a zoom (4 = the card's) and azimuth: tools/screenshot.py --js
+  __home:z=>homeView(z),                 // the initial view, at another zoom (to choose one: tools/screenshot.py --view)
+  __pixelArt:pixelArt,                   // the pixel art's options, or null to turn it off (94-pixel-art.js; tools/variants.py)
+  __trees:on=>{for(const m of trees)m.visible=on;shDirty=dirty=true;}, // hide the trees to see the ground under them (tools/variants.py)
+  __cars:on=>{for(const m of cars)m.visible=on;shDirty=dirty=true;},   // the parked cars, likewise
+  __r5cars:r5Cars,                       // the Ruta 5's cars, likewise
+  __lod:holdLod,                         // 'near' | 'far': hold the trees' level of detail (80-trees.js)
+  __strips:setStrips,                    // false: draw the tiles, not the strips (30-geometry.js; tools/perf.py)
+  __train:trainHold,__trains:trainsList,__trainFps:trainFps, // hold a train at s, the trains' state, the frames they ask for (70-trains.js)
+  __E:(x,y)=>E(x,y),                     // the ground's height (grid metres), to measure the structures from --js
+  __three:{renderer,scene,cam,sun,pan,placeCam,fitShadow,get PA(){return PA;}}, // tools/perf.py: the renderer and what a frame depends on
+  __export:{PD,E,inTerrain,ext:[XMIN,XMAX,YMIN,YMAX],matBld}, // tools/export.py (with window.__KEEP)
+  __pads:PADS,                           // the landmark pads [x0,y0,x1,y1,h]: pipeline/traces.py check --pads
+  __rail:RAILP,                          // the rail lines as paths for the train (68-rail.js): tools/probe.py
+  __ed:EDS});}                           // the OSM buildings' counts and ms (52-edificios.js): tools/perf.py
+function hooksDone(stats){Object.assign(window,{
+  __usos:USTAT,                          // the land uses' counts and ms (76-usos.js)
+  __mem:(memAt('end'),MEM),               // the JS heap (MB) after each phase of the first stage, its peak and at the end
+  __stats:stats});}                      // the generation's counts (STATS and the meshes'), ms per phase (t) and load times (load)
 window.addEventListener('resize',resize);
 if(window.matchMedia)matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{dirty=true;});
 resize();
