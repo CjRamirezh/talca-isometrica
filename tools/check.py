@@ -16,9 +16,13 @@ Comprueba:
   - que data/pois.json tenga ids únicos y que cada recorrido apunte a lugares que existen;
   - que el script de dist/assets/ compile (node --check; el error da el archivo de src/ y la línea, con build.where()),
     que cada archivo que pide dist/index.html (src, href, srcset y lo que pide desde JS en assets/) exista en dist/, y que
-    dist/assets/ no tenga otros.
+    dist/assets/ no tenga otros;
+  - trampas de config/ y data/ (PIPELINE, al final): que la manzana `bi` de cada entrada de usos contenga su `bc`
+    (usos_bi), que ninguna entrada de usos que ya estaba en HEAD haya cambiado de lugar (usos_order; a propósito:
+    TALCA_USOS_ORDEN=ok) y que cada calle que cruza la vía tenga su entrada en railx y al revés (railx).
 Termina con código 1 y una línea por falla. No reemplaza a `make smoke` (carga la página en Chromium y revisa la
-generación) ni a `python pipeline/usos.py check` (14 s; avisos sobre los usos de suelo).
+generación) ni a `python pipeline/usos.py check` (~8 s; avisos sobre los usos de suelo). `make check` corre además las
+pruebas de tests/ y compileall.
 """
 import json, re, shutil, subprocess, sys, time
 from pathlib import Path
@@ -159,7 +163,6 @@ def main(dist=True):
             t = f.read_text()
             if not t.startswith(f'  // ==== hito: {f.stem} ====\n') or re.findall(r'// ==== hito: ([\w-]+) ====', t) != [f.stem]:
                 fail(f'src/js/hitos/{f.name}: debe empezar con «  // ==== hito: {f.stem} ====» y no tener otro bloque')
-    hitos_deps(fail)
     try: page, tpl = build.page(), build.script()
     except (AssertionError, OSError) as e: fail(f'src/: no se pudo unir la página o el script: {e}'); page = tpl = None
     for m in ('/*STYLE*/', '/*DATA*/', '<!--SCRIPTS-->') if page is not None else ():
@@ -209,9 +212,93 @@ def main(dist=True):
                         except ValueError: at = f' (línea {where.group(1)} del script)'
                     fail(f'dist/{app[0]}: el script no compila{at}: {err}')
 
+    for check in PIPELINE: check(fail)
+
     for m in bad: print('FALLA:', m)
     print(f'check: {len(bad)} fallas' if bad else f'check: ok ({(time.time()-t0)*1000:.0f} ms)')
     return 1 if bad else 0
+
+# ---- pipeline/ and config/: traps of CLAUDE.md made into checks
+def usos_bi(fail):
+    """Each entry of the land-use files given by a census block (`bi`, an index into data/geometry.json) carries `bc`, a
+    point inside that block when the entry was written (usos.py writes it): if the blocks change (another clip, another
+    filter, trap «Los bi de config/usos.json»), the index points elsewhere and the block no longer holds bc."""
+    from geom import dec, pip
+    blocks = json.load(open(ROOT / 'data' / 'geometry.json'))['blocks']
+    for f in build.USOS_FILES:
+        if not (build.CONFIG / f).exists(): continue
+        for k, u in enumerate(json.load(open(build.CONFIG / f))['usos']):
+            if 'bi' not in u: continue
+            where = f"config/{f}: la entrada {k} ({u['uso']} {u.get('nombre') or ''}, bi {u['bi']})".replace(' ,', ',')
+            if 'bc' not in u: fail(f'{where} no tiene bc (un punto de su manzana): python pipeline/usos.py bc lo agrega'); continue
+            if not (0 <= u['bi'] < len(blocks)) or not pip(u['bc'], dec(blocks[u['bi']][3])):
+                fail(f"{where}: la manzana {u['bi']} de data/geometry.json ya no contiene bc {u['bc']}: cambiaron las manzanas; "
+                     'busque la que lo contiene (python pipeline/usos.py bc --rehacer)')
+
+def usos_order(fail):
+    """An entry's place in DATA.usos (config/usos.json, then the files of build.USOS_FILES) seeds its drawing: an entry of
+    HEAD that is still there (the same JSON) must keep its place, so that nothing goes in or out in the middle (trap «Los
+    usos están en varios archivos»). Edits in place and new entries at the end pass. On purpose (an `importar` that
+    rewrites a file): TALCA_USOS_ORDEN=ok. Skipped without git."""
+    import collections, os
+    if os.environ.get('TALCA_USOS_ORDEN') == 'ok': return
+    def entries(read):
+        out = []
+        for f in build.USOS_FILES:
+            t = read(f)
+            if t: out += [(f, json.dumps(u, sort_keys=True, ensure_ascii=False)) for u in json.loads(t)['usos']]
+        return out
+    def head(f):
+        r = subprocess.run(['git', 'show', f'HEAD:config/{f}'], cwd=ROOT, capture_output=True, text=True)
+        return r.stdout if r.returncode == 0 else None
+    try: old = entries(head)
+    except OSError: return                                # no git
+    new = entries(lambda f: (build.CONFIG / f).read_text() if (build.CONFIG / f).exists() else None)
+    at = collections.defaultdict(list)
+    for i, (_, u) in enumerate(new): at[u].append(i)
+    moved = []
+    for i, (f, u) in enumerate(old):
+        if at[u]:
+            j = at[u].pop(0)
+            if j != i: moved.append((i, j, f, json.loads(u)))
+    if moved:
+        i, j, f, u = moved[0]
+        fail(f"config/{f}: {len(moved)} entradas de usos cambiaron de lugar en DATA.usos (la primera, {u['uso']} «{u.get('nombre') or u.get('fuente', '')[:40]}», "
+             f'de {i} a {j}): su lugar siembra su dibujo y el de todas las que siguen. Lo nuevo va al final; si es a propósito, TALCA_USOS_ORDEN=ok')
+
+def railx(fail):
+    """Every street of data/geometry.json that crosses the railway (rail, ramal) inside the commune has its entry in
+    railx, and every entry its crossing (trap «Cada calle del mapa que cruza la vía está en DATA.railx»): without it the
+    street crosses at grade with no barriers and the ballast lies on the asphalt. railway.py write makes them."""
+    import math
+    from geom import dec, crossings, in_ring
+    g = json.load(open(ROOT / 'data' / 'geometry.json'))
+    if 'railx' not in g: return
+    lim = dec(g['limit']); used = set()
+    for k, key in enumerate(('rail', 'ramal')):
+        line = dec(g.get(key, [])); cell = {}
+        for i in range(len(line) - 1):
+            a, b = line[i], line[i+1]
+            for gx in range(int(min(a[0], b[0]) // 100), int(max(a[0], b[0]) // 100) + 1):
+                for gy in range(int(min(a[1], b[1]) // 100), int(max(a[1], b[1]) // 100) + 1): cell.setdefault((gx, gy), set()).add(i)
+        X = [(n, x) for n, x in enumerate(g['railx']) if x[1] == k]
+        for s in g['streets']:
+            P = dec(s[2])
+            for a, b in zip(P, P[1:]):
+                near = set()
+                for gx in range(int(min(a[0], b[0]) // 100), int(max(a[0], b[0]) // 100) + 1):
+                    for gy in range(int(min(a[1], b[1]) // 100), int(max(a[1], b[1]) // 100) + 1): near |= cell.get((gx, gy), set())
+                for i in near:
+                    for p in crossings([a, b], line[i:i+2]):
+                        if not in_ring(p, lim): continue
+                        d, n = min(((math.dist(p, x[2:]), n) for n, x in X), default=(1e9, None))
+                        if d > 3: fail(f"data/geometry.json: {g['names'][s[1]] or 'una calle'} cruza la vía ({key}) en ({p[0]:.0f}, {p[1]:.0f}) sin entrada en railx: "
+                                       'python pipeline/railway.py write comuna y make data')
+                        else: used.add(n)
+    for n, x in enumerate(g['railx']):
+        if n not in used: fail(f'data/geometry.json: la entrada {n} de railx ({x[2]}, {x[3]}) no está en el cruce de una calle con la vía: python pipeline/railway.py write comuna')
+
+PIPELINE = (usos_bi, usos_order, railx)
 
 if __name__ == '__main__':
     if '-h' in sys.argv or '--help' in sys.argv: raise SystemExit(__doc__)

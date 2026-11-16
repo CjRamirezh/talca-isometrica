@@ -191,3 +191,17 @@ def tile_of(lat, lon, z):
     """The tile (column, row) of a point at zoom z."""
     n = 2 ** z; s = math.radians(lat)
     return int((lon+180)/360*n), int((1-math.log(math.tan(s)+1/math.cos(s))/math.pi)/2*n)
+
+def inner_point(r):
+    """A point with integer coordinates inside ring r (pip): its rounded area centroid, or else the rounded middle of
+    the longest inside run of the rows y = k m from the middle of its box outwards; None for a ring too thin."""
+    c = centre(r); c = (round(c[0]), round(c[1]))
+    if pip(c, r): return c
+    x0, y0, x1, y1 = bbox(r); ym = round((y0 + y1) / 2)
+    for k in range(int(y1 - y0) + 2):
+        for y in (ym + k, ym - k):
+            xs = crossings_at(r, y)
+            for a, b in sorted(((xs[i], xs[i+1]) for i in range(0, len(xs)-1, 2)), key=lambda s: s[0] - s[1]):
+                p = (round((a + b) / 2), y)
+                if pip(p, r): return p
+    return None

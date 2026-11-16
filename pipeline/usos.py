@@ -36,6 +36,11 @@ dibuja (METODOLOGIA §13).
   python -I pipeline/usos.py escuelas [matrícula mínima] | salud
       Los colegios abiertos del Directorio 2025 de MINEDUC (o los hospitales, clínicas, CESFAM, CECOSF y SAPU de DEIS)
       sin entrada educacional (salud) a 30 m: su manzana, el polígono de OSM que los contiene y la línea de satellite.py.
+  python pipeline/usos.py bc [--rehacer]
+      Agrega `bc` (un punto dentro de su manzana) a las entradas con `bi` que no lo tienen; tools/check.py (make check)
+      comprueba que la manzana `bi` de data/geometry.json lo siga conteniendo. Con --rehacer, una entrada cuya manzana
+      ya no lo contiene toma el `bi` de la que sí (las manzanas cambiaron: otro recorte, otro filtro). Los comandos que
+      escriben los archivos de usos lo agregan solos.
   python pipeline/usos.py check
       Revisa los archivos de usos (config/usos.json y los de las fuentes chilenas): que cada entrada tenga uso conocido, polígono, fuente y confianza; que no contenga el
       punto de un hito ni se superponga con otra entrada sin contenerla; cuánta agua pisa (la plantilla no dibuja
@@ -44,7 +49,7 @@ dibuja (METODOLOGIA §13).
 
 Formato de config/usos.json: {"excluir": [{"osm": "w123", "motivo": …}, …], "usos": [entrada, …]}. Una entrada tiene
 `uso`, `nombre` (opcional), el polígono en una de dos formas: `bi` (el índice de una manzana del Censo, como lo
-muestra satellite.py) o `poly` ([[x, y], …] en metros de grilla enteros, sacado de OSM con `usos.py osm` o dibujado
+muestra satellite.py, con `bc`, un punto dentro de ella que escribe `usos.py bc`) o `poly` ([[x, y], …] en metros de grilla enteros, sacado de OSM con `usos.py osm` o dibujado
 sobre la imagen satelital con `satellite.py punto x y lado z --calles`; con ambos, manda poly); `fuente` (ids de OSM
 o «imagen satelital Esri»), `confianza` (alta: OSM y la imagen calzan, o la imagen es clara; media: OSM sin revisar
 en la imagen; baja: dudoso), `nota`, y atributos: `rumbo` (grados desde +x de la grilla: dirección de las hileras,
@@ -118,12 +123,12 @@ class BlockIndex:
         return None
 
 def entries(g=None):
-    """The land-use files (build.USOS_FILES: config/usos.json and those of the Chilean sources) -> [(entry, [outer
-    ring, hole, …]), …] in grid metres."""
+    """The land-use files (build.USOS_FILES: config/usos.json and those of the Chilean sources) -> [(entry, [ring]), …]
+    in grid metres (one ring: an entry has no holes; what lies inside it is another entry, its kid)."""
     if g is None: g = json.load(open(DATA / 'geometry.json'))
     out = []
     for u in usos_entries():
-        if 'poly' in u: rings = [[tuple(p) for p in u['poly']]] + [[tuple(p) for p in h] for h in u.get('huecos', [])]
+        if 'poly' in u: rings = [[tuple(p) for p in u['poly']]]
         else: rings = [dec(g['blocks'][u['bi']][3])]
         out.append((u, rings))
     return out
@@ -298,7 +303,9 @@ def cmd_importar(name='comuna'):
     print(f'{len(hand)} entradas a mano, {len(kept)} de OSM:', ', '.join(f'{k} {n} ({a/1e4:.0f} ha)' for k, (n, a) in sorted(cnt.items(), key=lambda kv: -kv[1][1])))
 
 def write(cfg, name='usos.json'):
-    """config/<name> (config/usos.json or one of the Chilean sources' files) with one entry per line (diffs stay readable)."""
+    """config/<name> (config/usos.json or one of the Chilean sources' files) with one entry per line (diffs stay readable).
+    An entry with `bi` gets its `bc` when it lacks one (with_bc)."""
+    with_bc(cfg['usos'])
     j = lambda o: json.dumps(o, ensure_ascii=False, separators=(', ', ': '))
     head = {k: v for k, v in cfg.items() if k not in ('usos', 'excluir')}
     s = '{\n' + ''.join(f'  {j(k)}: {j(v)},\n' for k, v in head.items())
@@ -306,6 +313,32 @@ def write(cfg, name='usos.json'):
         s += '  "excluir": [\n' + ',\n'.join('    ' + j(e) for e in cfg.get('excluir', [])) + '\n  ],\n'
     s += '  "usos": [\n' + ',\n'.join('    ' + j(e) for e in cfg['usos']) + '\n  ]\n}\n'
     (CONFIG / name).write_text(s)
+
+def with_bc(entries, g=None):
+    """`bc` for each entry with `bi` that lacks it: a point inside its census block (geom.inner_point), which tools/check.py
+    tests against data/geometry.json, so that a `bi` that comes to point at another block (the blocks changed) does not
+    pass unseen. An entry keeps the bc it has. Returns how many it added."""
+    need = [u for u in entries if 'bi' in u and 'bc' not in u]
+    if not need: return 0
+    g = g or json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data')))
+    for u in need: u['bc'] = list(geom.inner_point(dec(g['blocks'][u['bi']][3])))
+    return len(need)
+
+def cmd_bc(*, rehacer=False):
+    """`usos.py bc`: bc on every entry with bi that lacks it. `--rehacer`: an entry whose block no longer holds its bc
+    takes the bi of the block that does (and a new bc), or is listed when none does."""
+    g = json.load(open(require(DATA / 'geometry.json', 'Ejecute: make data'))); B = [dec(b[3]) for b in g['blocks']]
+    for name in USOS_FILES:
+        if not (CONFIG / name).exists(): continue
+        cfg = json.load(open(CONFIG / name)); n = moved = 0
+        for k, u in enumerate(cfg['usos']):
+            if 'bi' not in u or 'bc' not in u or not rehacer: continue
+            if u['bi'] < len(B) and pip(u['bc'], B[u['bi']]): continue
+            hit = [i for i, r in enumerate(B) if pip(u['bc'], r)]
+            if len(hit) != 1: print(f"config/{name}: la entrada {k} ({u['uso']}, bi {u['bi']}): {len(hit)} manzanas contienen bc {u['bc']}; corríjala a mano"); continue
+            print(f"config/{name}: la entrada {k} ({u['uso']}): bi {u['bi']} -> {hit[0]}"); u['bi'] = hit[0]; del u['bc']; moved += 1
+        n = with_bc(cfg['usos'], g)
+        if n or moved: write(cfg, name); print(f'config/{name}: {n} bc nuevos, {moved} bi rehechos')
 
 def river_tests(g):
     """(x, y) -> name of the river whose water (area, or axis ribbon) holds the point, or None."""
@@ -326,6 +359,7 @@ def cmd_check():
         miss = [f for f in ('uso', 'fuente', 'confianza') if not u.get(f)]
         if u.get('uso') not in USOS: miss.append(f"uso desconocido «{u.get('uso')}»")
         if u.get('confianza') not in ('alta', 'media', 'baja'): miss.append('confianza alta/media/baja')
+        if 'huecos' in u: miss.append('huecos: la plantilla no los dibuja (build.py no los lleva); lo que va dentro es otra entrada, su hija')
         A = area(rings[0]) - sum(area(h) for h in rings[1:]); tot[u['uso']] = tot.get(u['uso'], 0) + A
         pts = [p for p in samples(rings[0], 10) if not any(pip(p, h) for h in rings[1:])]
         w = {}
@@ -711,4 +745,4 @@ def cmd_salud(): cmd_lista('salud')
 
 if __name__ == '__main__':
     cli.run({'survey': cmd_survey, 'osm': cmd_osm, 'blancos': cmd_blancos, 'check': cmd_check, 'importar': cmd_importar,
-             'escuelas': cmd_escuelas, 'salud': cmd_salud}, __doc__)
+             'escuelas': cmd_escuelas, 'salud': cmd_salud, 'bc': cmd_bc}, __doc__)
