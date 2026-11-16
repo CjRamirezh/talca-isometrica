@@ -186,7 +186,7 @@ function boot(){
       LOAD.full=Math.round(performance.now());
       const sum=a=>a.reduce((s,v)=>s+v,0);CITY.zVerts=sum(zv);
       const st={buildings:nb,lots:LOTS.length-EDS.hulls,verts:sum(bv),yards:sum(yv),ground:sum(gnd),...STATS,trees:C.round.length,poplars:C.poplar.length,triFail:TRI_FAIL,ms:Math.round(performance.now()-t0),t:TT};
-      Object.defineProperty(st,'load',{get:loadTimes,enumerable:true});hooksDone(st);
+      Object.defineProperty(st,'load',{get:loadTimes,enumerable:true});lotsFree();hooksDone(st);
     }),0);
   },30);
 }

@@ -196,7 +196,13 @@ function cutAt(q,f,k){const A=[],B=[];splitAt(q,q.map(f),k,A,B);return [A,B];}
 // the three cuts of drapeQ: x, y and the diagonal lines of the terrain mesh, in node units (cut 0, 1, 2)
 const cutF=(c,p)=>c===0?(p[0]-EX0)/ES:c===1?(p[1]-EY0)/ES:(p[0]-EX0+p[1]-EY0)/ES;
 // drapeQ(G, q, off, col): one convex polygon q (grid metres, counter-clockwise), cut the same way, into G
-function drapeQ(G,q0,off,col){let polys=[q0];
+function drapeQ(G,q0,off,col){
+  // most polygons lie inside one terrain triangle (no x, y or diagonal line through them): straight to the ground,
+  // without the lists of pieces below (drapeQ allocated a gigabyte over the startup, the most of any function)
+  if(q0.length>2){let cut=false;for(let c=0;c<3&&!cut;c++){let lo=1e9,hi=-1e9;for(const p of q0){const v=cutF(c,p);if(v<lo)lo=v;if(v>hi)hi=v;}cut=Math.floor(lo)+1<hi;}
+    if(!cut){let cx=0,cy=0;for(const p of q0){cx+=p[0];cy+=p[1];}const c=cellOf(cx/q0.length,cy/q0.length);if(c<0||!CM[c])return;
+      if(CM[c]===1)G.onGround(q0,off,col);else for(const t of LIMT.get(c)){const r=clipTo(q0,t);if(r.length>2)G.onGround(r,off,col);}return;}}
+  let polys=[q0];
   for(let c=0;c<3;c++){const nxt=[];
     for(let q of polys){let lo=1e9,hi=-1e9;for(const p of q){const v=cutF(c,p);if(v<lo)lo=v;if(v>hi)hi=v;}
       for(let k=Math.floor(lo)+1;k<hi;k++){const fq=q.map(p=>cutF(c,p)),A=[],B=[];splitAt(q,fq,k,A,B);if(A.length>2)nxt.push(A);q=B;}

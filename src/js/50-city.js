@@ -33,6 +33,10 @@ function lotFree(q){lstamp++;const b=lotBox(q);return lotCells(q,k=>{const c=lgr
 // its margin, edificiosPlan); lotAdd(q): a lot of cityGen
 function lotBlock(q){const id=LOTS.length;LOTS.push(q);LBB.push(lotBox(q));lotCells(q,k=>{const c=lgrid.get(k);if(c)c.push(id);else lgrid.set(k,[id]);});}
 function lotAdd(q){lotBlock(q);occMark(q,2);}
+// lotsFree(): once the generation is over (99-boot.js, after __stats counts them) nothing tests the lots again: their
+// rectangles, boxes and grid, and the hulls each OSM block kept for its ground (bk.obs, bk.paved) go to the GC
+// (~50 MB of the ~150 MB that stayed alive after the startup, tools/heap.py --vivo)
+function lotsFree(){LOTS.length=LBB.length=lseen.length=0;lgrid.clear();for(const bk of ED.bks)bk.obs=bk.paved=null;}
 // The city's palettes. Roofs come by family, each in two tones (a row of identical houses alternates them, ESTETICA §3).
 // From pipeline/satellite.py on five neighbourhoods (diagnostics/sat-*.png): the barrios are a field of galvanized zinc,
 // bright or weathered grey, with rusted, red, green and blue painted sheets; the old centre is dark weathered tile and

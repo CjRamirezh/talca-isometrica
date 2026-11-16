@@ -30,9 +30,13 @@ function gridCuts(a,b,diag){const ts=[],f=[p=>(p[0]-EX0)/ES,p=>(p[1]-EY0)/ES];if
 function rectClip(x0,y0,x1,y1){
   const ins=p=>p[0]>x0&&p[0]<x1&&p[1]>y0&&p[1]<y1,n=LIM.length;let s0=0;while(ins(LIM[s0]))s0++;
   const per=p=>Math.abs(p[1]-y0)<1e-6?(p[0]-x0)/(x1-x0):Math.abs(p[0]-x1)<1e-6?1+(p[1]-y0)/(y1-y0):Math.abs(p[1]-y1)<1e-6?2+(x1-p[0])/(x1-x0):3+(y1-p[1])/(y1-y0);
-  const arcs=[];let cur=null;
-  for(let k=0;k<n;k++){const a=LIM[(s0+k)%n],b=LIM[(s0+k+1)%n],ts=[];
-    for(const [ax,v,lo,hi] of [[0,x0,y0,y1],[0,x1,y0,y1],[1,y0,x0,x1],[1,y1,x0,x1]]){if((a[ax]-v)*(b[ax]-v)>=0)continue;
+  const arcs=[],ts=[],sides=[[0,x0,y0,y1],[0,x1,y0,y1],[1,y0,x0,x1],[1,y1,x0,x1]];let cur=null;
+  for(let k=0;k<n;k++){const a=LIM[(s0+k)%n],b=LIM[(s0+k+1)%n];
+    // (an edge on one side of the rectangle, both ends on or past one of its lines, neither crosses it nor ends inside:
+    // most of the limit's ~thousands of edges for each of the crossed cells, which allocated their arrays for nothing)
+    if((a[0]<=x0&&b[0]<=x0)||(a[0]>=x1&&b[0]>=x1)||(a[1]<=y0&&b[1]<=y0)||(a[1]>=y1&&b[1]>=y1))continue;
+    ts.length=0;
+    for(const [ax,v,lo,hi] of sides){if((a[ax]-v)*(b[ax]-v)>=0)continue;
       const t=(v-a[ax])/(b[ax]-a[ax]),o=a[1-ax]+(b[1-ax]-a[1-ax])*t;if(o>lo&&o<hi)ts.push(t);}
     ts.sort((p,q)=>p-q);
     for(const t of ts){const q=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
