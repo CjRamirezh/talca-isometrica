@@ -47,9 +47,7 @@ func _ready() -> void:
 
 	floor_snap_length = PELDANO + 0.05
 	floor_max_angle = deg_to_rad(50)
-	var args := OS.get_cmdline_user_args()
-	if "--pose" in args:
-		pose = float(args[args.find("--pose") + 1])
+	pose = preload("res://args.gd").num("--pose", pose, 0.0, 20.0)
 	if mouse:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 

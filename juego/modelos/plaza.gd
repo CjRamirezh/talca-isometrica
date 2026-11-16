@@ -17,15 +17,17 @@
 # X = x, Z = -y), origen en la plaza; las alturas, sobre el suelo del glb en la plaza (plaza.json, «h» del lugar).
 extends Node3D
 
-const Malla = preload("res://modelos/plaza/malla.gd")
+const Args := preload("res://args.gd")
+const Plano := preload("res://modelos/entorno/plano.gd")
+const Malla := preload("res://malla.gd")
+const Mat := preload("res://materiales.gd")
 const Tx = preload("res://modelos/plaza/texturas.gd")
 const Arboles = preload("res://modelos/plaza/arboles.gd")
 const Piezas = preload("res://modelos/plaza/piezas.gd")
 
-# el contorno del parque (OSM w479529034, esquinas redondeadas) y los prados, en metros de grilla (los del hito)
-const PZ := [38.9, -54.2, 35.8, -54.5, -21.3, -54, -29.9, -54, -35.8, -52.5, -41.2, -49.6, -47.4, -44.3, -51.5, -38.9, -53.5, -32.2,
-	-55.7, -23.9, -55.7, 22.4, -55, 34.9, -53.3, 40.4, -51.5, 43.9, -47.7, 48.9, -43.7, 52, -39.2, 53.7, -34.7, 54.8, 36.6, 53.1, 40.3,
-	52.5, 43.8, 50.4, 49.6, 43.6, 53.8, 38.2, 55.7, 30.3, 56.2, -29.9, 55.8, -34.7, 53.2, -41.1, 48.4, -47.7, 41.6, -53]
+# el contorno del parque (OSM w479529034, esquinas redondeadas: el PZ del hito, en plano.gd) y los prados, en metros de
+# grilla (los LAWNS del hito; tools/check.py revisa que sigan iguales)
+const PZ := Plano.PZ
 const PRADOS := [
 	[-13.4, 16.8, -4.5, 7.9, -1.9, 8.7, 0.5, 8.9, 3, 8.4, 5.3, 7.1, 14.3, 15.5, 13.7, 16.3, 7.6, 19.6, 0.1, 20.8, -7.1, 20],
 	[17.2, 12.3, 8.4, 3.9, 9.2, 2.3, 9.8, -1, 9.2, -4.3, 8.5, -5.8, 17.3, -14.2, 19.9, -11.4, 22.1, -4.1, 21.8, 2.9, 19.7, 9.4],
@@ -69,27 +71,33 @@ func _init() -> void:
 	pz = Malla.pol(PZ)
 	for p in PRADOS:
 		prados.append(Malla.pol(p))
-	var f = FileAccess.open("res://plaza.json", FileAccess.READ)
-	if f:
-		var j = JSON.parse_string(f.get_as_text())
-		if j is Dictionary:
-			for l in j.get("lugares", []):
-				if l.get("id") == "plaza-de-armas":
-					Y0 = float(l.get("h", Y0))
+	Y0 = float(preload("res://glb.gd").lugar("plaza-de-armas").get("h", Y0))
 	PAV = Y0 + 0.30  # como el hito: S.dy + 0,30
+
+
+# --sin plaza|arboles|pasto apaga esa parte (hasta noviembre de 2026, PLAZA_ANTES=1 y PLAZA_SIN=arboles,pasto: sirven
+# todavía, con un aviso)
+static func apagado(que: String) -> bool:
+	if que in Args.sin_():
+		return true
+	if que == "plaza" and OS.has_environment("PLAZA_ANTES"):
+		push_warning("plaza.gd: PLAZA_ANTES=1 ahora es --sin plaza")
+		return true
+	if que in OS.get_environment("PLAZA_SIN").split(","):
+		push_warning("plaza.gd: PLAZA_SIN=%s ahora es --sin %s" % [que, que])
+		return true
+	return false
 
 
 # lo que se quita del glb dentro del contorno: el hito, sus árboles y el suelo de la manzana que queda debajo
 func recortes() -> Array:
-	if OS.has_environment("PLAZA_ANTES"):
+	if apagado("plaza"):
 		return []
 	return [{"poligono": Malla.pol(PZ), "capas": ["hitos", "arboles", "suelo", "patios", "usos"]}]
 
 
 func _ready() -> void:
-	if OS.has_environment("PLAZA_FPS"):
-		medir_fps.call_deferred()
-	if OS.has_environment("PLAZA_ANTES"):  # para medir el juego sin este modelo
+	if apagado("plaza"):  # para medir el juego sin este modelo
 		return
 	var t0 = Time.get_ticks_msec()
 	rng.seed = 1541  # el año de la fundación... de Santiago; cualquier semilla fija sirve
@@ -98,28 +106,15 @@ func _ready() -> void:
 	prados_y_soleras()
 	var pz_ = Piezas.new(self)
 	pz_.construir()
-	var sin_ = OS.get_environment("PLAZA_SIN").split(",")  # para medir: arboles, pasto
-	if not "arboles" in sin_:
+	if not apagado("arboles"):  # --sin arboles, pasto: para medir
 		arboles()
 	pz_.poner_escanos()
-	if not "pasto" in sin_:
+	if not apagado("pasto"):
 		pasto_de_cerca()
 	cuerpo()
 	luces_de_noche(pz_.faroles)
 	cerrar_lotes()
 	print("plaza.gd: %d ms, %s" % [Time.get_ticks_msec() - t0, str(stats)])
-
-
-static func G(x: float, y: float, h: float) -> Vector3:
-	return Vector3(x, h, -y)
-
-
-func shader(ruta: String, params := {}) -> ShaderMaterial:
-	var m = ShaderMaterial.new()
-	m.shader = load("res://modelos/plaza/" + ruta)
-	for k in params:
-		m.set_shader_parameter(k, params[k])
-	return m
 
 
 func instancia(mesh: Mesh, xf := Transform3D.IDENTITY, sombra := true) -> MeshInstance3D:
@@ -211,24 +206,24 @@ func suelo() -> void:
 	var dentro = Malla.adentro(pz, 0.25)
 	var m = Malla.new()
 	m.plano(dentro, PAV, Color.WHITE)
-	instancia(m.malla(shader("pavimento.gdshader")), Transform3D.IDENTITY, false)
+	instancia(m.malla(Mat.plaza("pavimento")), Transform3D.IDENTITY, false)
 	colision.plano(pz, PAV, Color.WHITE)
 	var s = Malla.new()
 	var gris = Color(0.62, 0.61, 0.58)
 	for i in pz.size():
 		var a = pz[i]; var b = pz[(i + 1) % pz.size()]
 		var ai = dentro[i]; var bi = dentro[(i + 1) % pz.size()]
-		s.quad(G(a.x, a.y, PAV + 0.004), G(b.x, b.y, PAV + 0.004), G(bi.x, bi.y, PAV + 0.004), G(ai.x, ai.y, PAV + 0.004), gris, Vector3.UP)
+		s.quad(Malla.P(a.x, a.y, PAV + 0.004), Malla.P(b.x, b.y, PAV + 0.004), Malla.P(bi.x, bi.y, PAV + 0.004), Malla.P(ai.x, ai.y, PAV + 0.004), gris, Vector3.UP)
 	s.muros(pz, Y0 - 0.25, PAV + 0.004, gris)
 	colision.muros(pz, Y0 - 0.25, PAV, gris)
-	instancia(s.malla(shader("piedra.gdshader", {"rugoso": 0.8})))
+	instancia(s.malla(Mat.plaza("piedra", {"rugoso": 0.8})))
 	# los adoquines alrededor de la pileta poniente (el hito: «sett round the west fountain», de la imagen de Esri)
 	var ad = Malla.new()
 	var circ = PackedVector2Array()
 	for k in 48:
 		circ.append(PILETA_O + Vector2.from_angle(TAU * k / 48) * 7.2)
 	ad.plano(circ, PAV + 0.004, Color.WHITE)
-	instancia(ad.malla(shader("pavimento.gdshader", {"base_col": Color(0.6, 0.58, 0.55), "banda_col": Color(0.6, 0.58, 0.55),
+	instancia(ad.malla(Mat.plaza("pavimento", {"base_col": Color(0.6, 0.58, 0.55), "banda_col": Color(0.6, 0.58, 0.55),
 		"baldosa": 0.2, "paso_banda": 1000.0})), Transform3D.IDENTITY, false)
 
 
@@ -250,7 +245,7 @@ func prados_y_soleras() -> void:
 		for k in q.size():
 			var a = q[k]; var b = q[(k + 1) % q.size()]
 			var ai = qi[k]; var bi = qi[(k + 1) % q.size()]
-			sol.quad(G(a.x, a.y, H), G(b.x, b.y, H), G(bi.x, bi.y, H), G(ai.x, ai.y, H), blanco, Vector3.UP,
+			sol.quad(Malla.P(a.x, a.y, H), Malla.P(b.x, b.y, H), Malla.P(bi.x, bi.y, H), Malla.P(ai.x, ai.y, H), blanco, Vector3.UP,
 				[Vector2(0, 0), Vector2(a.distance_to(b), 0), Vector2(a.distance_to(b), 0.2), Vector2(0, 0.2)])
 		sol.muros(qi, HP, H, blanco, false)
 		pasto.plano(qi, HP, Color.WHITE)
@@ -264,9 +259,9 @@ func prados_y_soleras() -> void:
 			var l = a.distance_to(b)
 			var u0 = largo / 0.8; var u1 = (largo + l) / 0.8
 			var nn = Vector3(b.y - a.y, 0, b.x - a.x).normalized()
-			rej.quad(G(a.x, a.y, HP), G(b.x, b.y, HP), G(b.x, b.y, HP + 0.38), G(a.x, a.y, HP + 0.38), Color.WHITE, nn,
+			rej.quad(Malla.P(a.x, a.y, HP), Malla.P(b.x, b.y, HP), Malla.P(b.x, b.y, HP + 0.38), Malla.P(a.x, a.y, HP + 0.38), Color.WHITE, nn,
 				[Vector2(u0, 1), Vector2(u1, 1), Vector2(u1, 0), Vector2(u0, 0)])
-			colision.quad(G(a.x, a.y, HP), G(b.x, b.y, HP), G(b.x, b.y, HP + 0.38), G(a.x, a.y, HP + 0.38), Color.WHITE, nn)
+			colision.quad(Malla.P(a.x, a.y, HP), Malla.P(b.x, b.y, HP), Malla.P(b.x, b.y, HP + 0.38), Malla.P(a.x, a.y, HP + 0.38), Color.WHITE, nn)
 			largo += l
 		# macizos: en los tramos de más de 6 m, con probabilidad, piedras y matas por dentro de la reja
 		var qm = Malla.adentro(q, 0.6)
@@ -280,7 +275,7 @@ func prados_y_soleras() -> void:
 			var s = 1.0
 			while s < l - 1.0:
 				var p = a + d * s
-				var xf = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.7, 1.3)), G(p.x, p.y, HP))
+				var xf = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.7, 1.3)), Malla.P(p.x, p.y, HP))
 				piedras.append(xf)
 				s += rng.randf_range(0.3, 0.45)
 			s = 1.5
@@ -289,20 +284,11 @@ func prados_y_soleras() -> void:
 				if Geometry2D.is_point_in_polygon(p, qi):
 					var esp = "agapanto" if rng.randf() < 0.65 else "arbusto"
 					var mesh: ArrayMesh = arb.malla(esp, rng.randi())
-					lote(mesh, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.8, 1.2)), G(p.x, p.y, HP)), esp == "arbusto", 70.0)
+					lote(mesh, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.8, 1.2)), Malla.P(p.x, p.y, HP)), esp == "arbusto", 70.0)
 				s += rng.randf_range(0.9, 1.6)
-	instancia(sol.malla(shader("piedra.gdshader", {"rugoso": 0.85})))
-	instancia(pasto.malla(shader("pasto.gdshader")), Transform3D.IDENTITY, false)
-	var mr = StandardMaterial3D.new()
-	mr.albedo_texture = Tx.reja()
-	mr.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	mr.alpha_scissor_threshold = 0.4
-	mr.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
-	mr.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mr.metallic = 0.4
-	mr.roughness = 0.5
-	mr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	instancia(rej.malla(mr))
+	instancia(sol.malla(Mat.plaza("piedra", {"rugoso": 0.85})))
+	instancia(pasto.malla(Mat.plaza("pasto")), Transform3D.IDENTITY, false)
+	instancia(rej.malla(Mat.textura(Tx.reja(), 0.4, 0.5)))
 	# las piedras: una sola malla instanciada (MultiMesh)
 	var piedra = Malla.new()
 	Piezas.roca(piedra, rng, Vector3.ZERO, 0.16, Color(0.62, 0.6, 0.55))
@@ -328,7 +314,7 @@ func prados_y_soleras() -> void:
 func arbol(especie: String, p: Vector2, h: float, escala := 1.0, var_ := -1, sep := 4.0) -> void:
 	var v = var_ if var_ >= 0 else rng.randi()
 	var mesh: ArrayMesh = arb.malla(especie, v)
-	var xf = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * escala), G(p.x, p.y, h))
+	var xf = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * escala), Malla.P(p.x, p.y, h))
 	lote(mesh, xf, false)
 	lote(arb.sombra(especie, v), xf, "solo")
 	var r: float = arb.radio(especie, v) * escala
@@ -336,7 +322,7 @@ func arbol(especie: String, p: Vector2, h: float, escala := 1.0, var_ := -1, sep
 		var cil = CylinderShape3D.new()
 		cil.radius = r
 		cil.height = 4.0
-		formas.append([cil, Transform3D(Basis(), G(p.x, p.y, h + 2.0))])
+		formas.append([cil, Transform3D(Basis(), Malla.P(p.x, p.y, h + 2.0))])
 	ocupar(p, max(r, 0.5), sep)
 	stats[especie] = stats.get(especie, 0) + 1
 
@@ -350,7 +336,7 @@ func alcorque(p: Vector2, m) -> void:
 	m.muros(q, PAV - 0.02, PAV + 0.06, borde)
 	for k in 4:
 		var a = q[k]; var b = q[(k + 1) % 4]; var ai = qi[k]; var bi = qi[(k + 1) % 4]
-		m.quad(G(a.x, a.y, PAV + 0.06), G(b.x, b.y, PAV + 0.06), G(bi.x, bi.y, PAV + 0.06), G(ai.x, ai.y, PAV + 0.06), borde, Vector3.UP)
+		m.quad(Malla.P(a.x, a.y, PAV + 0.06), Malla.P(b.x, b.y, PAV + 0.06), Malla.P(bi.x, bi.y, PAV + 0.06), Malla.P(ai.x, ai.y, PAV + 0.06), borde, Vector3.UP)
 	m.muros(qi, PAV - 0.03, PAV + 0.06, borde, false)
 	m.plano(qi, PAV - 0.03, tierra)
 
@@ -400,7 +386,7 @@ func arboles() -> void:
 				alcorque(p, al)
 			arbol(esp, p, PAV + (0.24 if en >= 0 else 0.0), rng.randf_range(0.75, 0.9) if esp == "frondoso" else rng.randf_range(0.9, 1.1), -1, 8.0)
 		largo += l
-	instancia(al.malla(shader("piedra.gdshader")))
+	instancia(al.malla(Mat.plaza("piedra")))
 
 	# los prados, en dos pasadas: primero los árboles grandes que hacen la sombra densa de la plaza (cedros, araucarias,
 	# frondosos: la imagen de Esri muestra la copa casi cerrada sobre los prados), después palmeras, copas podadas y
@@ -458,7 +444,7 @@ func pasto_de_cerca() -> void:
 		mata.tri_n(p - d, p + d, mid + d * 0.6, nn, nn, nn, base, base, base.lerp(punta, 0.6))
 		mata.tri_n(p - d, mid + d * 0.6, mid - d * 0.6, nn, nn, nn, base, base.lerp(punta, 0.6), base.lerp(punta, 0.6))
 		mata.tri_n(mid - d * 0.6, mid + d * 0.6, p + Vector3.UP * h + inc, nn, nn, nn, base.lerp(punta, 0.6), base.lerp(punta, 0.6), punta)
-	var mesh = mata.malla(shader("pasto_hojas.gdshader"))
+	var mesh = mata.malla(Mat.plaza("pasto_hojas"))
 	var total = 0
 	for i in prados.size():
 		var q = Malla.adentro(prados[i], 0.45)
@@ -478,7 +464,7 @@ func pasto_de_cerca() -> void:
 						ok = false
 						break
 				if ok:
-					xfs.append(Transform3D(Basis(Vector3.UP, r.randf() * TAU).scaled(Vector3(1, r.randf_range(0.7, 1.4), 1)), G(p.x, p.y, PAV + 0.24)))
+					xfs.append(Transform3D(Basis(Vector3.UP, r.randf() * TAU).scaled(Vector3(1, r.randf_range(0.7, 1.4), 1)), Malla.P(p.x, p.y, PAV + 0.24)))
 		var mm = MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = mesh
@@ -494,28 +480,6 @@ func pasto_de_cerca() -> void:
 		add_child(mmi)
 		total += xfs.size()
 	stats["matas"] = total
-
-
-# PLAZA_FPS=1 en el entorno: sin vsync, espera 4 s y mide 6 s de cuadros (con las opciones de cámara de main.gd);
-# imprime los cuadros por segundo medios y el peor cuadro, y sale. PLAZA_ANTES=1 además deja el glb sin este modelo.
-func medir_fps() -> void:
-	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
-	await get_tree().create_timer(4.0).timeout
-	var n = 0
-	var peor = 0.0
-	var t0 = Time.get_ticks_usec()
-	var t = t0
-	while Time.get_ticks_usec() - t0 < 6000000:
-		await get_tree().process_frame
-		var ahora = Time.get_ticks_usec()
-		peor = max(peor, (ahora - t) / 1000.0)
-		t = ahora
-		n += 1
-	var ms = (Time.get_ticks_usec() - t0) / 1000.0 / n
-	print("plaza.gd fps: %.0f (%.2f ms por cuadro, peor %.1f ms; %d dibujos, %d primitivas)" % [1000.0 / ms, ms, peor,
-		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
-		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
-	get_tree().quit()
 
 
 # ---- de noche ----
@@ -548,8 +512,8 @@ func luces_de_noche(postes: Array) -> void:
 				mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ZERO), o))
 	var puntos: Array[Vector3] = []
 	for q in postes:
-		puntos.append(G(q.x, q.y, PAV + 4.15))
-	puntos.append(G(QUIOSCO.x, QUIOSCO.y, PAV + 1.35 + 2.7))
+		puntos.append(Malla.P(q.x, q.y, PAV + 4.15))
+	puntos.append(Malla.P(QUIOSCO.x, QUIOSCO.y, PAV + 1.35 + 2.7))
 	for p in puntos:
 		var f = OmniLight3D.new()
 		f.position = p
@@ -582,4 +546,4 @@ func cuerpo() -> void:
 		c.shape = f[0]
 		c.transform = f[1]
 		cuerpo.add_child(c)
-	stats["caras_colision"] = colision.v.size() / 3
+	stats["caras_colision"] = colision.caras().size() / 3

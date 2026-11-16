@@ -17,7 +17,8 @@
 #   agapanto matas de hojas en cinta en los bordes de los prados (fotos de 2014 y 2024)
 extends RefCounted
 
-const Malla = preload("res://modelos/plaza/malla.gd")
+const Malla := preload("res://malla.gd")
+const Mat := preload("res://materiales.gd")
 const Tx = preload("res://modelos/plaza/texturas.gd")
 
 const ESPECIES := {
@@ -43,8 +44,6 @@ const SOMBRA_K := {"frondoso": 2, "podado": 2, "arbusto": 2, "cedro": 2, "arauca
 
 
 func _init() -> void:
-	var sh_c: Shader = load("res://modelos/plaza/corteza.gdshader")
-	var sh_f: Shader = load("res://modelos/plaza/follaje.gdshader")
 	var tex = {
 		"palmera": Tx.fronda(11, Color(0.42, 0.55, 0.22)),
 		"cedro": Tx.agujas(12, Color(0.32, 0.44, 0.38)),
@@ -54,27 +53,17 @@ func _init() -> void:
 		"arbusto": Tx.hojas(16, Color(0.26, 0.43, 0.17), 480, 6.0, 3.0),
 	}
 	for e in ESPECIES:
-		var mc = ShaderMaterial.new()
-		mc.shader = sh_c
-		mc.set_shader_parameter("tipo", ESPECIES[e]["tipo"])
-		mc.set_shader_parameter("vueltas", 5.0 if e == "palmera" else 6.0)
-		mat_corteza[e] = mc
+		mat_corteza[e] = Mat.plaza("corteza", {"tipo": ESPECIES[e]["tipo"], "vueltas": 5.0 if e == "palmera" else 6.0})
 		if e in tex:
-			var mf = ShaderMaterial.new()
-			mf.shader = sh_f
-			mf.set_shader_parameter("tex", tex[e])
-			mf.set_shader_parameter("viento", 1.4 if e == "palmera" else 1.0)
-			mf.set_shader_parameter("brillo", 0.45 if e in ["podado", "arbusto", "palmera"] else 0.3)
-			mat_follaje[e] = mf
+			mat_follaje[e] = Mat.plaza("follaje", {"tex": tex[e], "viento": 1.4 if e == "palmera" else 1.0,
+				"brillo": 0.45 if e in ["podado", "arbusto", "palmera"] else 0.3})
 	mat_solido = StandardMaterial3D.new()
 	mat_solido.vertex_color_use_as_albedo = true
 	mat_solido.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat_solido.roughness = 0.7
 	mat_solido.backlight_enabled = true
 	mat_solido.backlight = Color(0.25, 0.35, 0.12)
-	mat_datiles = ShaderMaterial.new()
-	mat_datiles.shader = sh_f
-	mat_datiles.set_shader_parameter("tex", Tx.flores(17, [Color(0.9, 0.5, 0.12), Color(0.95, 0.62, 0.15), Color(0.8, 0.42, 0.1)], 70))
+	mat_datiles = Mat.plaza("follaje", {"tex": Tx.flores(17, [Color(0.9, 0.5, 0.12), Color(0.95, 0.62, 0.15), Color(0.8, 0.42, 0.1)], 70)})
 
 
 # la malla de una variante (se arma una vez)

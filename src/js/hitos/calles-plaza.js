@@ -5,7 +5,7 @@
   // asphalt on 1 Oriente; dashed lane lines; cast-iron street lamps, dark green, every ~24 m on the blocks' side of
   // the plaza and on both sides of the runs (photos of 1 Norte, 2022, and of the Catedral, 2017–2024); the traffic
   // lights at OSM's highway=traffic_signals nodes, on the right-hand curb of the cars that arrive, facing them; the
-  // street trees at OSM's natural=tree nodes (DATA.plaza, from juego/modelos/entorno/osm.json; build.py) instead of
+  // street trees at OSM's natural=tree nodes (DATA.plaza, from data/plaza-osm.json; build.py) instead of
   // the generated ones. Drawn on the map's streets, not on the game's kerbs: the map's carriageways (by class, on the
   // graph's axis) lie up to ~2 m off the real ones. At the art pixel's scale (ESTETICA §2) the lamp and the light are
   // 0.4 m poles with a lantern or a head, the lane lines 0.4 m wide (real: 0.12). Approximate: where each lamp stands

@@ -3,6 +3,20 @@
 // el STL). No es parte del sitio: usa lo que la página expone en window.__three y window.__export.
 (() => {
   const T = THREE, X = window.__export, scene = window.__three.scene;
+  // Las capas que puede tener un glb: el nombre de cada grupo de la escena (rest() en 99-boot.js, terrainMesh, la vía,
+  // la Ruta 5, el Cerro, los trenes) y lo que cada una es para quien lo lee. Van en el JSON de al lado («capas»): el
+  // juego (juego/main.gd, materiales.gd) las lee de ahí en vez de tener su propia lista. tipo: suelo, edificio (con
+  // ventanas), hito, arbol, auto, o null (sin material propio en el juego: el del glb); solido: con colisión. Una malla
+  // de un grupo que no está aquí hace fallar la exportación (tools/export.py): agréguela.
+  const LAYERS = {
+    terreno: { tipo: 'suelo', solido: true }, borde: { tipo: null, solido: true }, suelo: { tipo: 'suelo', solido: true },
+    agua: { tipo: 'suelo', solido: false }, usos: { tipo: 'suelo', solido: true }, patios: { tipo: 'suelo', solido: true },
+    veredas: { tipo: 'suelo', solido: true }, via: { tipo: null, solido: true }, ruta5: { tipo: null, solido: true },
+    ciudad: { tipo: 'edificio', solido: true }, edificios: { tipo: 'edificio', solido: true }, hitos: { tipo: 'hito', solido: true },
+    cerro: { tipo: null, solido: true }, arboles: { tipo: 'arbol', solido: false }, alamos: { tipo: 'arbol', solido: false },
+    autos: { tipo: 'auto', solido: true }, 'autos-ruta5': { tipo: 'auto', solido: false }, trenes: { tipo: null, solido: false },
+    otros: { tipo: null, solido: true } };
+  window.__exLayers = LAYERS;
   // Las mallas de la escena: cada una con su capa (el nombre del grupo más cercano: suelo, edificios, arboles…; otros
   // si no tiene), sin las franjas (dibujan lo mismo que sus teselas), los puntos de luz ni el anillo de selección.
   // Los árboles y autos instanciados, con la geometría de cerca (userData.lod[0]).
@@ -96,7 +110,7 @@
         });
       }
     }
-    const res = { box, tris: ntri, layers: {} };
+    const res = { box, tris: ntri, layers: {}, unknown: Object.keys(layers).filter(k => !(k in LAYERS)) };
     // los arreglos quedan en la página: tools/export.py los pide por trozos (__exChunk), uno grande cortaba la conexión
     window.__exBuf = {};
     for (const [k, l] of Object.entries(layers)) if (l.I.n) {
@@ -105,6 +119,10 @@
     }
     // los lugares de la caja, para el JSON de al lado
     res.pois = X.PD.pois.filter(p => p.x >= x0 && p.x < x1 && p.y >= y0 && p.y < y1).map(p => ({ id: p.id, nombre: p.n, cat: p.c, lat: p.lat, lon: p.lon, x: p.x, y: p.y, h: +X.E(p.x, p.y).toFixed(2) }));
+    // las luces de noche de los hitos (GLOW: faroles, focos), [x, y, altura] de grilla: dónde va cada lámpara
+    res.luces = [];
+    const G = X.GLOW || [];
+    for (let i = 0; i + 2 < G.length; i += 3) if (G[i] >= x0 && G[i] < x1 && G[i + 2] >= y0 && G[i + 2] < y1) res.luces.push([+G[i].toFixed(2), +G[i + 2].toFixed(2), +G[i + 1].toFixed(2)]);
     return res;
   };
 

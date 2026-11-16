@@ -1,12 +1,13 @@
 """Lo de OpenStreetMap que el juego (juego/modelos/) necesita alrededor de la Plaza de Armas, en metros de grilla.
 
-  python3 tools/juego_osm.py            # raw/osm/map-comuna.json (make osm) -> juego/modelos/entorno/osm.json
+  python3 tools/juego_osm.py            # raw/osm/map-comuna.json (make osm) -> data/plaza-osm.json
   python3 tools/juego_osm.py --lista    # además imprime cada edificio y nodo, para elegir qué modelar
 
 Escribe los edificios que tocan la caja ENTORNO (las cuatro caras de manzana frente a la plaza y las esquinas), con su
 contorno (x, y de grilla: x al oriente, y al norte; en Godot X = x, Z = -y) y las etiquetas que sirven para modelarlos
 (nombre, pisos, altura, dirección), y los nodos de la calle: semáforos, cruces, paraderos, árboles, hidrantes. Lo lee
-juego/modelos/entorno/plano.gd. Solo biblioteca estándar. Los datos son © colaboradores de OpenStreetMap (ODbL 1.0).
+juego/modelos/entorno/plano.gd (de la copia en juego/datos/ que hace `make juego`) y pipeline/build.py (DATA.plaza, los
+semáforos y árboles de src/js/hitos/calles-plaza.js); tools/check.py revisa su forma. Solo biblioteca estándar. Los datos son © colaboradores de OpenStreetMap (ODbL 1.0).
 """
 import json
 import pathlib
@@ -62,7 +63,7 @@ def main():
         elif 'highway' in t:
             out['vias'].append({'id': e['id'], 'highway': t['highway'], 'name': t.get('name', ''),
                                 'footway': t.get('footway', ''), 'puntos': ring})
-    dst = ROOT / 'juego' / 'modelos' / 'entorno' / 'osm.json'
+    dst = ROOT / 'data' / 'plaza-osm.json'
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(json.dumps(out, ensure_ascii=False, separators=(',', ':')))
     print(f'{dst.relative_to(ROOT)}: {len(out["edificios"])} edificios, {len(out["nodos"])} nodos, {len(out["vias"])} vías')

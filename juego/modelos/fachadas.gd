@@ -1,4 +1,4 @@
-# Los edificios que dan a las calles alrededor de la plaza: cada planta de OSM (osm.json) que tiene un lado a la
+# Los edificios que dan a las calles alrededor de la plaza: cada planta de OSM (plaza-osm.json) que tiene un lado a la
 # calle se levanta de nuevo con fachada de cerca (zócalo, ventanas hundidas con vidrio y marco, cornisa, pretil,
 # vitrinas con cortina, letreros y toldos en los locales), y reemplaza su caja de un color del glb (capas
 # «edificios» y «ciudad» dentro de la planta). Los lados que no dan a la calle quedan como muros lisos (medianeras).
@@ -30,7 +30,7 @@
 # Talca) y el BCI se dibujan con el lenguaje genérico «clásico», con lo que muestran sus fotos (zócalo, pilastras, friso).
 extends Node3D
 
-const Malla := preload("res://modelos/entorno/malla.gd")
+const Malla := preload("res://malla.gd")
 const Plano := preload("res://modelos/entorno/plano.gd")
 const Suelo := preload("res://modelos/entorno/suelo.gd")
 
@@ -38,15 +38,19 @@ const NO := [114237041, 798980080, 223617018, 191869528]  # la catedral y su tor
 const PALETA := ["e9dfc6", "efe8d8", "dcc093", "d2b48a", "e5d2ab", "c3c3bb", "dfc6b2", "c9d1cd", "e8d9a6", "d7c9b5"]
 
 # lo propio de cada edificio, por id de OSM (lo que falta sale de sus etiquetas y de valores por omisión): en
-# config/fachadas.json, que lee también la página (src/js/52-edificios.js)
+# config/fachadas.json, que lee también la página (src/js/52-edificios.js), copiado a juego/datos/ por `make juego`;
+# tools/check.py revisa sus claves y sus valores, y especiales() avisa de una clave que spec() no conoce
 var ESPECIAL := especiales()
+# las claves de config/fachadas.json: las de spec() más el corte de un basamento
+const CLAVES := ["estilo", "pisos", "alto", "color", "zocalo", "pb", "toldo", "techo", "marco", "letreros", "zocalo_alto",
+	"friso", "fronton", "bahia", "pilastras", "corte_y", "alto_basamento"]
 
 
 static func especiales() -> Dictionary:
-	var ruta := ProjectSettings.globalize_path("res://").path_join("../config/fachadas.json").simplify_path()
+	var ruta := "res://datos/fachadas.json"
 	var f := FileAccess.open(ruta, FileAccess.READ)
 	if f == null:
-		push_warning("fachadas.gd: no se pudo leer " + ruta)
+		push_error("fachadas.gd: falta %s: corra `make juego`" % ruta)
 		return {}
 	var d: Variant = JSON.parse_string(f.get_as_text())
 	var out := {}
@@ -56,6 +60,9 @@ static func especiales() -> Dictionary:
 		if not String(k).begins_with("w"):
 			continue
 		var e: Dictionary = d[k]
+		for c in e:
+			if not c in CLAVES:
+				push_warning("fachadas.gd: %s: clave desconocida «%s» (config/fachadas.json)" % [k, c])
 		if e.has("pisos"):
 			e["pisos"] = int(e["pisos"])  # JSON da números de punto flotante
 		out[int(String(k).substr(1))] = e

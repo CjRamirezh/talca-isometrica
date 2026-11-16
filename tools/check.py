@@ -14,6 +14,8 @@ Comprueba:
   - que las secciones del script empiecen con «// ==== nombre ====» (section_headers);
   - que src/style.css no tenga colores fijos fuera de los tokens y que sus dos bloques oscuros coincidan (css_tokens);
   - que data/pois.json tenga ids únicos y que cada recorrido apunte a lugares que existen;
+  - que lo que el juego y tools/ copian de la página siga igual (juego_contratos: el contorno y los prados de la plaza,
+    LEJOS, config/fachadas.json, data/plaza-osm.json, las fórmulas del relieve de tools/relieve.py);
   - que el script de dist/assets/ compile (node --check; el error da el archivo de src/ y la línea, con build.where()),
     que cada archivo que pide dist/index.html (src, href, srcset y lo que pide desde JS en assets/) exista en dist/, y que
     dist/assets/ no tenga otros;
@@ -101,6 +103,65 @@ def hitos_deps(fail):
             s = sets.get(m.group(1))
             if s and s != h and pos[s] > pos[h]:
                 fail(f'src/js/hitos/{h}.js:{t.count(chr(10), 0, m.start()) + 1}: lee MODELS[\'{m.group(1)}\'], que src/js/hitos/{s}.js pone más abajo en ORDER (todavía no existe)')
+# ---- calidad-tools: the game and the tools against the page (juego/, tools/) ----
+HEX = re.compile(r'[0-9a-fA-F]{6}')
+# config/fachadas.json: each key of an entry and its value (juego/modelos/fachadas.gd spec(), CLAVES; build.py FACHADA)
+FACHADAS = {'estilo': {'comercial', 'clasico', 'deco', 'torre', 'moderno', 'colonial', 'intendencia', 'municipal', 'vidrio'},
+            'pb': {'vitrinas', 'ventanas', 'vidrio'}, 'techo': {'plano', 'teja'}, 'pisos': int, 'alto': float,
+            'zocalo_alto': float, 'bahia': float, 'corte_y': float, 'alto_basamento': float, 'fronton': bool,
+            'pilastras': bool, 'color': 'hex', 'zocalo': 'hex', 'toldo': 'hex', 'marco': 'hex', 'friso': str,
+            'letreros': 'letreros'}
+
+def _nums(text, name, src):
+    """The numbers of the array literal `name` (GDScript `const name := [...]`, JS `const name=[...]` or `=f([...])`)."""
+    m = re.search(r'\b' + name + r'\s*:?=\s*(?:\w+\()?\[([^\[\]]*)\]', text)
+    if not m: raise ValueError(f'{src}: no encuentro {name}')
+    return [float(x) for x in re.findall(r'-?\d+(?:\.\d+)?', m.group(1))]
+
+def juego_contratos(fail):
+    """What the game (juego/) and the tools copy from the page, compared with it: the plaza's outline and lawns, how
+    far the street models go, config/fachadas.json and data/plaza-osm.json, and the relief formulas of tools/relieve.py."""
+    js = lambda f: (ROOT / 'src' / 'js' / 'hitos' / f).read_text()
+    gd = lambda f: (ROOT / 'juego' / f).read_text()
+    try:
+        hito, plano, plaza = js('plaza-de-armas.js'), gd('modelos/entorno/plano.gd'), gd('modelos/plaza.gd')
+        if _nums(plano, 'PZ', 'plano.gd') != _nums(hito, 'PZ', 'plaza-de-armas.js'):
+            fail('juego/modelos/entorno/plano.gd: PZ no es el contorno PZ de src/js/hitos/plaza-de-armas.js')
+        lawns = re.search(r'const LAWNS=\[(\[.*?\])\]', hito, re.S).group(1)
+        prados = re.search(r'const PRADOS := \[(.*?)\]\]', plaza, re.S).group(1)
+        n = lambda t: [float(x) for x in re.findall(r'-?\d+(?:\.\d+)?', t)]
+        if n(lawns) != n(prados): fail('juego/modelos/plaza.gd: PRADOS no son los LAWNS de src/js/hitos/plaza-de-armas.js')
+        lejos = float(re.search(r'const LEJOS := ([\d.]+)', plano).group(1))
+        z0 = float(re.search(r'const Z0=(\d+(?:\.\d+)?)', js('calles-plaza.js')).group(1))
+        if lejos != z0: fail(f'juego/modelos/entorno/plano.gd: LEJOS = {lejos:g} y src/js/hitos/calles-plaza.js: Z0 = {z0:g} (deben ser iguales)')
+    except (OSError, ValueError, AttributeError) as e: fail(f'juego/ contra los hitos: {e}')
+
+    fach = json.load(open(ROOT / 'config' / 'fachadas.json'))
+    for k, e in fach.items():
+        if k.startswith('_'): continue
+        if not re.fullmatch(r'w\d+', k) or not isinstance(e, dict): fail(f'config/fachadas.json: «{k}» no es w<id de OSM> con un objeto'); continue
+        for c, v in e.items():
+            t = FACHADAS.get(c)
+            ok = (t is not None and (v in t if isinstance(t, set) else isinstance(v, str) if t is str else isinstance(v, (int, float)) and not isinstance(v, bool) if t is float
+                  else isinstance(v, int) and not isinstance(v, bool) and v > 0 if t is int else isinstance(v, bool) if t is bool
+                  else isinstance(v, str) and (v == '' or HEX.fullmatch(v)) if t == 'hex'
+                  else isinstance(v, list) and all(isinstance(l, list) and len(l) == 3 and all(isinstance(x, str) for x in l) and HEX.fullmatch(l[1]) and HEX.fullmatch(l[2]) for l in v)))
+            if t is None: fail(f'config/fachadas.json: {k}: clave desconocida «{c}» (las que hay: tools/check.py FACHADAS)')
+            elif not ok: fail(f'config/fachadas.json: {k}.{c} = {v!r} no vale')
+        if ('corte_y' in e) != ('alto_basamento' in e): fail(f'config/fachadas.json: {k}: corte_y y alto_basamento van juntos')
+
+    osm = json.load(open(ROOT / 'data' / 'plaza-osm.json'))
+    if set(osm) < {'caja', 'edificios', 'nodos', 'vias'}: fail(f'data/plaza-osm.json: le faltan {sorted({"caja", "edificios", "nodos", "vias"} - set(osm))}')
+    for b in osm.get('edificios', []):
+        if not (isinstance(b.get('id'), int) and isinstance(b.get('tags'), dict) and isinstance(b.get('anillo'), list) and len(b['anillo']) >= 3):
+            fail(f'data/plaza-osm.json: edificio sin id, tags o anillo: {str(b)[:80]}'); break
+    for nd in osm.get('nodos', []):
+        if not ({'id', 'tipo', 'x', 'y'} <= set(nd)): fail(f'data/plaza-osm.json: nodo sin id, tipo, x o y: {nd}'); break
+
+    try:
+        sys.path.insert(0, str(ROOT / 'tools')); import relieve; relieve.formulas()
+    except ValueError as e: fail(str(e))
+# ---- end of calidad-tools ----
 
 def css_tokens(fail):
     """The colours of src/style.css are tokens (CLAUDE.md, Convenciones → Tema): no colour literal outside a `--token:`
@@ -213,6 +274,7 @@ def main(dist=True):
                     fail(f'dist/{app[0]}: el script no compila{at}: {err}')
 
     for check in PIPELINE: check(fail)
+    juego_contratos(fail)  # calidad-tools
 
     for m in bad: print('FALLA:', m)
     print(f'check: {len(bad)} fallas' if bad else f'check: ok ({(time.time()-t0)*1000:.0f} ms)')

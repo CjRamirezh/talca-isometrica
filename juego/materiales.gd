@@ -1,30 +1,27 @@
-# Materiales del juego: shaders/capa.gdshader con las opciones de cada capa del glb y de cada superficie, para que
-# los modelos propios (modelos/*.gd) se vean igual que la maqueta que los rodea.
+# Los materiales del juego, en un solo lugar (hasta noviembre de 2026 había tres: este, modelos/entorno/materiales.gd y
+# el shader() de plaza.gd). Los sombreadores están en shaders/.
 #
 #   const Mat := preload("res://materiales.gd")
-#   malla.material_override = Mat.capa("edificios")          # una capa del glb, con su color por vértice
-#   caja.material = Mat.fachada(Color("e5d2c2"))             # estuco con ventanas cada 3,4 × 3,0 m
-#   caja.material = Mat.fachada(Color("e5d2c2"), false)      # estuco sin ventanas
-#   piso.material = Mat.baldosa(Color("cac3a9"))             # baldosa de 40 cm con junta
-#   Mat.pasto(c), Mat.tierra(c), Mat.asfalto(c), Mat.piedra(c), Mat.teja(c), Mat.zinc(c), Mat.techo(c),
-#   Mat.follaje(c), Mat.corteza(c), Mat.pintura(c) (autos), Mat.vidrio(c), Mat.agua(c)
-#   Mat.superficie(c)                                        # la reconoce por el color, como en la maqueta
-#   Mat.vertices(tipo)                                       # con el color por vértice de la malla y el tipo de capa
+#   Mat.capa("edificios", "edificio")   # una capa del glb (shaders/capa.gdshader), con su color por vértice; el tipo
+#                                       # sale de plaza.json (glb.gd): suelo, edificio, hito, arbol, auto
+#   Mat.follaje(c), Mat.tierra(c)       # capa.gdshader con un color fijo: copas y suelo lejanos (ambiente.gd lejos())
+#   Mat.patron("ladrillo")              # los dibujos de los modelos del entorno (shaders/patron.gdshader; PATRON),
+#                                       # uno por nombre, compartido: malla.gd construir() y malla()
+#   Mat.plaza("piedra", {"rugoso": 0.8})  # un sombreador de shaders/plaza/ con sus parámetros (plaza.gd, plaza/*.gd)
+#   Mat.textura(tex)                    # una textura con transparencia por recorte (rejas, filigranas)
 #
-# Todas devuelven un ShaderMaterial nuevo; el color va en sRGB, como en la página. Las texturas son en coordenadas del
-# mundo (no necesitan UV) y reconocen la orientación de cada cara: una caja con fachada() tiene ventanas en los
-# muros y estuco en la tapa. Las ventanas y las juntas usan la altura sobre la plaza (Y = 0), no sobre la caja.
-# La hora del día llega por los parámetros globales `noche` y `sol_dir` (ambiente.gd): de noche las ventanas se
-# encienden solas.
+# En capa.gdshader el color va en sRGB, como en la página; las texturas son en coordenadas del mundo y reconocen la
+# orientación de cada cara. La hora del día llega por los parámetros globales `noche` y `sol_dir` (ambiente.gd).
 extends RefCounted
 
 const SHADER := preload("res://shaders/capa.gdshader")
 const SHADER_FOLLAJE := preload("res://shaders/follaje.gdshader")  # tipo 3: las copas no reciben sombras
+const SHADER_PATRON := preload("res://shaders/patron.gdshader")
 
-# tipo de cada capa del glb (capa.gdshader): 0 suelo, 1 edificio con ventanas, 2 hito, 3 árbol, 4 auto
-const TIPOS := {"terreno": 0, "suelo": 0, "usos": 0, "patios": 0, "veredas": 0, "ciudad": 1, "edificios": 1,
-	"hitos": 2, "arboles": 3, "alamos": 3, "autos": 4, "autos-ruta5": 4, "agua": 0}
+# el número de cada tipo de capa (el «tipo» de plaza.json, LAYERS de tools/export.js) en capa.gdshader
+const TIPOS := {"suelo": 0, "edificio": 1, "hito": 2, "arbol": 3, "auto": 4}
 
+# las clases de capa.gdshader (su uniform `clase`; -1: la reconoce por el color)
 const ESTUCO := 0
 const ASFALTO := 1
 const BALDOSA := 2
@@ -40,17 +37,29 @@ const VIDRIO := 11
 const TECHO := 12
 const PIEDRA := 13
 
+# los dibujos de patron.gdshader: liso (revoque con manchas suaves), ladrillo (0,29 × 0,07 m, trabado, cantería de
+# mortero), hormigon (losas de calzada de 3,5 × 4,5 m con juntas y manchas: OSM dice surface=concrete en las cuatro
+# calles, y se ven en la foto de 1 Norte de 2022 en Commons), baldosa (40 × 40 cm con 16 botones, la «baldosa
+# microvibrada» de las veredas de Talca, foto de 1 Norte), teja (hileras de teja de arcilla), granito (soleras y
+# peldaños), pizarra (escamas del chapitel), asfalto (1 Oriente: OSM dice surface=asphalt al sur de la plaza, y las
+# fotos de 2022 de la esquina de 1 Norte lo muestran también al norte), metal y vidrio (sin dibujo)
+const PATRON := {"liso": 0, "ladrillo": 1, "hormigon": 2, "baldosa": 3, "teja": 4, "granito": 5, "pizarra": 6,
+	"metal": 7, "vidrio": 8, "pintura": 9, "tela": 10, "emisivo": 11, "asfalto": 12}
+const RUGOSIDAD := {"metal": 0.38, "pintura": 0.55, "granito": 0.7, "emisivo": 0.5, "pizarra": 0.6}
+
 static var _capas := {}
+static var _patrones := {}
+static var _plaza := {}
 
 
-# el material de una capa del glb (compartido: una capa, un material)
-static func capa(nombre: String) -> ShaderMaterial:
+# el material de una capa del glb, de su tipo (glb.gd; compartido: una capa, un material)
+static func capa(nombre: String, tipo: String) -> ShaderMaterial:
 	if not _capas.has(nombre):
-		_capas[nombre] = vertices(TIPOS.get(nombre, 0))
+		_capas[nombre] = _vertices(TIPOS[tipo])
 	return _capas[nombre]
 
 
-static func vertices(tipo: int) -> ShaderMaterial:
+static func _vertices(tipo: int) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = SHADER_FOLLAJE if tipo == 3 else SHADER
 	m.set_shader_parameter("tipo", tipo)
@@ -58,25 +67,65 @@ static func vertices(tipo: int) -> ShaderMaterial:
 
 
 static func _color(c: Color, tipo: int, clase: int) -> ShaderMaterial:
-	var m := vertices(tipo)
+	var m := _vertices(tipo)
 	m.set_shader_parameter("color_vertice", false)
 	m.set_shader_parameter("color", c)
 	m.set_shader_parameter("clase", clase)
 	return m
 
 
-static func superficie(c: Color, tipo := 2) -> ShaderMaterial: return _color(c, tipo, -1)
-static func fachada(c: Color, ventanas := true) -> ShaderMaterial: return _color(c, 1 if ventanas else 2, ESTUCO)
-static func asfalto(c := Color("5f5b57")) -> ShaderMaterial: return _color(c, 0, ASFALTO)
-static func baldosa(c := Color("cac3a9")) -> ShaderMaterial: return _color(c, 0, BALDOSA)
-static func pasto(c := Color("6f864a")) -> ShaderMaterial: return _color(c, 0, PASTO)
 static func tierra(c := Color("b4957b")) -> ShaderMaterial: return _color(c, 0, TIERRA)
-static func agua(c := Color("3c6f9a")) -> ShaderMaterial: return _color(c, 0, AGUA)
-static func teja(c := Color("a4553a")) -> ShaderMaterial: return _color(c, 2, TEJA)
-static func zinc(c := Color("7d8285")) -> ShaderMaterial: return _color(c, 2, ZINC)
-static func techo(c := Color("b8b4aa")) -> ShaderMaterial: return _color(c, 2, TECHO)
-static func piedra(c := Color("b9b4a8")) -> ShaderMaterial: return _color(c, 2, PIEDRA)
 static func follaje(c := Color("587d3a")) -> ShaderMaterial: return _color(c, 3, FOLLAJE)
-static func corteza(c := Color("5e4a35")) -> ShaderMaterial: return _color(c, 3, CORTEZA)
-static func pintura(c := Color("8a1c1c")) -> ShaderMaterial: return _color(c, 4, PINTURA)
-static func vidrio(c := Color("1d232b")) -> ShaderMaterial: return _color(c, 4, VIDRIO)
+
+
+# el material de un dibujo de los modelos del entorno (uno por nombre, compartido)
+static func patron(nombre: String) -> Material:
+	if _patrones.has(nombre):
+		return _patrones[nombre]
+	var m: Material
+	if nombre == "vidrio":
+		var s := StandardMaterial3D.new()
+		s.vertex_color_use_as_albedo = true
+		s.vertex_color_is_srgb = true
+		s.metallic = 0.55
+		s.roughness = 0.06
+		s.metallic_specular = 0.8
+		m = s
+	else:
+		var sm := ShaderMaterial.new()
+		sm.shader = SHADER_PATRON
+		sm.set_shader_parameter("patron", PATRON.get(nombre, 0))
+		sm.set_shader_parameter("rugosidad", RUGOSIDAD.get(nombre, 0.88))
+		sm.set_shader_parameter("metalico", 0.45 if nombre == "metal" else 0.0)
+		if nombre == "emisivo":
+			sm.set_shader_parameter("emision", 0.9)
+		m = sm
+	_patrones[nombre] = m
+	return m
+
+
+# un material nuevo con un sombreador de shaders/plaza/ (piedra, pavimento, pasto, pasto_hojas, agua, zinc, farol,
+# corteza, follaje) y sus parámetros
+static func plaza(nombre: String, params := {}) -> ShaderMaterial:
+	if not _plaza.has(nombre):
+		_plaza[nombre] = load("res://shaders/plaza/%s.gdshader" % nombre)
+	var m := ShaderMaterial.new()
+	m.shader = _plaza[nombre]
+	for k in params:
+		m.set_shader_parameter(k, params[k])
+	return m
+
+
+# una textura con transparencia por recorte, de las dos caras (rejas, filigranas, flores)
+static func textura(tex: Texture2D, metal := 0.5, rugoso := 0.45) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.albedo_color = Color(1, 1, 1)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.4
+	m.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.metallic = metal
+	m.roughness = rugoso
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	return m

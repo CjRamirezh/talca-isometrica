@@ -7,7 +7,7 @@
 #   - el plano (fachadas, soleras, anchos): plano.gd;
 #   - la calzada: OSM (surface=concrete, lanes=2, oneway en las cuatro calles) y la foto de 1 Norte hacia la catedral
 #     (Commons, «Iglesia de la comunidad buen pastor.jpg», 2022-05-28): losas de hormigón gris con juntas, sin asfalto;
-#   - los cruces: los nodos highway=crossing y crossing=traffic_signals de OSM (osm.json), cruzando la calle por el
+#   - los cruces: los nodos highway=crossing y crossing=traffic_signals de OSM (plaza-osm.json), cruzando la calle por el
 #     camino más corto entre soleras; los semáforos: los nodos highway=traffic_signals;
 #   - los faroles: la foto de 1 Norte (2022) y las de la catedral (2017, 2018): poste de fierro fundido verde oscuro
 #     con base, linterna de cuatro caras y un brazo con macetero;
@@ -19,7 +19,8 @@
 # va cada farol (cada ~22 m), los letreros de las calles (texto real, colores supuestos).
 extends Node3D
 
-const Malla := preload("res://modelos/entorno/malla.gd")
+const Args := preload("res://args.gd")
+const Malla := preload("res://malla.gd")
 const Plano := preload("res://modelos/entorno/plano.gd")
 const Suelo := preload("res://modelos/entorno/suelo.gd")
 
@@ -96,56 +97,22 @@ func _ready() -> void:
 	arboles(arb)
 	arb.construir(self, "calles-arboles")
 	cenital()
-	medir()
 
-
-# --fps N: sin sincronía vertical, cuenta los cuadros de N segundos (después de 3 de calentamiento) desde donde está la
-# cámara, imprime el promedio y sale (para comparar el rendimiento antes y después de un cambio)
-func medir() -> void:
-	var args := OS.get_cmdline_user_args()
-	if not "--fps" in args:
-		return
-	var n := float(args[args.find("--fps") + 1])
-	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
-	Engine.max_fps = 0
-	if "--escala" in args:  # dibuja la escena a escala² veces los píxeles: cuánto margen queda bajo el tope de la pantalla
-		get_viewport().scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-		get_viewport().scaling_3d_scale = float(args[args.find("--escala") + 1])
-	var vp := get_viewport().get_viewport_rid()
-	RenderingServer.viewport_set_measure_render_time(vp, true)
-	await get_tree().create_timer(3.0).timeout
-	var gpu := 0.0
-	var cpu := 0.0
-	var k := 0
-	var f0 := Engine.get_process_frames()
-	var t0 := Time.get_ticks_usec()
-	while Time.get_ticks_usec() - t0 < n * 1e6:
-		await get_tree().process_frame
-		gpu += RenderingServer.viewport_get_measured_render_time_gpu(vp)
-		cpu += RenderingServer.viewport_get_measured_render_time_cpu(vp)
-		k += 1
-	var fps := (Engine.get_process_frames() - f0) / ((Time.get_ticks_usec() - t0) / 1e6)
-	print("calles.gd: %.1f cuadros por segundo (%.2f ms; GPU %.2f ms, CPU de render %.2f ms) en %dx%d, %d triángulos dibujados" % [fps, 1000.0 / fps,
-		gpu / k, cpu / k,
-		get_viewport().size.x, get_viewport().size.y,
-		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
-	get_tree().quit()
 
 # para revisar el plano: --cenital x,y,lado pone una cámara ortográfica mirando hacia abajo sobre (x, y) de grilla,
 # con lado m de alto, sin niebla (solo para las capturas: --png)
 func cenital() -> void:
-	var args := OS.get_cmdline_user_args()
-	if not "--cenital" in args:
+	if not Args.has("--cenital"):
 		return
-	var d: PackedStringArray = args[args.find("--cenital") + 1].split(",")
+	var d := Args.nums("--cenital", 3, [0.0, 0.0, 300.0])
 	for i in 3:
 		await get_tree().process_frame
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = float(d[2])
+	cam.size = d[2]
 	cam.far = 500
 	add_child(cam)
-	cam.global_position = Vector3(float(d[0]), 200, -float(d[1]))
+	cam.global_position = Vector3(d[0], 200, -d[1])
 	cam.rotation_degrees = Vector3(-90, 0, 0)
 	cam.make_current()
 	for we in get_tree().root.find_children("*", "WorldEnvironment", true, false):

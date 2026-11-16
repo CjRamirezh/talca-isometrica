@@ -16,6 +16,8 @@
 extends Node3D
 
 const Mat := preload("res://materiales.gd")
+const Args := preload("res://args.gd")
+const Glb := preload("res://glb.gd")
 const LAT := -35.4265
 const LON := -71.666
 const UTC := -3.0
@@ -36,11 +38,8 @@ var lejanos: Array[Node3D] = []
 
 
 func _ready() -> void:
-	var args := OS.get_cmdline_user_args()
-	if "--hora" in args:
-		hora = float(args[args.find("--hora") + 1])
-	if "--dia" in args:
-		dia = int(args[args.find("--dia") + 1])
+	hora = Args.num("--hora", hora, 0.0, 24.0)
+	dia = int(Args.num("--dia", dia, 1, 366))
 	objetivo = hora
 	# noche, sol_dir y luna_dir son parámetros globales de los sombreadores ([shader_globals] de project.godot)
 	calidad()
@@ -51,12 +50,7 @@ func _ready() -> void:
 	lejos()
 	hud()
 	poner_hora(hora)
-	var sin_ := []
-	if "--sin" in args:
-		sin_ = Array(args[args.find("--sin") + 1].split(","))
-	if "--calidad" in args and args[args.find("--calidad") + 1] == "baja":
-		sin_ += ["ssil", "ssao", "blandas"]
-	apagar(sin_)
+	apagar(Array(Args.sin_()))
 
 
 # sombras y antialiasing (en tiempo de ejecución, para no tocar project.godot)
@@ -136,10 +130,10 @@ func materiales() -> void:
 			continue
 		for mi in n.find_children("*", "MeshInstance3D", true, false):
 			var nombre := String(mi.name)
-			if not Mat.TIPOS.has(nombre):
+			if not Glb.es_capa(nombre):
 				nombre = String(mi.get_parent().name)
-			if Mat.TIPOS.has(nombre):
-				mi.material_override = Mat.capa(nombre)
+			if Glb.tipo(nombre) != "":
+				mi.material_override = Mat.capa(nombre, Glb.tipo(nombre))
 
 
 # Las copas de la maqueta son icosaedros de caras planas: se ven como piedras talladas. Cada copa (los triángulos verdes
@@ -320,57 +314,25 @@ func hud() -> void:
 
 # ---------- los faroles de la plaza ----------
 
-# Los faroles del glb (en «hitos»: postes verde oscuro con su linterna arriba) se reconocen por el color y la altura;
-# en la punta de cada uno va una luz para la noche. Si un modelo propio los reemplaza, no se encuentra ninguno.
+# Las luces de noche de los hitos del glb (GLOW de la página: tools/export.py las escribe en plaza.json, «luces»): en
+# cada una va una lámpara y una luz. Las que caen donde un modelo propio recorta los hitos (main.gd recortado()) no:
+# ese modelo pone las suyas (plaza.gd luces_de_noche()).
 func buscar_faroles() -> void:
-	var celdas := {}
-	for n in get_parent().get_children():
-		if not n is Node3D or n == self:
+	var main := get_parent()
+	var altos: Array[Vector3] = []
+	for p in Glb.luces():
+		if main.has_method("recortado") and main.recortado(Vector2(p.x, -p.z), "hitos"):
 			continue
-		for mi in n.find_children("hitos", "MeshInstance3D", true, false):
-			var xf: Transform3D = mi.global_transform
-			for s in mi.mesh.get_surface_count():
-				var a: Array = mi.mesh.surface_get_arrays(s)
-				var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
-				var c: PackedColorArray = a[Mesh.ARRAY_COLOR]
-				if c.is_empty():
-					continue
-				var ref := Color("36554b").srgb_to_linear()
-				for i in v.size():
-					var col := c[i]
-					if abs(col.r - ref.r) + abs(col.g - ref.g) + abs(col.b - ref.b) > 0.02:
-						continue
-					var p: Vector3 = xf * v[i]
-					var k := Vector2i(floori(p.x / 1.5), floori(p.z / 1.5))
-					if not celdas.has(k) or celdas[k].y < p.y:
-						celdas[k] = p
-	# un farol por grupo de celdas vecinas: el punto más alto
-	var puntos: Array[Vector3] = []
-	for k in celdas:
-		var p: Vector3 = celdas[k]
-		var junto := false
-		for i in puntos.size():
-			if Vector2(puntos[i].x - p.x, puntos[i].z - p.z).length() < 2.0:
-				junto = true
-				if p.y > puntos[i].y:
-					puntos[i] = p
-				break
-		if not junto:
-			puntos.append(p)
-	var suelo_y := 0.0
+		altos.append(p)
 	var lampara := SphereMesh.new()
 	lampara.radius = 0.22
 	lampara.height = 0.44
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = lampara
-	var altos: Array[Vector3] = []
-	for p in puntos:
-		if p.y - suelo_y > 2.5:  # los postes, no las bancas ni los basureros
-			altos.append(p)
 	mm.instance_count = altos.size()
 	for i in altos.size():
-		var p := altos[i] + Vector3.DOWN * 0.35
+		var p := altos[i]
 		mm.set_instance_transform(i, Transform3D(Basis(), p))
 		var f := OmniLight3D.new()
 		f.position = p
@@ -434,7 +396,7 @@ func lejos() -> void:
 			st.add_vertex(p)
 	var plano := MeshInstance3D.new()
 	plano.mesh = st.commit()
-	plano.material_override = Mat._color(Color("8d8a7c"), 0, Mat.TIERRA)
+	plano.material_override = Mat.tierra(Color("8d8a7c"))
 	plano.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(plano)
 	lejanos.append(plano)

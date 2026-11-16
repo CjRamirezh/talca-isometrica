@@ -23,7 +23,7 @@
 # la pendiente de los techos, el dibujo de los vitrales y de los relieves (siluetas), las campanas.
 extends Node3D
 
-const Malla := preload("res://modelos/entorno/malla.gd")
+const Malla := preload("res://malla.gd")
 const Suelo := preload("res://modelos/entorno/suelo.gd")
 
 const X := -102.9
@@ -50,14 +50,14 @@ func recortes() -> Array:
 	var g := Malla.Marco.new(X, Y, A)
 	var p := PackedVector2Array()
 	for q in PLANTA:
-		p.append(g.G(q[0], q[1]))
+		p.append(g.punto(q[0], q[1]))
 	if Geometry2D.is_polygon_clockwise(p):
 		p.reverse()
 	var r := Geometry2D.offset_polygon(p, 1.2, Geometry2D.JOIN_MITER)
 	# el patio entre el campanario y el crucero, hasta la reja de 1 Norte: lo dibuja patio()
 	var pt := PackedVector2Array()
 	for q in [[15.5, -26.5], [24.6, -26.5], [24.6, 6.5], [15.5, 6.5]]:
-		pt.append(g.G(q[0], q[1]))
+		pt.append(g.punto(q[0], q[1]))
 	if Geometry2D.is_polygon_clockwise(pt):
 		pt.reverse()
 	return [{"poligono": r[0], "capas": ["hitos", "edificios", "ciudad", "patios", "suelo", "usos"]},

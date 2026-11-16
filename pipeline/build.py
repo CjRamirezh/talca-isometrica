@@ -167,8 +167,8 @@ def main(*, where=None):
     fach = {k: {c: v[c] for c in FACHADA if c in v} for k, v in json.load(open(CONFIG / 'fachadas.json')).items() if k.startswith('w')}
     files['ed'][1]['f'] = {k: v for k, v in fach.items() if v}
     # the traffic lights and the street trees of OpenStreetMap around the plaza, from the game's plan
-    # (juego/modelos/entorno/osm.json, tools/juego_osm.py): DATA.plaza, for src/js/hitos/calles-plaza.js
-    nodos = json.load(open(ROOT / 'juego' / 'modelos' / 'entorno' / 'osm.json'))['nodos']
+    # (data/plaza-osm.json, tools/juego_osm.py): DATA.plaza, for src/js/hitos/calles-plaza.js
+    nodos = json.load(open(require(DATA / 'plaza-osm.json', 'Ejecute: python3 tools/juego_osm.py')))['nodos']
     geo['plaza'] = {k: [[n['x'], n['y']] for n in nodos if n['tipo'] == t] for k, t in (('sem', 'traffic_signals'), ('arb', 'tree'))}
     if (DATA / 'cobertura.json').exists():   # la cobertura vegetal de CONAF (pipeline/cobertura.py; sin ella, solo la pendiente)
         files['cob'] = ('cobertura.json', json.load(open(DATA / 'cobertura.json')))

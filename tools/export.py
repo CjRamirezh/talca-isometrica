@@ -1,15 +1,20 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["playwright==1.63"]
+# ///
 """Exporta la maqueta generada a glTF (Blender, Godot) y a STL (impresión 3D).
 
-  uv run --with "playwright==1.63" python tools/export.py --glb shots/centro.glb                  # 1 km alrededor de la plaza
-  uv run --with "playwright==1.63" python tools/export.py --glb shots/x.glb --centro 1722,-262 --lado 600
-  uv run --with "playwright==1.63" python tools/export.py --glb shots/x.glb --caja=-500,-500,500,500 --sin arboles,autos
-  uv run --with "playwright==1.63" python tools/export.py --stl shots/centro.stl                  # sólido de 200 mm de lado
-  uv run --with "playwright==1.63" python tools/export.py --stl shots/comuna.stl --comuna --paso 25 --escala 100000
-  uv run --with "playwright==1.63" python tools/export.py --glb shots/c.glb --stl shots/c.stl --vista shots/c.png
-  uv run --with "playwright==1.63" python tools/export.py --teselas shots/teselas --comuna        # un glb por km² e indice.json (Godot)
+  uv run tools/export.py --glb shots/centro.glb                  # 1 km alrededor de la plaza
+  uv run tools/export.py --glb shots/x.glb --centro 1722,-262 --lado 600
+  uv run tools/export.py --glb shots/x.glb --caja=-500,-500,500,500 --sin arboles,autos
+  uv run tools/export.py --stl shots/centro.stl                  # sólido de 200 mm de lado
+  uv run tools/export.py --stl shots/comuna.stl --comuna --paso 25 --escala 100000
+  uv run tools/export.py --glb shots/c.glb --stl shots/c.stl --vista shots/c.png
+  uv run tools/export.py --teselas shots/teselas --comuna        # un glb por km² e indice.json (Godot)
 
-Carga dist/ en Chromium (como tools/screenshot.py, ~1 min) con window.__KEEP, para que las mallas conserven sus
-arreglos después de subir a la GPU, espera la generación completa e inyecta tools/export.js, que lee la escena.
+Carga dist/ en Chromium (Map de tools/page.py, ~1 min; --gl metal, la GPU del Mac) con window.__KEEP, para que las
+mallas conserven sus arreglos después de subir a la GPU, espera la generación completa e inyecta tools/export.js, que
+lee la escena. Sale con 1 si hubo errores de consola.
 
 glTF (--glb): un nodo y un material por capa (terreno, borde, suelo, agua, usos, ciudad, edificios, hitos, cerro,
 patios, veredas, via, ruta5, arboles, alamos, autos, autos-ruta5, trenes; otros, lo que no tiene nombre), con colores por vértice
@@ -18,7 +23,9 @@ de Armas y la grilla girada +5° (las calles numeradas van por los ejes); el rel
 triángulos que cruzan el borde de la caja se cortan en él, así dos cajas vecinas calzan; los árboles y autos entran
 enteros si su centro cae dentro. Las ventanas de los edificios no son geometría (las pinta el sombreador de la página,
 winMat): el material «edificios» lleva extras.ventanas para ponerlas con un material propio. Al lado, <salida>.json:
-la caja, el sistema de coordenadas y los lugares que caen en ella.
+la caja, el sistema de coordenadas, las capas que puede tener (LAYERS de tools/export.js: el tipo de cada una y si es
+sólida; una malla de un grupo que no está ahí hace fallar la exportación), los lugares que caen en la caja y las luces
+de noche de los hitos (GLOW de la página: [x, y, altura] de cada lámpara).
 
 STL (--stl): un sólido cerrado (cada arista en dos caras) de la superficie más alta de lo dibujado, muestreada en una
 grilla de --paso metros (techos, copas, puentes: lo de abajo de un puente queda relleno), con una base plana y,
@@ -34,12 +41,13 @@ glb pesa ~400 MB sin árboles ni edificios: para un motor de juegos van por tese
 import argparse, asyncio, base64, json, math, struct, sys, time
 from array import array
 from pathlib import Path
-from playwright.async_api import async_playwright
-sys.path.insert(0, str(Path(__file__).parent))
-from screenshot import open_page
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from page import Map, ROOT, add_page_args, alias, launch
+sys.path.insert(0, str(ROOT / 'pipeline'))
+import common  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-ORIGEN = (-35.42653, -71.666)  # la Plaza de Armas (pipeline/common.py: loc/unloc)
+ORIGEN = (common.LAT0, common.LON0)  # la Plaza de Armas (loc/unloc)
+GIRO = round(math.degrees(common.TH), 6)  # el giro de la grilla
 MAT = {  # rugosidad por capa (el resto, 1): la página es Lambert, sin brillos
     'agua': 0.35}
 
@@ -93,7 +101,7 @@ def meta(res, stl):
     m = {'caja_m': res['box'],
          'coordenadas': 'metros de grilla: origen en la Plaza de Armas, grilla girada +5° (calles numeradas por los ejes); '
                         'glTF: X = x (oriente), Y = altura (relieve exagerado, 0 en la plaza), Z = -y (norte)',
-         'origen_latlon': ORIGEN, 'giro_grilla_grados': 5,
+         'origen_latlon': ORIGEN, 'giro_grilla_grados': GIRO,
          'atribucion': '© colaboradores de OpenStreetMap, Overture Maps Foundation, Microsoft, Google, INE, CONAF, CIREN, '
                        'MINVU, Copernicus DEM GLO-30 (ESA); las licencias de cada fuente, en LICENSE-DATA del repositorio '
                        'talca-isometrica (lo derivado de OSM, bajo ODbL 1.0)'}
@@ -176,8 +184,8 @@ VIEW_JS = '''async ([b64, stl]) => {
   const n = {}; g.scene.traverse(o => { if (o.isMesh) n[o.name] = o.geometry.index.count / 3; }); return n; }'''
 
 
-async def vista(p, glb, png, stl=False):
-    b = await p.chromium.launch(args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'])
+async def vista(p, glb, png, stl=False, gl='swiftshader'):
+    b = await launch(p, gl)
     pg = await b.new_page(viewport={'width': 1400, 'height': 900})
     await pg.set_content(VIEW_HTML)
     ex = ROOT / 'node_modules/three/examples/js/loaders/GLTFLoader.js'
@@ -192,6 +200,8 @@ async def vista(p, glb, png, stl=False):
 async def export_glb(pg, box, skip, path, lugares=True):
     """las mallas de la caja en un glb (y, con lugares, su JSON al lado); None si no hay nada"""
     res = await pg.evaluate('([b, s]) => __exGeom(b, {skip: s})', [box, skip])
+    res['capas'] = await pg.evaluate('__exLayers')  # all of them: the contract, not only this box's
+    if res['unknown']: raise SystemExit(f"export: capas sin entrada en LAYERS de tools/export.js: {', '.join(res['unknown'])}")
     if not res['tris']: return None
     for k, L in res['layers'].items():  # los arreglos, por trozos de 32 MB
         for key in 'PNCI':
@@ -201,17 +211,16 @@ async def export_glb(pg, box, skip, path, lugares=True):
             L[key] = bytes(buf)
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     write_glb(path, res)
-    if lugares: Path(path).with_suffix('.json').write_text(json.dumps({**meta(res, None), 'lugares': res['pois']}, ensure_ascii=False, indent=1))
+    if lugares: Path(path).with_suffix('.json').write_text(json.dumps({**meta(res, None), 'capas': res['capas'], 'lugares': res['pois'], 'luces': res['luces']}, ensure_ascii=False, indent=1))
     return {'archivo': path, 'triangulos': res['tris'], 'MB': round(Path(path).stat().st_size / 1e6, 1),
             'capas': {k: L['ni'] // 3 for k, L in res['layers'].items()}}
 
 
 async def main(a):
     if a.comuna and (a.caja or a.centro): raise SystemExit('--comuna va sin --caja ni --centro')
-    async with async_playwright() as p:
-        t0 = time.time()
-        b, pg, logs = await open_page(p, '1200x800', init='window.__KEEP=1')
-        await pg.wait_for_function('window.__export && window.__stats', timeout=240000)
+    t0 = time.time()
+    async with Map.from_args(a, init='window.__KEEP=1', ready='full') as m:
+        pg = m.page
         await pg.add_script_tag(path=str(Path(__file__).with_name('export.js')))
         if a.comuna:
             x0, x1, y0, y1 = await pg.evaluate('__export.ext')
@@ -236,7 +245,7 @@ async def main(a):
                     if r: lista.append({'archivo': f.name, 'i': i, 'j': j, 'caja_m': [i * t, j * t, (i + 1) * t, (j + 1) * t], 'triangulos': r['triangulos'], 'MB': r['MB']})
                     print(f'  t_{i}_{j}:', r and r['triangulos'], 'triángulos', flush=True)
             pois = await pg.evaluate('b => __export.PD.pois.filter(p => p.x >= b[0] && p.x < b[2] && p.y >= b[1] && p.y < b[3]).map(p => ({id: p.id, nombre: p.n, cat: p.c, lat: p.lat, lon: p.lon, x: p.x, y: p.y, h: +__export.E(p.x, p.y).toFixed(2)}))', box)
-            (d / 'indice.json').write_text(json.dumps({**meta({'box': box}, None), 'tesela_m': t, 'teselas': lista, 'lugares': pois}, ensure_ascii=False, indent=1))
+            (d / 'indice.json').write_text(json.dumps({**meta({'box': box}, None), 'capas': await pg.evaluate('__exLayers'), 'tesela_m': t, 'teselas': lista, 'lugares': pois}, ensure_ascii=False, indent=1))
             print('->', d / 'indice.json', len(lista), 'teselas,', round(sum(x['MB'] for x in lista)), 'MB')
         if a.stl:
             paso = a.paso or max(1.0, max(x1 - x0, y1 - y0) / 500)
@@ -247,16 +256,18 @@ async def main(a):
             info['stl'] = write_stl(a.stl, hm, box, escala, a.base, a.vert)
             info['stl']['MB'] = round(Path(a.stl).stat().st_size / 1e6, 1)
             print('->', a.stl, json.dumps(info['stl'], ensure_ascii=False))
-        for l in logs:
-            if l.startswith(('ERROR:', 'error:')): print(l)
-        await b.close()
-        if a.vista and a.glb and Path(a.glb).stat().st_size > 150e6:
-            print('vista: el glb pesa más de 150 MB, no se dibuja')
-        elif a.vista and a.glb:
-            print('vista:', await vista(p, a.glb, a.vista), '->', a.vista)
-        if a.vista and a.stl:
-            f = str(Path(a.vista).with_name(Path(a.vista).stem + '-stl.png'))
-            await vista(p, a.stl, f, True); print('vista del STL ->', f)
+        bad = m.print_logs()
+    if a.vista:
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            if a.glb and Path(a.glb).stat().st_size > 150e6:
+                print('vista: el glb pesa más de 150 MB, no se dibuja')
+            elif a.glb:
+                print('vista:', await vista(p, a.glb, a.vista, gl=a.gl), '->', a.vista)
+            if a.stl:
+                f = str(Path(a.vista).with_name(Path(a.vista).stem + '-stl.png'))
+                await vista(p, a.stl, f, True, gl=a.gl); print('vista del STL ->', f)
+    if bad: raise SystemExit(f'export: {len(bad)} errores de consola')
 
 
 if __name__ == '__main__':
@@ -264,6 +275,7 @@ if __name__ == '__main__':
     ap.add_argument('--glb', help='salida glTF binaria (.glb)')
     ap.add_argument('--stl', help='salida STL binaria (milímetros)')
     ap.add_argument('--centro', help='x,y de grilla (metros; por omisión la plaza, 0,0)')
+    alias(ap, '--center', '--centro')
     ap.add_argument('--lado', type=float, default=1000, help='lado de la caja alrededor de --centro (m)')
     ap.add_argument('--caja', help='x0,y0,x1,y1 de grilla (m)')
     ap.add_argument('--comuna', action='store_true', help='toda la comuna')
@@ -275,6 +287,7 @@ if __name__ == '__main__':
     ap.add_argument('--teselas', help='directorio: un glb por tesela de --tam metros (t_<i>_<j>.glb, la caja x de i·tam a (i+1)·tam) e indice.json')
     ap.add_argument('--tam', type=float, default=1000, help='lado de las teselas (m)')
     ap.add_argument('--vista', help='PNG del glb exportado, cargado de vuelta (revisión)')
+    add_page_args(ap, size='1200x800', only=('size', 'gl'))
     a = ap.parse_args()
     if not (a.glb or a.stl or a.teselas): ap.error('falta --glb, --stl o --teselas')
     asyncio.run(main(a))

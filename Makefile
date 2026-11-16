@@ -58,6 +58,7 @@ hooks:                        ## instala .githooks/ (pre-commit = make check; pr
 
 juego: build                  ## juego/plaza.glb (400 m alrededor de la plaza, tools/export.py) y su importación en Godot; luego: Godot --path juego
 	$(PW) tools/export.py --glb juego/plaza.glb --lado 400
+	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json juego/datos/   # lo que el juego comparte con la página
 	$(GODOT) --headless --path juego --import
 
 deploy:                       ## make build y sube dist/ a Cloudflare Pages (talca.eduramirez.com); DRY_RUN=1 arma sin subir

@@ -47,6 +47,7 @@
 # donde en uno de EE. UU.).
 extends Node3D
 
+const Args := preload("res://args.gd")
 const PUERTO_HTTP := 8770
 const PUERTO_WS := 8771
 const CAL := "user://vp.json"
@@ -91,21 +92,16 @@ var n_poses := 0
 
 
 func _ready() -> void:
-	var a := OS.get_cmdline_user_args()
-	if "--ancla" in a:
-		var d: PackedStringArray = a[a.find("--ancla") + 1].split(",")
-		ancla = Vector2(float(d[0]), float(d[1]))
+	ancla = Args.vec2("--ancla", ancla)
 	for k in [["--rumbo", "rumbo"], ["--alto", "alto"], ["--escala", "escala"], ["--tele", "pulgadas"],
 			["--lente", "lente"], ["--adelanto", "adelanto"]]:
-		if k[0] in a:
-			set(k[1], float(a[a.find(k[0]) + 1]))
-	if "--ojo" in a:
-		var d: PackedStringArray = a[a.find("--ojo") + 1].split(",")
-		ojo = Vector3(float(d[0]), float(d[1]), float(d[2]))
+		set(k[1], Args.num(k[0], get(k[1])))
+	if Args.has("--ojo"):
+		ojo = Args.vec3("--ojo", ojo)
 		fijo = true
-	if "--pantalla" in a:
-		DisplayServer.window_set_current_screen(int(a[a.find("--pantalla") + 1]))
-	if not "--png" in a:
+	if Args.has("--pantalla"):
+		DisplayServer.window_set_current_screen(int(Args.num("--pantalla", 0, 0, DisplayServer.get_screen_count() - 1)))
+	if not Args.has("--png"):
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 	add_child(nodo)

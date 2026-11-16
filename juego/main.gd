@@ -25,14 +25,17 @@
 #                    polígonos en metros de grilla (x al oriente, y al norte; X = x, Z = -y) dentro de los cuales se
 #                    quita del glb lo de esas capas ("capas" vacío o ausente: todas), antes de crear la colisión: el
 #                    suelo se corta en el borde del polígono y un objeto (un árbol, un auto) se va o queda entero
-#                    (recortar()). Capas del glb: terreno, suelo, usos, patios, ciudad, autos, arboles,
-#                    edificios, hitos, veredas (plaza.json, "capas").
+#                    (recortar()). Las capas del glb, con su tipo y si son sólidas, están en plaza.json («capas»,
+#                    LAYERS de tools/export.js; glb.gd las lee): un recorte con una capa que no existe da un aviso.
 extends Node3D
 
-const SIN_COLISION := ["arboles", "alamos", "agua", "autos-ruta5", "trenes"]
+const Args := preload("res://args.gd")
+const Fps := preload("res://fps.gd")
+const Glb := preload("res://glb.gd")
 const INICIO := Vector2(0, -45)  # x, y de grilla: el borde sur de la plaza, mirando al norte
 
 var jugador: CharacterBody3D
+var recs := []  # los recortes de los modelos (recortes()): [{"poligono", "capas"}]
 
 
 func abs_path(p: String) -> String:
@@ -40,6 +43,7 @@ func abs_path(p: String) -> String:
 
 
 func _ready() -> void:
+	Args.revisar()
 	acciones()
 	if not ResourceLoader.exists("res://plaza.glb"):
 		push_error("falta juego/plaza.glb: corra `make juego` en la raíz del repositorio")
@@ -48,10 +52,13 @@ func _ready() -> void:
 	var plaza: Node3D = load("res://plaza.glb").instantiate()
 	add_child(plaza)
 	var mods := modelos()
-	var recs := []
 	for m in mods:
 		if m.has_method("recortes"):
-			recs.append_array(m.recortes())
+			for r in m.recortes():
+				for c in r.get("capas", []):
+					if not Glb.es_capa(c):
+						push_warning("main.gd: %s recorta la capa «%s», que el glb no tiene (plaza.json, capas)" % [m.get_script().resource_path.get_file(), c])
+				recs.append(r)
 
 	var caja := AABB()
 	var primera := true
@@ -64,20 +71,24 @@ func _ready() -> void:
 		var b: AABB = mi.global_transform * mi.get_aabb()
 		caja = b if primera else caja.merge(b)
 		primera = false
-		if not (mi.name in SIN_COLISION or mi.get_parent().name in SIN_COLISION):
+		if Glb.solida(capa_de(mi)):
 			mi.create_trimesh_collision()
 	muros(caja)
 	add_child(preload("res://ambiente.gd").new())
 	for m in mods:
 		add_child(m)
+	var fps := Fps.pedido()
+	if fps > 0:
+		var f := Fps.new()
+		f.segundos = fps
+		add_child(f)
 
-	var args := OS.get_cmdline_user_args()
-	if "--vp" in args:  # la tele de fondo: la cámara la mueve un teléfono (vp.gd), sin personaje
+	if Args.has("--vp"):  # la tele de fondo: la cámara la mueve un teléfono (vp.gd), sin personaje
 		add_child(preload("res://vp.gd").new())
-		await png(args)
+		await png()
 		return
 	jugador = preload("res://jugador.gd").new()
-	jugador.mouse = not ("--png" in args or "--caminar" in args)
+	jugador.mouse = not (Args.has("--png") or Args.has("--caminar"))
 	add_child(jugador)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
@@ -85,36 +96,37 @@ func _ready() -> void:
 	jugador.global_position = jugador.inicio
 	ayuda()
 
-	if "--desde" in args:
-		var d: PackedStringArray = args[args.find("--desde") + 1].split(",")
-		jugador.inicio = suelo(float(d[0]), -float(d[1])) + Vector3.UP * 0.1
+	if Args.has("--desde"):
+		var d := Args.vec2("--desde", INICIO)
+		jugador.inicio = suelo(d.x, -d.y) + Vector3.UP * 0.1
 		jugador.global_position = jugador.inicio
-	if "--girar" in args:
-		jugador.yaw = deg_to_rad(float(args[args.find("--girar") + 1]))
-	if "--mirar" in args:  # grados sobre (+) o bajo (−) la horizontal
-		jugador.pitch = deg_to_rad(float(args[args.find("--mirar") + 1]))
-	if "--camara" in args:  # largo del brazo de la cámara en m (0: primera persona)
-		jugador.largo = float(args[args.find("--camara") + 1])
+	if Args.has("--girar"):
+		jugador.yaw = deg_to_rad(Args.num("--girar", 0.0))
+	if Args.has("--mirar"):  # grados sobre (+) o bajo (−) la horizontal
+		jugador.pitch = deg_to_rad(Args.num("--mirar", 0.0, -89.0, 89.0))
+	if Args.has("--camara"):  # largo del brazo de la cámara en m (0: primera persona)
+		jugador.largo = Args.num("--camara", jugador.largo, 0.0, 100.0)
 		jugador.brazo.spring_length = jugador.largo
-	if "--caminar" in args:
+	if Args.has("--caminar"):
 		Input.action_press("adelante")
-		await get_tree().create_timer(float(args[args.find("--caminar") + 1])).timeout
+		await get_tree().create_timer(Args.num("--caminar", 1.0, 0.0, 600.0)).timeout
 		Input.action_release("adelante")
 		var choque := jugador.get_last_slide_collision()
 		var contra := ""
 		if choque and jugador.is_on_wall():
 			contra = ", contra «%s»" % choque.get_collider().get_parent().name
 		print("main.gd: jugador en x %.1f, y %.1f, altura %.2f%s" % [jugador.global_position.x, -jugador.global_position.z, jugador.global_position.y, contra])
-	await png(args)
+	await png()
 
 
 # --png x.png: guarda un cuadro y sale
-func png(args: PackedStringArray) -> void:
-	if not "--png" in args:
+func png() -> void:
+	var f := Args.texto("--png")
+	if f == "":
 		return
 	for i in 10:
 		await RenderingServer.frame_post_draw
-	var out := abs_path(args[args.find("--png") + 1])
+	var out := abs_path(f)
 	get_viewport().get_texture().get_image().save_png(out)
 	print("main.gd -> ", out)
 	get_tree().quit()
@@ -354,6 +366,20 @@ func _raiz(padre: PackedInt32Array, i: int) -> int:
 		padre[i] = padre[padre[i]]
 		i = padre[i]
 	return i
+
+
+# la capa del glb de una malla: su nombre o el de su padre
+func capa_de(mi: MeshInstance3D) -> String:
+	return String(mi.name) if Glb.es_capa(String(mi.name)) else String(mi.get_parent().name)
+
+
+# si un punto de grilla cae en un recorte que quita la capa (ambiente.gd: las luces de los hitos que un modelo reemplaza)
+func recortado(p: Vector2, capa: String) -> bool:
+	for r in recs:
+		var capas: Array = r.get("capas", [])
+		if (capas.is_empty() or capa in capas) and Geometry2D.is_point_in_polygon(p, r["poligono"]):
+			return true
+	return false
 
 
 func _dentro(p: Vector2, hits: Array) -> bool:

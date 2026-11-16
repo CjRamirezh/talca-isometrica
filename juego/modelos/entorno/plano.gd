@@ -1,5 +1,6 @@
 # El plano del entorno de la plaza, en metros de grilla (x al oriente, y al norte; en Godot X = x, Z = -y): el
-# borde de la plaza, las calzadas, las veredas y los edificios de OSM (osm.json, de tools/juego_osm.py). Lo comparten
+# borde de la plaza, las calzadas, las veredas y los edificios de OSM (datos/plaza-osm.json: data/plaza-osm.json de
+# tools/juego_osm.py, copiado por `make juego`). Lo comparten
 # calles.gd, fachadas.gd y catedral.gd.
 #
 # Las medidas: las fachadas, de las plantas de OSM (las cuatro caras: 1 Poniente x = -67, 1 Norte y = 69,
@@ -12,6 +13,7 @@
 # (±1 m), las calles que siguen más allá de las esquinas (un ancho fijo sobre el eje de OSM).
 extends RefCounted
 
+const OSM := "res://datos/plaza-osm.json"
 const ALTO_CALZADA := 0.12
 const ALTO_VEREDA := 0.30
 
@@ -64,7 +66,9 @@ static func anillo_fachadas() -> PackedVector2Array:
 
 static func osm() -> Dictionary:
 	if _osm.is_empty():
-		var f := FileAccess.open("res://modelos/entorno/osm.json", FileAccess.READ)
+		var f := FileAccess.open(OSM, FileAccess.READ)
+		if f == null:
+			push_error("plano.gd: falta %s: corra `make juego`" % OSM)
 		if f:
 			_osm = JSON.parse_string(f.get_as_text())
 	return _osm
@@ -80,7 +84,7 @@ static func edificio(id: int) -> PackedVector2Array:
 			if Geometry2D.is_polygon_clockwise(o):
 				o.reverse()
 			return o
-	push_warning("plano.gd: no está el edificio w%d en osm.json" % id)
+	push_warning("plano.gd: no está el edificio w%d en plaza-osm.json" % id)
 	return PackedVector2Array()
 
 
