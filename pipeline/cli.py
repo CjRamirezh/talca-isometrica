@@ -6,8 +6,8 @@ argv[1] names the command (or, with `default`, anything else goes to that functi
 is the syntax:
   - its positional parameters are the arguments, checked for their number (`*args` takes the rest), converted by
     their annotation when it is a type (int, float);
-  - its keyword-only parameters are the flags, `--name value` or `--name=value` (dashes for underscores; a trailing one, as in map_, dropped), converted by
-    their annotation; one whose default is False is a switch (`--name`); a tuple annotation (float, float) takes that
+  - its keyword-only parameters are the flags, `--name value` or `--name=value` (dashes for underscores; a trailing
+    one, as in map_, dropped), converted by their annotation; one whose default is False is a switch (`--name`); a tuple annotation (float, float) takes that
     many values (`--origin 10 20`); maybe(type, value) is a flag whose value may be left out (`--geo`, `--geo 150`,
     `--rejilla=5`): absent it is the default, alone `value`, else the value given (the next argument is taken when it
     converts to the type);
@@ -20,10 +20,10 @@ class maybe:
     """A flag whose value may be left out: absent -> the parameter's default, alone -> `value`."""
     def __init__(self, type=str, value=True): self.type, self.value = type, value
 
-def _conv(f, ann, v, what):
+def _conv(ann, v, what, doc=None):
     if ann in (int, float) or isinstance(ann, maybe) and ann.type in (int, float):
         try: return (ann.type if isinstance(ann, maybe) else ann)(v)
-        except ValueError: fail(f'{what}: {v!r} no es un número')
+        except ValueError: fail(f'{what}: {v!r} no es un número', doc)
     return v
 
 def fail(msg, doc=None):
@@ -45,9 +45,9 @@ def call(f, args, doc=''):
         if p is None: fail(f'opción desconocida: --{name}' + (f" (acepta: {', '.join('--' + k for k in flags)})" if flags else ' (no acepta opciones)'), doc)
         ann = p.annotation
         if isinstance(ann, maybe):
-            if eq: kw[p.name] = _conv(f, ann, v, f'--{name}')
+            if eq: kw[p.name] = _conv(ann, v, f'--{name}', doc)
             elif i < len(args) and not args[i].startswith('--') and (ann.type is str or _num(args[i], ann.type)):
-                kw[p.name] = _conv(f, ann, args[i], f'--{name}'); i += 1
+                kw[p.name] = _conv(ann, args[i], f'--{name}', doc); i += 1
             else: kw[p.name] = ann.value
         elif p.default is False:
             if eq: fail(f'--{name} no lleva valor', doc)
@@ -56,17 +56,17 @@ def call(f, args, doc=''):
             got = [v] if eq else []
             while len(got) < len(ann) and i < len(args): got.append(args[i]); i += 1
             if len(got) < len(ann): fail(f'--{name} lleva {len(ann)} valores', doc)
-            kw[p.name] = tuple(_conv(f, t, x, f'--{name}') for t, x in zip(ann, got))
+            kw[p.name] = tuple(_conv(t, x, f'--{name}', doc) for t, x in zip(ann, got))
         else:
             if not eq:
                 if i == len(args): fail(f'--{name} lleva un valor', doc)
                 v = args[i]; i += 1
-            kw[p.name] = _conv(f, ann, v, f'--{name}')
+            kw[p.name] = _conv(ann, v, f'--{name}', doc)
     need = [p for p in pos if p.default is p.empty]
     if len(vals) < len(need) or (not star and len(vals) > len(pos)):
         n = f'{len(need)}' + ('' if len(need) == len(pos) and not star else f' a {len(pos)}' if not star else ' o más')
         fail(f'{f.__name__.removeprefix("cmd_")}: lleva {n} argumentos, recibió {len(vals)}' + (f": {' '.join(vals)}" if vals else ''), doc)
-    conv = [_conv(f, pos[k].annotation if k < len(pos) else star.annotation, v, pos[k].name if k < len(pos) else star.name) for k, v in enumerate(vals)]
+    conv = [_conv(pos[k].annotation if k < len(pos) else star.annotation, v, pos[k].name if k < len(pos) else star.name, doc) for k, v in enumerate(vals)]
     return f(*conv, **kw)
 
 def _num(s, t):

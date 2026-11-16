@@ -5,15 +5,16 @@
     gives the same numbers and seeds as h_decode: a guard between the two languages (trap «Las huellas de aprendizaje
     automático»);
   - geom.py: dec(enc()), in_ring against pip over 10 000 random points of the commune, clip_line's cut points on the
-    ring; common.loc/unloc are inverse.
+    ring; common.loc/unloc are inverse;
+  - cli.py: arguments, flags and the errors that end with the usage.
 Standard library only; ~0.2 s. The tests that need raw/ (the commune's limit) or node are skipped without them.
 """
-import json, math, random, re, shutil, subprocess, sys, unittest
+import contextlib, io, json, math, random, shutil, subprocess, sys, unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'pipeline'))
-import geom, common, edificios
+import cli, geom, common, edificios
 
 LIMIT = common.RAW / 'osm' / 'comuna-talca.json'
 
@@ -116,6 +117,38 @@ class Geom(unittest.TestCase):
         rows = geom.scanlines([r], -0.5, 1, 12)
         for j in range(12):
             self.assertEqual(rows.get(j, []), geom.crossings_at(r, -0.5 + j) if -0.5 + j >= 0 else [])
+
+class Cli(unittest.TestCase):
+    """pipeline/cli.py: a command's signature is its syntax."""
+    def call(self, f, *args): return cli.call(f, list(args), 'uso')
+
+    def test_arguments_and_flags(self):
+        def f(name, x: float, z: int = 18, *, eps: float = 1.5, todo=False, map_=None, origin: (float, float) = None,
+              geo: cli.maybe(float, 100) = None): return name, x, z, eps, todo, map_, origin, geo
+        self.assertEqual(self.call(f, 'a', '-2.5'), ('a', -2.5, 18, 1.5, False, None, None, None))
+        self.assertEqual(self.call(f, 'a', '1', '17', '--eps', '2', '--todo', '--map=comuna', '--origin', '1', '-2', '--geo'),
+                         ('a', 1.0, 17, 2.0, True, 'comuna', (1.0, -2.0), 100))
+        self.assertEqual(self.call(f, '--geo', '150', 'a', '1')[-1], 150.0)
+        self.assertEqual(self.call(f, '--geo', 'a', '1')[:2], ('a', 1.0))   # not a number: the next argument stays positional
+        def g(*conds): return conds
+        self.assertEqual(self.call(g, 'k=v', 'j=w'), ('k=v', 'j=w'))
+
+    def test_errors_exit_with_the_usage(self):
+        def f(name, x: float, z=18, *, eps: float = 1.5, todo=False): pass
+        for args in (['a'], ['a', '1', '2', '3'], ['a', '1', '--bogus'], ['a', 'uno'], ['a', '1', '--eps'], ['a', '1', '--todo=1']):
+            with self.assertRaises(SystemExit) as e: self.call(f, *args)
+            self.assertIsInstance(e.exception.code, str)   # a message: exit code 1
+            self.assertTrue(e.exception.code.endswith('uso'))
+
+    def test_run(self):
+        out = []
+        cli.run({'a': lambda *, k=False: out.append(('a', k))}, 'uso', ['a', '--k'])
+        cli.run({}, 'uso', ['x', 'y'], default=lambda *v: out.append(v))
+        self.assertEqual(out, [('a', True), ('x', 'y')])
+        with self.assertRaises(SystemExit) as e: cli.run({'a': print}, 'uso', ['b'])
+        self.assertIn('comando desconocido', e.exception.code)
+        with self.assertRaises(SystemExit) as e, contextlib.redirect_stdout(io.StringIO()): cli.run({'a': print}, 'uso', ['--help'])
+        self.assertEqual(e.exception.code, 0)
 
 if __name__ == '__main__':
     unittest.main()
