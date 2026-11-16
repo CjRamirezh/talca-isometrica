@@ -5,7 +5,8 @@ PIL ?= uv run --with pillow python               # Python con Pillow: lo que lee
 GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
 PORT ?= 8765
 DRY_RUN ?= 0
-.PHONY: all fetch osm data elevation ruta5 edificios edificios-ml golf pois build check golden lint smoke hooks validate diagnostics shots site-assets juego deploy serve clean
+CINE ?= 1920x1080             # la resolución de make cine (1280x720 para una prueba rápida)
+.PHONY: all fetch osm data elevation ruta5 edificios edificios-ml golf pois build check golden lint smoke hooks validate diagnostics shots site-assets juego cine deploy serve clean
 
 all: data elevation edificios golf pois build         ## pipeline completo (requiere raw/: make fetch)
 
@@ -60,6 +61,14 @@ juego: build                  ## juego/plaza.glb (400 m alrededor de la plaza, t
 	$(PW) tools/export.py --glb juego/plaza.glb --lado 400
 	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json juego/datos/   # lo que el juego comparte con la página
 	$(GODOT) --headless --path juego --import
+
+cine:                         ## la película de juego/cine.gd (requiere juego/plaza.glb: make juego): shots/cine/plaza.avi (Movie Maker, 30 cuadros por segundo) y plaza.mp4 (H.264)
+	mkdir -p shots/cine
+	@# el tamaño, por juego/override.cfg (Godot lo lee al partir; --resolution no cambia lo que graba Movie Maker); la ruta, absoluta: Godot la toma relativa a juego/
+	printf '[display]\nwindow/size/viewport_width=%s\nwindow/size/viewport_height=%s\n' $(subst x, ,$(strip $(CINE))) > juego/override.cfg
+	$(GODOT) --path juego --write-movie $(CURDIR)/shots/cine/plaza.avi --fixed-fps 30 -- --cine; s=$$?; rm -f juego/override.cfg; exit $$s
+	ffmpeg -y -loglevel error -i shots/cine/plaza.avi -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -movflags +faststart -an shots/cine/plaza.mp4
+	@echo "-> shots/cine/plaza.mp4"
 
 deploy:                       ## make build y sube dist/ a Cloudflare Pages (talca.eduramirez.com); DRY_RUN=1 arma sin subir
 	DRY_RUN=$(DRY_RUN) ./scripts/deploy-cloudflare.sh

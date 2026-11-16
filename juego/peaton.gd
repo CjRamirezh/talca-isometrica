@@ -7,6 +7,7 @@ extends Node3D
 
 const COLORES := {"piel": "c4967a", "pelo": "2a1d16", "polera": "3b6fa0", "jeans": "2d3c58", "zapatilla": "e6e3dc", "suela": "3a3836"}
 
+var colores := {}  # los que cambian de COLORES (cine.gd: un peatón distinto de otro), antes de agregarlo a la escena
 var fase := 0.0
 var t := 0.0
 var cadera := Node3D.new()
@@ -27,7 +28,7 @@ var obj := PackedFloat64Array()
 func _ready() -> void:
 	for k in COLORES:
 		var m := StandardMaterial3D.new()
-		m.albedo_color = Color(COLORES[k])
+		m.albedo_color = Color(colores.get(k, COLORES[k]))
 		m.roughness = 0.95 if k == "jeans" else 0.8
 		if k == "piel":
 			m.roughness = 0.6
