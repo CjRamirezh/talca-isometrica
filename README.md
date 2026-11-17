@@ -66,7 +66,9 @@ config/
   techos.json            la familia del techo (teja, óxido, zinc, claro…) de cada edificio de OSM, clasificada con la imagen satelital
 pipeline/
   common.py              rutas, proyección (origen en la Plaza de Armas, grilla girada 5°) y el límite de la comuna (OSM)
-  fetch_sources.sh       descarga las fuentes a raw/
+  geom.py                geometría compartida: codificación en delta, punto en polígono, segmentos, Douglas–Peucker, Web Mercator
+  osm.py, net.py, cli.py los JSON de OSM por id; las descargas (un User-Agent, reintentos); la línea de comandos de cada script
+  fetch_sources.sh       descarga las fuentes a raw/ (commits fijados; fuentes.sha256: las sumas de lo que dio los datos de hoy)
   process_geometry.py    manzanas + calles + trazados -> data/geometry.json
   elevation.py           elevación Copernicus GLO-30 -> data/elevation.json (--srtm: la de antes, para comparar)
   geotiff.py             lector de GeoTIFF de elevación (float32, DEFLATE, predictores 1–3) con la biblioteca estándar
@@ -122,7 +124,9 @@ juego/                   un juego de Godot para pasear por la Plaza de Armas en 
 juego/vp.gd, juego/vp/   --vp: la plaza en una tele de fondo, proyectada desde la posición de un teléfono Android que filma (WebXR, ARCore; producción virtual como un set de LED)
 tools/juego_osm.py       las plantas y los nodos de la calle de OSM alrededor de la plaza para juego/modelos/ (entorno/osm.json)
 juego/modelos/plaza.gd   la Plaza de Armas del juego en detalle (árboles, quiosco, piletas, faroles, escaños; plaza/: geometría, texturas y shaders en código)
-tools/check.py           revisión rápida del repo (make check); .githooks/pre-commit la corre antes de cada commit (make hooks)
+tools/check.py           revisión rápida del repo (make check), con las trampas de config/ y data/ que se pueden comprobar; .githooks/pre-commit la corre antes de cada commit (make hooks)
+tools/datadiff.py        qué cambió en los data/*.json (de una línea): claves, tamaños y elementos distintos contra HEAD u otra versión
+tests/                   pruebas del pipeline que corre make check (test_pipeline.py: huellas en Python y en la plantilla, geometría, línea de comandos) y golden.py (make golden: la salida de cada comando del pipeline, antes y después de un cambio)
 docs/                    metodología, fuentes, investigación de proyectos similares
 ```
 
