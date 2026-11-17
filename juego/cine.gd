@@ -4,13 +4,17 @@
 # toma: la cámara (PLANO), la hora (HORAS) y los peatones (PEATONES), así que un cuadro se puede rehacer solo
 # (--cuadro) y la película sale igual cada vez.
 #
-#   make cine [CINE=1280x720]                            # la película: shots/cine/plaza.avi y plaza.mp4 (ver Makefile)
+#   make cine [CINE=1280x720] [CINE_CRF=23]              # la película: shots/cine/plaza.mp4 (ver Makefile; ~1 min en el Mac)
 #   Godot --path juego --write-movie $PWD/shots/cine/plaza.avi --fixed-fps 30 -- --cine
 #   Godot --path juego -- --cine --cuadro 0,12,30 --png shots/cine/c.png   # cuadros sueltos, para ajustar el encuadre
 #
 # La ruta de --write-movie va absoluta (Godot toma una relativa desde juego/, y si la carpeta no existe no graba nada,
 # con un solo ERROR en la consola). El tamaño de la película es el de la ventana del proyecto (1600 × 1000):
-# --resolution no lo cambia; make cine escribe juego/override.cfg con CINE y lo borra al terminar.
+# --resolution no lo cambia; make cine escribe juego/override.cfg con CINE y lo borra al terminar. En el mismo archivo
+# sube la calidad del MJPEG a 1,0 (editor/movie_writer/video_quality): con la de omisión, 0,75, las copas oscuras y el
+# cielo de noche salen con una grilla de 8 × 8 que el H.264 además copia (125 MB los 30 s a CRF 18, contra 99 MB).
+# Una secuencia PNG (--write-movie x.png) no sirve en Godot 4.7.2: tarda seis veces más y la hora del juego avanza
+# mal (901 archivos con 3 s de toma).
 #
 # Con --write-movie (Movie Maker de Godot) cada cuadro dura 1/--fixed-fps s del juego, tarde lo que tarde en
 # dibujarse: la película sale con toda la calidad (SSIL, sombras blandas, niebla) aunque la máquina no llegue a 30
@@ -37,16 +41,19 @@ const LUZ := [0.12, 0.8]  # la hora avanza entre estas fracciones de la toma (an
 const FOV := 50.0
 
 # la cámara: [t, x, y, alto, mira x, mira y, mira alto]. Entre las claves, una curva de Hermite con las tangentes de
-# Catmull-Rom (por el tiempo de cada clave), detenida en la primera y la última: arranca y se posa sola. El recorrido
+# Catmull-Rom (por el tiempo de cada clave), detenida en la primera y la última: arranca y se posa sola. La posición
+# sigue esa curva y la mirada también, pero en ángulos (rumbo e inclinación hacia el punto de cada clave), no en el
+# punto: un punto a 8 m (la pileta) que pasa a uno a 33 m barre casi todo el giro en el primer tercio del tramo (un
+# latigazo de 90° en 1,5 s), y los ángulos lo reparten. El recorrido
 # va por el pasillo de baldosas del lado norte de la plaza (y ≈ 40, entre la hilera de árboles de la calle y las
 # palmeras de adentro: el único tramo sin copas encima, ver `--cenital -30,10,150`), que apunta al frontis de la
 # Catedral (x ≈ -74, y ≈ 40); con el sol al poniente, la Catedral queda a contraluz y el cielo detrás se enciende.
 const PLANO := [
 	[0.0, 2.0, 38.0, 0.9, -0.8, 29.7, 1.0],      # baja, junto a la pileta norte, mirando el agua (entre los faroles del eje)
-	[6.0, 3.0, 40.5, 1.8, -30.0, 40.0, 3.5],     # sube y gira al poniente, por el pasillo
-	[16.0, -2.0, 40.5, 2.4, -74.0, 40.0, 10.0],   # avanza despacio: la Catedral al fondo, entre los árboles
-	[24.0, -7.0, 40.5, 3.2, -74.0, 40.0, 12.0],
-	[DURACION, -10.0, 40.5, 4.0, -74.0, 40.0, 13.0],  # se posa: el frontis y el campanario enteros, de noche
+	[6.0, 2.0, 40.5, 1.8, -30.0, 40.0, 3.5],     # sube y gira al poniente, por el pasillo
+	[16.0, -8.0, 40.5, 2.4, -74.0, 40.0, 10.0],   # avanza a ~1 m/s: la Catedral al fondo, entre los árboles
+	[24.0, -16.0, 40.5, 3.2, -74.0, 40.0, 12.0],
+	[DURACION, -20.0, 40.5, 4.0, -74.0, 40.0, 14.0],  # se posa: el frontis y el campanario enteros, de noche
 ]
 
 # Un peatón: sus colores, su rapidez (m/s), dónde va en t = 0 (m del recorrido; negativo: entra después) y su
@@ -57,8 +64,8 @@ const PEATONES := [
 	# delante de la cámara hacia la Catedral; cruza 1 Poniente y se queda frente a la escalinata
 	{"colores": {"polera": "b03a2e", "jeans": "2d3c58", "pelo": "1c1410"}, "v": 1.3, "s0": 30.0,
 		"ruta": [[28, 41.5], [-44, 42], [-60, 40.5], [-68.5, 40.5]]},
-	# hacia la cámara: se cruzan a media toma, a 3 m
-	{"colores": {"polera": "e8e2d0", "jeans": "4a4038", "pelo": "6b4a2e", "piel": "d8a98a"}, "v": 1.25, "s0": 10.0,
+	# hacia la cámara: se cruzan a media toma (t ≈ 15 s), a 3 m
+	{"colores": {"polera": "e8e2d0", "jeans": "4a4038", "pelo": "6b4a2e", "piel": "d8a98a"}, "v": 1.25, "s0": 24.0,
 		"ruta": [[-50, 37.5], [40, 37.5]]},
 	# entra por el norte, cruza el pasillo al comienzo y se va al oriente
 	{"colores": {"polera": "2f5d3a", "jeans": "1f2430", "pelo": "2a1d16", "piel": "a87358"}, "v": 1.35, "s0": 4.0,
@@ -72,7 +79,7 @@ var t := 0.0
 var cam := Camera3D.new()
 var ambiente: Node
 var main: Node
-var claves := []  # [t, posición, mira] en el mundo
+var claves := []  # [t, posición, mira, Vector3(inclinación, rumbo, 0)] en el mundo
 var peatones := []  # {"nodo", "puntos": PackedVector3Array, "largo": PackedFloat32Array, "v", "s0", "y"}
 var negro := ColorRect.new()
 var reloj := Label.new()
@@ -112,7 +119,7 @@ func _ready() -> void:
 	for k in PLANO:
 		var p: Vector3 = suelo(k[1], k[2]) + Vector3.UP * float(k[3])
 		var m := Vector3(k[4], p.y - float(k[3]) + float(k[6]), -float(k[5]))  # sobre el suelo bajo la cámara: un rayo en la Catedral daría en el techo
-		claves.append([float(k[0]), p, m])
+		claves.append([float(k[0]), p, m, angulos(m - p, claves)])
 	for d in PEATONES:
 		peatones.append(peaton(d))
 	listo = true
@@ -124,7 +131,7 @@ func _ready() -> void:
 		var out: String = main.abs_path(Args.texto("--png")) if Args.has("--png") else "user://cine.png"
 		for c in cuadros:
 			await fijar(c)
-			var f := "%s-t%s.png" % [out.get_basename(), str(c)]
+			var f := "%s-t%s.png" % [out.get_basename(), String.num(c, 2).trim_suffix(".0")]  # c-t12.png, c-t29.9.png
 			get_viewport().get_texture().get_image().save_png(f)
 			print("cine.gd -> ", f)
 		get_tree().quit()
@@ -178,13 +185,20 @@ func camara(tt: float) -> void:
 	var t0: float = claves[i][0]
 	var t1: float = claves[i + 1][0]
 	var u := clampf((tt - t0) / (t1 - t0), 0.0, 1.0)
-	var pos := hermite(i, 1, u)
-	var mira := hermite(i, 2, u)
-	cam.global_position = pos
-	cam.look_at(mira, Vector3.UP)
+	cam.global_position = hermite(i, 1, u)
+	cam.basis = Basis.from_euler(hermite(i, 3, u))  # YXZ: el rumbo y después la inclinación; la cámara mira hacia -Z
 
 
-# el punto (k = 1, la cámara; 2, adonde mira) entre las claves i e i + 1, en u ∈ [0, 1]
+# la inclinación y el rumbo de la dirección d, con el rumbo sin saltos de 2π respecto de la clave anterior
+func angulos(d: Vector3, antes: Array) -> Vector3:
+	var rumbo := atan2(-d.x, -d.z)
+	if antes.size() > 0:
+		var r0: float = antes[-1][3].y
+		rumbo = r0 + wrapf(rumbo - r0, -PI, PI)
+	return Vector3(asin(d.normalized().y), rumbo, 0.0)
+
+
+# el valor k de las claves (1, la cámara; 3, los ángulos de la mirada) entre las claves i e i + 1, en u ∈ [0, 1]
 func hermite(i: int, k: int, u: float) -> Vector3:
 	var a: Vector3 = claves[i][k]
 	var b: Vector3 = claves[i + 1][k]
