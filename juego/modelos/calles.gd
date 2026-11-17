@@ -14,7 +14,8 @@
 #   - los árboles de vereda: los nodos natural=tree de OSM fuera de la plaza (1 Norte y 1 Oriente al norte); OSM no
 #     dice la especie: un caducifolio de copa ancha (en las fotos, otoñal), aproximado;
 #   - los autos: estacionados del lado de la plaza en las cuatro calles, como en la imagen de Esri y las fotos; modelos
-#     y colores inventados (los más comunes en Chile: blanco, gris, plata, negro, rojo, azul).
+#     y colores inventados (los más comunes en Chile: blanco, gris, plata, negro, rojo, azul); con --autos kaykit, los
+#     modelos de KayKit City Builder Bits (CC0, auto_kaykit()) en los mismos lugares y colores.
 # Lo aproximado: el ancho de las veredas (±1 m), la demarcación (líneas de pista segmentadas, cebras de 0,5 m), dónde
 # va cada farol (cada ~22 m), los letreros de las calles (texto real, colores supuestos).
 extends Node3D
@@ -565,6 +566,9 @@ func auto(m: Malla, p: Vector2, adelante: Vector2) -> void:
 	var col: Color = COLORES_AUTO[rng.randi() % COLORES_AUTO.size()]
 	if tipo == 4:
 		col = Color(0.07, 0.07, 0.08)
+	if Args.texto("--autos", "propios") == "kaykit":
+		auto_kaykit(m, f, tipo, col)
+		return
 	var ancho: float = [0.86, 0.85, 0.92, 0.93, 0.86][tipo]
 	# la carrocería hasta la línea de cintura (v hacia adelante, h) y la cabina encima; v = 0 al medio del auto
 	var cuerpos: Array = [
@@ -657,6 +661,46 @@ func auto(m: Malla, p: Vector2, adelante: Vector2) -> void:
 				m.cara([f.V(su * (ancho + 0.004), q2[k].x, q2[k].y), f.V(su * (ancho + 0.004), q2[k + 1].x, q2[k + 1].y),
 					f.V(su * (ancho + 0.004), sv * vr + (q2[k + 1].x - sv * vr) * 0.85, r + (q2[k + 1].y - r) * 0.85),
 					f.V(su * (ancho + 0.004), sv * vr + (q2[k].x - sv * vr) * 0.85, r + (q2[k].y - r) * 0.85)], Color(0.1, 0.1, 0.1), "pintura", f.N(su, 0))
+
+
+# los autos de KayKit City Builder Bits (CC0; tools/autos_kaykit.py -> datos/autos-kaykit.json), con --autos kaykit:
+# los mismos lugares, tipos y colores que los propios (los mismos números de rng), cada tipo en el modelo más
+# parecido (KayKit no tiene SUV ni camioneta: la station wagon; el colectivo es el taxi, negro y con el letrero
+# amarillo). Los triángulos de la pintura toman el color del auto por su factor del degradé de la textura ("f").
+const AUTOS_KAYKIT := "res://datos/autos-kaykit.json"
+const KAYKIT_TIPO := ["sedan", "hatchback", "station", "station", "taxi"]
+static var _kaykit := {}
+
+
+func auto_kaykit(m: Malla, f: Malla.Marco, tipo: int, col: Color) -> void:
+	if _kaykit.is_empty():
+		var fa := FileAccess.open(AUTOS_KAYKIT, FileAccess.READ)
+		if fa == null:
+			push_error("calles.gd: falta %s: corra `make juego` (o tools/autos_kaykit.py)" % AUTOS_KAYKIT)
+			return
+		_kaykit = JSON.parse_string(fa.get_as_text())["modelos"]
+	var mod: Dictionary = _kaykit[KAYKIT_TIPO[tipo]]
+	var cj: Array = mod["caja"]
+	choques.caja(f, cj[0], cj[1], cj[2], cj[3], 0.2, cj[5], col)
+	var cols := []
+	var mats := []
+	for e in mod["paleta"]:
+		if e.has("f"):
+			var k: float = e["f"]
+			cols.append(Color(minf(col.r * k, 1.0), minf(col.g * k, 1.0), minf(col.b * k, 1.0)))
+			mats.append("pintura")
+		else:
+			cols.append(Color(e["c"]))
+			mats.append(e["m"])
+	var p: Array = mod["p"]
+	var n: Array = mod["n"]
+	var ks: Array = mod["k"]
+	for t in ks.size():
+		var i := t * 9
+		var j := t * 3
+		var k: int = ks[t]
+		m.cara([f.V(p[i], p[i + 1], p[i + 2]), f.V(p[i + 3], p[i + 4], p[i + 5]), f.V(p[i + 6], p[i + 7], p[i + 8])],
+			cols[k], mats[k], f.N(n[j], n[j + 1], n[j + 2]))
 
 
 func autos(m: Malla) -> void:

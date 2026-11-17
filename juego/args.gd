@@ -31,6 +31,7 @@ const BANDERAS := {
 	"--dia": ["día del año", "ambiente.gd: el sol de ese día"],
 	"--pose": ["m/s", "jugador.gd: el peatón animado como a esa velocidad"],
 	"--cenital": ["x,y,lado", "modelos/calles.gd: cámara ortográfica desde arriba"],
+	"--autos": ["propios|kaykit", "modelos/calles.gd: los autos estacionados (kaykit: los de KayKit City Builder Bits, CC0)"],
 	"--ancla": ["x,y", "vp.gd: el punto de grilla al pie de la tele"],
 	"--rumbo": ["grados", "vp.gd"],
 	"--alto": ["m", "vp.gd"],

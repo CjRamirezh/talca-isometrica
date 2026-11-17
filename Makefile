@@ -60,7 +60,7 @@ hooks:                        ## instala .githooks/ (pre-commit = make check; pr
 
 juego: build                  ## juego/plaza.glb (400 m alrededor de la plaza, tools/export.py) y su importación en Godot; luego: Godot --path juego
 	$(PW) tools/export.py --glb juego/plaza.glb --lado 400
-	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json juego/datos/   # lo que el juego comparte con la página
+	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json data/autos-kaykit.json juego/datos/   # lo que el juego comparte con la página, y los autos de KayKit (tools/autos_kaykit.py)
 	$(GODOT) --headless --path juego --import
 
 cine:                         ## la película de juego/cine.gd (requiere juego/plaza.glb: make juego): shots/cine/plaza.mp4 (H.264, 30 cuadros por segundo; ~1 min con la GPU del Mac)
