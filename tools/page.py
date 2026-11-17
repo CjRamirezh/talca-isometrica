@@ -97,9 +97,9 @@ HIDE = '#panel,#card,#more,#scale,.ctrls{display:none!important}'
 FRAME_JS = 'new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))'
 
 
-async def launch(p, gl='swiftshader'):
-    """Chromium with GL's flags (WebGL on SwiftShader or the Mac's GPU)."""
-    return await p.chromium.launch(args=GL[gl])
+async def launch(p, gl='swiftshader', args=()):
+    """Chromium with GL's flags (WebGL on SwiftShader or the Mac's GPU), plus args (heap.py: --enable-precise-memory-info)."""
+    return await p.chromium.launch(args=GL[gl] + list(args))
 
 
 def errors(logs):
@@ -121,12 +121,13 @@ class Map:
     navegador (en el teléfono, solo la pestaña). m.page, m.logs ('tipo: texto'), m.url."""
 
     def __init__(self, size='1440x900', dpr=1, dark=False, gl='swiftshader', init=None, hash=None, offline=False,
-                 ready='idle', url=None, red=None, android=False, port=8766, quiet=False, p=None):
+                 ready='idle', url=None, red=None, android=False, port=8766, quiet=False, p=None, args=()):
         if ready not in ('idle', 'full', 'shown', None): raise ValueError(f'ready: {ready}')
         if red and android: raise SystemExit('--red no sirve con --android (va por USB): use --url para la red del teléfono')
         self.size, self.dpr, self.dark, self.gl, self.init, self.hash = size, dpr, dark, gl, init, hash
         self.offline, self.ready, self.red, self.android, self.port, self.quiet = offline, ready, red, android, port, quiet
         self._url, self._p, self._pw, self.browser, self.page, self.logs = url, p, None, None, None, []
+        self.args = args  # more Chromium flags
 
     @classmethod
     def from_args(cls, a, **kw):
@@ -140,7 +141,7 @@ class Map:
             from playwright.async_api import async_playwright
             self._pw = await async_playwright().start(); self._p = self._pw
         if self.android: self.browser = await self._android()
-        else: self.browser = await launch(self._p, self.gl)
+        else: self.browser = await launch(self._p, self.gl, self.args)
         self.page = await self.new_page()
         if self.ready: await self.load()
         return self
