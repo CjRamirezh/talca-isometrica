@@ -33,6 +33,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'pipeline'))
 from common import RAW, EXT, DATA, unloc
+from geom import pip  # pipeline/geom.py
 
 STAC = 'https://earth-search.aws.element84.com/v1/search'
 TILE = '19HBA'                                 # la tesela MGRS que cubre toda la comuna (UTM 19 S, EPSG:32719)
@@ -224,12 +225,6 @@ def caja(argv):
                              + f"Sentinel-2 L2A {sc.meta.get('id', sc.fecha)}: color | NDVI (rojo < 0, verde > 0,6). {attribution(sc.fecha)}", fill=(255, 255, 255))
     f = ROOT / 'diagnostics' / f's2-{name}.png'; f.parent.mkdir(exist_ok=True); out.save(f); print(f.relative_to(ROOT), out.size)
 
-def pip(x, y, ring):
-    inside = False
-    for (ax, ay), (bx, by) in zip(ring, ring[1:] + ring[:1]):
-        if (ay > y) != (by > y) and x < ax + (bx - ax) * (y - ay) / (by - ay): inside = not inside
-    return inside
-
 def usos(argv):
     import numpy as np
     from usos import entries
@@ -238,7 +233,7 @@ def usos(argv):
         r = rings[0]; bx0, bx1 = min(q[0] for q in r), max(q[0] for q in r); by0, by1 = min(q[1] for q in r), max(q[1] for q in r)
         st = max(5.0, math.sqrt((bx1 - bx0) * (by1 - by0) / 4000))     # unos miles de puntos por entrada, cada 5 m o más
         pts = [(x, y) for x in np.arange(bx0 + st / 2, bx1, st) for y in np.arange(by0 + st / 2, by1, st)
-               if pip(x, y, r) and not any(pip(x, y, h) for h in rings[1:])]
+               if pip((x, y), r) and not any(pip((x, y), h) for h in rings[1:])]
         if len(pts) < 4: continue
         ll = [unloc(x, y) for x, y in pts]; xs, ys = sc.utm([p[0] for p in ll], [p[1] for p in ll])
         cls, ndvi = classes(sc, xs, ys); ok = cls > 0

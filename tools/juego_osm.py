@@ -15,7 +15,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'pipeline'))
-import common  # noqa: E402
+import osm  # noqa: E402  (pipeline/osm.py: el JSON de OSM por id, en metros de grilla)
 
 ENTORNO = (-140, 140, -140, 135)   # x0, x1, y0, y1: la caja de lo que modela juego/modelos/
 TAGS = ('name', 'old_name', 'building', 'building:levels', 'height', 'addr:street', 'addr:housenumber', 'amenity',
@@ -30,13 +30,11 @@ def dentro(x, y, m=0):
 
 
 def main():
-    src = ROOT / 'raw' / 'osm' / 'map-comuna.json'
-    common.require(src, 'Ejecute primero: make osm')
-    els = json.load(open(src))['elements']
-    pos = {e['id']: common.loc(e['lon'], e['lat']) for e in els if e['type'] == 'node'}
+    m = osm.load('comuna', 'Ejecute primero: make osm')
+    pos = m.N
     out = {'fuente': '© colaboradores de OpenStreetMap (ODbL 1.0), raw/osm/map-comuna.json', 'caja': ENTORNO,
            'edificios': [], 'nodos': [], 'vias': []}
-    for e in els:
+    for e in m.elements:
         t = e.get('tags', {})
         if e['type'] == 'node':
             x, y = pos[e['id']]
@@ -52,7 +50,7 @@ def main():
             continue
         if e['type'] != 'way':
             continue
-        pts = [pos[n] for n in e['nodes'] if n in pos]
+        pts = m.pts(e)
         if not pts or not any(dentro(x, y) for x, y in pts):
             continue
         ring = [[round(x, 2), round(y, 2)] for x, y in pts]
