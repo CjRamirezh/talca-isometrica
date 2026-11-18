@@ -62,7 +62,7 @@ juego: build                  ## juego/mapa/: la comuna en teselas de 500 m, sus
 	rm -f juego/plaza.glb juego/plaza.glb.import juego/plaza.json   # el glb de 400 m de antes de noviembre de 2026
 	$(PW) tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos,autos,autos-ruta5 --faroles --lejos --medio --liviano
 	touch juego/mapa/.gdignore    # Godot no importa los glb: mapa.gd los lee al jugar
-	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json juego/datos/   # lo que el juego comparte con la página
+	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json data/ruta5.json juego/datos/   # lo que el juego comparte con la página
 	$(GODOT) --headless --path juego --import
 
 cine:                         ## la película de juego/cine.gd (requiere juego/mapa/: make juego): shots/cine/plaza.mp4 (H.264, 30 cuadros por segundo; ~1 min con la GPU del Mac)

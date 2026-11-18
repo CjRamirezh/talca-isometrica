@@ -7,10 +7,15 @@
 #   /Applications/Godot.app/Contents/MacOS/Godot --path juego -- --png shots/juego.png [--desde x,y] [--girar 90] [--mirar -10] [--camara 5] [--caminar 3]
 #
 # WASD o flechas: caminar; Mayús: correr; Espacio: saltar; mouse: mirar; rueda: acercar la cámara (hasta la primera
-# persona); Esc: soltar el mouse (un clic lo vuelve a tomar); Tab: ir a un lugar (viaje.gd). --png guarda un cuadro
+# persona); Esc: soltar el mouse (un clic lo vuelve a tomar); Tab: ir a un lugar (viaje.gd). E: subir a la bicicleta o
+# al auto, o bajar (si está lejos, lo trae); V: cambiar entre los dos; montado, W/S acelera y frena (detenido,
+# retrocede), A/D gira, Espacio frena de golpe y, en la bicicleta, Q pedalea de pie (vehiculo.gd). --png guarda un cuadro
 # (cuando el mapa terminó de cargar alrededor de la cámara) y sale; --desde x,y pone al
 # personaje en ese punto de grilla, --girar G gira la vista G grados a
 # la izquierda, --mirar P la inclina P grados, --camara L pone la cámara a L m (0: primera persona) y --caminar N camina N segundos hacia adelante antes (para revisar la colisión sin teclado).
+# --vehiculo bici|auto sube al vehículo al comenzar y --conducir N acelera N segundos (--volante v: girando, -1 a la
+# izquierda … 1 a la derecha; --fuerte: con Q) e imprime dónde terminó, contra qué chocó, cuánto esperó la colisión
+# y los cuadros más lentos (--bajar: se baja al final); con --png, la captura es del final; sin --png, sale.
 #
 # Coordenadas como en la página: X = x de grilla (oriente), Y = altura, Z = -y (norte), origen en la plaza.
 # Colisión: una malla exacta (trimesh) por capa sólida de cada tesela cercana (mapa.gd), salvo los árboles (se
@@ -24,6 +29,7 @@
 #   recorte.gd       los recortes de los modelos sobre cada tesela (abajo)
 #   ambiente.gd      cielo, luz, sombras, niebla y posproceso (un Node3D que se agrega a la escena)
 #   jugador.gd       el personaje y su cámara; viaje.gd, la lista de lugares para ir (Tab)
+#   vehiculo.gd      la bicicleta y el auto (E, V), con su cámara
 #   modelos/*.gd     modelos propios del juego, más detallados que los de la página. Cada uno es un Node3D que construye
 #                    lo suyo (geometría y colisión) en _ready() y puede declarar
 #                      func recortes() -> Array   # [{"poligono": PackedVector2Array([...]), "capas": ["hitos", ...]}]
@@ -42,6 +48,7 @@ const Mapa := preload("res://mapa.gd")
 const INICIO := Vector2(0, -45)  # x, y de grilla: el borde sur de la plaza, mirando al norte
 
 var jugador: CharacterBody3D
+var vehiculo: CharacterBody3D
 var mapa: Node3D
 var recs := []  # los recortes de los modelos (recortes()): [{"poligono", "capas"}]
 
@@ -93,6 +100,10 @@ func _ready() -> void:
 	jugador.mapa = mapa
 	add_child(jugador)
 	add_child(preload("res://viaje.gd").new())
+	vehiculo = preload("res://vehiculo.gd").new()
+	vehiculo.jugador = jugador
+	vehiculo.mapa = mapa
+	add_child(vehiculo)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	jugador.inicio = suelo(INICIO.x, -INICIO.y) + Vector3.UP * 0.1
@@ -113,6 +124,13 @@ func _ready() -> void:
 		jugador.yaw = deg_to_rad(Args.num("--girar", 0.0))
 	if Args.has("--mirar"):  # grados sobre (+) o bajo (−) la horizontal
 		jugador.pitch = deg_to_rad(Args.num("--mirar", 0.0, -89.0, 89.0))
+	if Args.has("--vehiculo"):
+		await mapa.esperar()
+		if Args.texto("--vehiculo") == "auto":
+			vehiculo.cambiar()
+		elif Args.texto("--vehiculo") != "bici":
+			push_warning("main.gd: --vehiculo espera bici o auto")
+		vehiculo.usar()
 	if Args.has("--camara"):  # largo del brazo de la cámara en m (0: primera persona)
 		jugador.largo = Args.num("--camara", jugador.largo, 0.0, 100.0)
 		jugador.brazo.spring_length = jugador.largo
@@ -126,6 +144,11 @@ func _ready() -> void:
 		if choque and jugador.is_on_wall():
 			contra = ", contra «%s»" % choque.get_collider().get_parent().name
 		print("main.gd: jugador en x %.1f, y %.1f, altura %.2f%s" % [jugador.global_position.x, -jugador.global_position.z, jugador.global_position.y, contra])
+	if Args.has("--conducir"):
+		await vehiculo.prueba()
+		if not Args.has("--png"):  # sin captura (--headless), sale al terminar
+			get_tree().quit()
+			return
 	await png()
 
 
@@ -166,7 +189,8 @@ func recortado(p: Vector2, capa: String) -> bool:
 # las teclas, como acciones (así --caminar puede apretarlas)
 func acciones() -> void:
 	var teclas := {"adelante": [KEY_W, KEY_UP], "atras": [KEY_S, KEY_DOWN], "izquierda": [KEY_A, KEY_LEFT],
-		"derecha": [KEY_D, KEY_RIGHT], "saltar": [KEY_SPACE], "correr": [KEY_SHIFT]}
+		"derecha": [KEY_D, KEY_RIGHT], "saltar": [KEY_SPACE], "correr": [KEY_SHIFT], "vehiculo": [KEY_E], "cambiar": [KEY_V],
+		"impulso": [KEY_Q]}  # Q y no Mayús: en el Mac de Edu el Bloq Mayús está como Esc
 	for a in teclas:
 		if InputMap.has_action(a):
 			continue
@@ -188,7 +212,7 @@ func ayuda() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 	var l := Label.new()
-	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse"
+	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta o auto · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie"
 	l.position = Vector2(16, 12)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))

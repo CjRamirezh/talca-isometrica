@@ -13,6 +13,8 @@
 #   Auto.modelo(m, marco, Auto.SUV, Auto.PINTURA)   # la carrocería en alfa 0: en un MultiMesh con Mat.tinte, el color
 #                                                   # de cada instancia (autos.gd)
 #   Auto.caja(Auto.SUV)                             # [medio ancho, v de atrás, v de adelante, alto]: la de colisión
+#   Auto.modelo(m, marco, Auto.SEDAN, col, null, false)   # sin neumáticos ni llantas (los tapabarros sí): el auto de
+#                                                   # vehiculo.gd, que pone sus ruedas aparte para que giren
 extends RefCounted
 
 const Malla := preload("res://malla.gd")
@@ -56,7 +58,7 @@ static func caja(tipo: int) -> Array:
 	return [ANCHO[tipo], c[0][0][0], c[0][1][0], c[1][3][1]]
 
 
-static func modelo(m: Malla, f: Malla.Marco, tipo: int, col: Color, choques: Malla = null) -> void:
+static func modelo(m: Malla, f: Malla.Marco, tipo: int, col: Color, choques: Malla = null, llantas := true) -> void:
 	if tipo == CAMION:
 		camion(m, f, col, choques)
 		return
@@ -124,13 +126,17 @@ static func modelo(m: Malla, f: Malla.Marco, tipo: int, col: Color, choques: Mal
 		m.caja(f, -0.32, -0.45, 0.32, -0.25, hr, hr + 0.22, Color(0.95, 0.8, 0.15), "pintura")
 	# las ruedas: cilindros acostados, con la llanta gris
 	var vr: float = RUEDA_V[tipo]
-	ruedas(m, f, ancho, [-vr, vr], RUEDA_R[tipo])
+	ruedas(m, f, ancho, [-vr, vr], RUEDA_R[tipo], llantas)
 
 
 # las ruedas (con llanta y tapabarro) en cada eje v de ejes, a los dos lados de una carrocería de medio ancho ancho
-static func ruedas(m: Malla, f: Malla.Marco, ancho: float, ejes: Array, r: float) -> void:
+# (llantas falso: solo los tapabarros)
+static func ruedas(m: Malla, f: Malla.Marco, ancho: float, ejes: Array, r: float, llantas := true) -> void:
 	for cv: float in ejes:
 		for su in [-1.0, 1.0]:
+			if not llantas:
+				tapabarro(m, f, ancho, cv, r, su)
+				continue
 			var c := Malla.ngon(cv, r, r, 12)
 			for i in 12:
 				var a := c[i]
@@ -142,15 +148,19 @@ static func ruedas(m: Malla, f: Malla.Marco, ancho: float, ejes: Array, r: float
 			for a in Malla.ngon(cv, r, r * 0.62, 12):
 				q.append(f.V(su * (ancho + 0.012), a.x, a.y))
 			m.cara(q, Color(0.55, 0.56, 0.58), "metal", f.N(su, 0))
-			# el tapabarro: un arco oscuro sobre la rueda
-			var q2 := []
-			for k in 7:
-				var t := PI * k / 6.0
-				q2.append(Vector2(cv + cos(t) * (r + 0.06), r + sin(t) * (r + 0.06)))
-			for k in 6:
-				m.cara([f.V(su * (ancho + 0.004), q2[k].x, q2[k].y), f.V(su * (ancho + 0.004), q2[k + 1].x, q2[k + 1].y),
-					f.V(su * (ancho + 0.004), cv + (q2[k + 1].x - cv) * 0.85, r + (q2[k + 1].y - r) * 0.85),
-					f.V(su * (ancho + 0.004), cv + (q2[k].x - cv) * 0.85, r + (q2[k].y - r) * 0.85)], Color(0.1, 0.1, 0.1), "pintura", f.N(su, 0))
+			tapabarro(m, f, ancho, cv, r, su)
+
+
+# el tapabarro: un arco oscuro sobre la rueda del eje cv, al lado su
+static func tapabarro(m: Malla, f: Malla.Marco, ancho: float, cv: float, r: float, su: float) -> void:
+	var q2 := []
+	for k in 7:
+		var t := PI * k / 6.0
+		q2.append(Vector2(cv + cos(t) * (r + 0.06), r + sin(t) * (r + 0.06)))
+	for k in 6:
+		m.cara([f.V(su * (ancho + 0.004), q2[k].x, q2[k].y), f.V(su * (ancho + 0.004), q2[k + 1].x, q2[k + 1].y),
+			f.V(su * (ancho + 0.004), cv + (q2[k + 1].x - cv) * 0.85, r + (q2[k + 1].y - r) * 0.85),
+			f.V(su * (ancho + 0.004), cv + (q2[k].x - cv) * 0.85, r + (q2[k].y - r) * 0.85)], Color(0.1, 0.1, 0.1), "pintura", f.N(su, 0))
 
 
 # un camión de 11,5 m (los de la Ruta 5 de la página: un quinto de sus autos, en la pista de la derecha): el chasis,

@@ -1,5 +1,6 @@
 # El personaje: una cápsula de 1,75 m (la colisión; lo que se ve es peaton.gd, animado según la velocidad) con una cámara en tercera persona sobre un brazo (SpringArm3D) que se acorta
-# cuando un muro se interpone. La rueda lo acorta hasta 0: primera persona, sin cuerpo a la vista.
+# cuando un muro se interpone. La rueda lo acorta hasta 0: primera persona, sin cuerpo a la vista. Montado en la
+# bicicleta o el auto (vehiculo.gd), no se mueve solo: va con el vehículo, que maneja también la cámara.
 extends CharacterBody3D
 
 const CAMINAR := 8.0  # m/s (de verdad, ~1,4: se siente lento en una caja de 400 m)
@@ -24,10 +25,13 @@ var peaton: Node3D = preload("res://peaton.gd").new()  # el cuerpo que se ve (pe
 var mapa: Node3D  # mapa.gd: mientras la colisión bajo el personaje no está, no cae
 var quieto := false  # viaje.gd: con la lista de lugares abierta, las teclas no lo mueven
 var llegar := Vector3.INF  # ir(): el punto de grilla (x, y, altura del lugar) donde aparece cuando su tesela esté lista
+var forma := CollisionShape3D.new()  # vehiculo.gd la apaga mientras va montado
+var vehiculo: Node = null  # vehiculo.gd, mientras va montado
+var largo_a_pie := 5.0  # el brazo de la cámara antes de subir (al bajar vuelve a ese)
+var t_mouse := 100.0  # s desde que se movió el mouse (vehiculo.gd: la cámara vuelve detrás del vehículo)
 
 
 func _ready() -> void:
-	var forma := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = RADIO
 	cap.height = ALTO
@@ -60,6 +64,7 @@ func _unhandled_input(e: InputEvent) -> void:
 		return
 	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= e.relative.x * SENS
+		t_mouse = 0.0
 		pitch = clamp(pitch - e.relative.y * SENS, -1.45, 1.2)
 	elif e is InputEventMouseButton and e.pressed:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -75,12 +80,17 @@ func _unhandled_input(e: InputEvent) -> void:
 # aparece en el punto (x, y) de grilla, cuya altura del suelo es h (el «h» de los lugares de mapa/indice.json),
 # cuando mapa.gd tenga ahí su colisión
 func ir(x: float, y: float, h: float) -> void:
+	if vehiculo:
+		vehiculo.ir(x, y, h)
+		return
 	llegar = Vector3(x, y, h)
 	velocity = Vector3.ZERO
 	global_position = Vector3(x, h + 1.0, -y)
 
 
 func _physics_process(dt: float) -> void:
+	if vehiculo:
+		return  # vehiculo.gd lo lleva
 	if llegar != Vector3.INF:
 		if mapa and not mapa.solido(llegar.x, llegar.y):
 			return
@@ -142,6 +152,11 @@ func subir_cordon(paso: Vector3) -> void:
 
 
 func _process(dt: float) -> void:
+	t_mouse += dt
+	if vehiculo:
+		vehiculo.camara(dt)
+		brazo.rotation = Vector3(pitch, yaw, 0)
+		return
 	var v := Vector2(velocity.x, velocity.z).length()
 	if pose >= 0.0:  # --pose R: anima como a R m/s sin moverse (capturas del peatón)
 		v = pose

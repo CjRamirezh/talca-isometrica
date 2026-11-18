@@ -171,3 +171,35 @@ func animar(dt: float, rapidez: float, en_suelo: bool) -> void:
 	cadera.rotation.y = lerpf(cadera.rotation.y, -giro * 0.6, k)
 	torso.scale = Vector3(1.0 + resp, 1.0 + resp * 0.5, 1.0 + resp)
 	cabeza.rotation.x = lerpf(cabeza.rotation.x, -lean * 0.6 + 0.02 * sin(t * 0.7) * (1.0 - mov), k)
+
+
+# Sentado (vehiculo.gd: en la bicicleta): cada pie (el tobillo) va a su punto pies[i] = (adelante, arriba) en m desde la
+# articulación de su cadera, con la pierna resuelta en su plano (dos huesos: muslo 0,44, canilla 0,46, la rodilla hacia
+# adelante) y el pie horizontal; el torso inclinado incl rad hacia adelante, los hombros adelantados hombros rad y los
+# codos doblados codos rad (las manos en el manubrio). Se mezcla como animar(), en ~0,1 s.
+func sentar(dt: float, pies: Array, incl: float, hombros: float, codos: float) -> void:
+	t += dt
+	var k := 1.0 - exp(-14.0 * dt)
+	const L1 := 0.44
+	const L2 := 0.46
+	for i in 2:
+		var d: Vector2 = pies[i]
+		var largo := clampf(d.length(), absf(L1 - L2) + 0.01, L1 + L2 - 0.005)
+		var alfa := atan2(d.x, -d.y)  # desde la vertical hacia abajo, + adelante
+		var beta := acos(clampf((L1 * L1 + largo * largo - L2 * L2) / (2.0 * L1 * largo), -1.0, 1.0))
+		var gama := acos(clampf((L1 * L1 + L2 * L2 - largo * largo) / (2.0 * L1 * L2), -1.0, 1.0))
+		var th := alfa + beta
+		var kn := -(PI - gama)
+		muslo[i].rotation.x = th  # la pierna sigue al pedal sin retraso: con la mezcla, el pie se despegaba
+		canilla[i].rotation.x = kn
+		pie[i].rotation.x = -(th + kn) - 0.1  # la punta un poco abajo
+		muslo[i].rotation.z = 0.0
+		hombro[i].rotation.x = lerpf(hombro[i].rotation.x, hombros, k)
+		hombro[i].rotation.z = lerpf(hombro[i].rotation.z, 0.12 * (-1 if i == 0 else 1), k)
+		codo[i].rotation.x = lerpf(codo[i].rotation.x, codos, k)
+	cadera.position.y = lerpf(cadera.position.y, 0.95, k)
+	cadera.rotation.y = lerpf(cadera.rotation.y, 0.0, k)
+	torso.rotation.x = lerpf(torso.rotation.x, -incl, k)
+	torso.rotation.y = lerpf(torso.rotation.y, 0.0, k)
+	torso.scale = Vector3.ONE
+	cabeza.rotation.x = lerpf(cabeza.rotation.x, incl * 0.75, k)

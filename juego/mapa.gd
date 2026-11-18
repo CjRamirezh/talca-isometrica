@@ -29,6 +29,7 @@ const Arboleda := preload("res://arboleda.gd")
 const Cuantizado := preload("res://cuantizado.gd")
 const Autos := preload("res://autos.gd")
 const Faroles := preload("res://faroles.gd")
+const Pasos := preload("res://pasos.gd")
 const DIR := "res://mapa/"
 const CARGA := 1800.0  # m de la cámara al borde de la tesela
 const SOLTAR := 2300.0
@@ -192,7 +193,8 @@ static func mallas_solidas(raiz: Node3D) -> Dictionary:
 static func formas_de(mallas: Dictionary) -> Dictionary:
 	var out := {}
 	for capa in mallas:
-		out[capa] = mallas[capa].create_trimesh_shape()
+		# en «hitos», los pasos bajo la Ruta 5 no cierran la autopista (pasos.gd)
+		out[capa] = Pasos.forma(mallas[capa]) if capa == "hitos" else mallas[capa].create_trimesh_shape()
 	return out
 
 
