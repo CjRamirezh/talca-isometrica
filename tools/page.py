@@ -13,9 +13,12 @@
 No es una herramienta: lo importan screenshot, regress, variants, probe, perf, profile, gif, video, export y
 site_assets. Tiene:
   serve()        dist/ (o TALCA_DIST) servido en 127.0.0.1 como lo sirve Cloudflare Pages (Site)
-  GL             las banderas de Chromium para WebGL: swiftshader (sin GPU, por omisión) o metal (la GPU de un Mac,
-                 ~6 veces más rápido para capturas; las imágenes pueden diferir de SwiftShader en algunos píxeles)
-  launch()       un Chromium con esas banderas (para una página que no es el mapa: export.py --vista, el ícono)
+  GL             las banderas de Chromium para WebGL: swiftshader (sin GPU, por omisión), metal (la GPU de un Mac),
+                 egl (la GPU de Linux), nvidia (la NVIDIA de un notebook Linux con dos GPU; GL_ENV) o gpu (metal en
+                 un Mac; en Linux, nvidia si está su driver y si no egl): con GPU, cada cuadro se dibuja decenas de
+                 veces más rápido (la carga no: es de la CPU); las imágenes pueden diferir de SwiftShader en algunos
+                 píxeles
+  launch()       un Chromium con esas banderas y su entorno (para una página que no es el mapa: export.py --vista, el ícono)
   Map            el mapa en una pestaña, como contexto async que cierra el navegador al salir: tamaño, densidad,
                  tema oscuro, GL, JS antes de la página (init), #hash, sin red externa (offline), una red emulada
                  (red: lenta, 4g), --android (el Chrome de un teléfono por adb) y cuándo está lista (ready):
@@ -83,8 +86,26 @@ def serve(port=0, root=None):
     return _SERVED[key]
 
 
+# WebGL in Chromium without a window. swiftshader: no GPU (the default, and the one regress.py's and hitos.py's
+# references are taken with); metal: a Mac's GPU, ~6 times faster; egl: Linux's default GPU through EGL (on a laptop
+# with two, the integrated one); nvidia: the NVIDIA GPU of a Linux laptop with two (the same flags, with glvnd's NVIDIA
+# EGL vendor, GL_ENV); gpu: metal on a Mac and egl elsewhere. --use-angle=vulkan gives no WebGL at all in
+# chromium-headless-shell on Linux (Playwright 1.63, November 2026), and --use-gl=egl falls back to SwiftShader.
+_EGL = ['--use-gl=angle', '--use-angle=gl-egl', '--enable-gpu', '--ignore-gpu-blocklist']
 GL = {'swiftshader': ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
-      'metal': ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist']}  # metal: la GPU de un Mac, ~6 veces más rápido
+      'metal': ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
+      'egl': _EGL, 'nvidia': _EGL}
+NVIDIA_EGL = '/usr/share/glvnd/egl_vendor.d/10_nvidia.json'   # where Debian, Ubuntu, Fedora and Arch put it
+GL_ENV = {'nvidia': {'__EGL_VENDOR_LIBRARY_FILENAMES': NVIDIA_EGL}}
+# gpu: the fastest there is. On Linux, the NVIDIA one when its driver is there: in a laptop with an Intel UHD 630 and
+# a GTX 1650 (November 2026, tools/perf.py, 1440x900), a frame of the whole comuna took 4980 ms with SwiftShader,
+# 71 ms on the Intel and 15 ms on the NVIDIA (the plaza at zoom 4: 1275, 33 and 5 ms); the load, ~14 s, is the CPU's
+GL['gpu'] = GL['metal' if sys.platform == 'darwin' else 'egl']
+if sys.platform != 'darwin' and Path(NVIDIA_EGL).exists(): GL_ENV['gpu'] = GL_ENV['nvidia']
+GL_HELP = ('WebGL: swiftshader (sin GPU), gpu (la del equipo: metal en un Mac; en Linux, nvidia si está su driver y si '
+           'no egl), metal (la GPU del Mac), '
+           'egl (la GPU de Linux por omisión; en un notebook con dos, la integrada) o nvidia (la NVIDIA de un notebook '
+           'Linux con dos); con GPU, ~6 veces más rápido, pero las imágenes difieren de SwiftShader en algunos píxeles')
 
 # network conditions (CDP Network.emulateNetworkConditions: ms of latency, bytes per second down and up): lenta, the
 # phones' of Lighthouse; 4g
@@ -98,8 +119,12 @@ FRAME_JS = 'new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))'
 
 
 async def launch(p, gl='swiftshader', args=()):
-    """Chromium with GL's flags (WebGL on SwiftShader or the Mac's GPU), plus args (heap.py: --enable-precise-memory-info)."""
-    return await p.chromium.launch(args=GL[gl] + list(args))
+    """Chromium with GL's flags (WebGL on SwiftShader or a GPU) and GL_ENV's environment, plus args (heap.py:
+    --enable-precise-memory-info)."""
+    env = GL_ENV.get(gl)
+    if env and not Path(NVIDIA_EGL).exists():
+        raise SystemExit(f'--gl {gl}: no está {NVIDIA_EGL} (el EGL de NVIDIA de glvnd): ¿driver propietario instalado?')
+    return await p.chromium.launch(args=GL[gl] + list(args), env={**os.environ, **env} if env else None)
 
 
 def errors(logs):
@@ -258,7 +283,7 @@ def add_page_args(ap, size='1440x900', dpr=1, gl='swiftshader', only=('size', 'd
     """--size, --dpr, --gl and --init, the same in every tool (the defaults are the tool's; only: some of them)."""
     if 'size' in only: ap.add_argument('--size', default=size, help=f'ventana en píxeles CSS (por omisión {size})')
     if 'dpr' in only: ap.add_argument('--dpr', type=float, default=dpr, help=f'densidad de pantalla (2: Retina; por omisión {dpr:g})')
-    if 'gl' in only: ap.add_argument('--gl', default=gl, choices=list(GL), help=f'WebGL: swiftshader (sin GPU) o metal (la GPU del Mac, ~6 veces más rápido; por omisión {gl})')
+    if 'gl' in only: ap.add_argument('--gl', default=gl, choices=list(GL), help=f'{GL_HELP} (por omisión {gl})')
     if 'init' in only: ap.add_argument('--init', help='JS que corre antes que la página (window.__STAGE=0: la generación de una vez)')
     return ap
 

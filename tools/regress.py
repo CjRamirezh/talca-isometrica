@@ -10,7 +10,7 @@
   uv run tools/regress.py --save shots/once --init "window.__STAGE=0"   # sin arranque progresivo
   uv run tools/regress.py --save shots/ref --view "terminal=__look(1722,-262,16)"   # más vistas (repetible), p. ej. las de un hito nuevo
 
-Carga el mapa en Chromium sin interfaz (SwiftShader, Map de tools/page.py; --gl metal, la GPU del Mac: más rápido,
+Carga el mapa en Chromium sin interfaz (SwiftShader, Map de tools/page.py; --gl gpu, la GPU del equipo: más rápido,
 pero compare siempre con una referencia tomada con el mismo --gl) en dos tamaños, teléfono (390x844,
 densidad 2) y escritorio (1440x900), una carga por tamaño (~1 min cada una), deja quieto un tren (__train('main',
 11261): los demás se esconden y el horario se detiene) y toma las vistas de VIEWS con la cámara en lugares fijos

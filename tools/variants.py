@@ -18,13 +18,18 @@ captura a --clip (x,y,ancho,alto, en píxeles CSS) sin la interfaz (panel, ficha
 también marcadores y nombres de calles). --dpr da la densidad de la pantalla (un teléfono: 2 o 3). Con --diff, cada
 variante después de la primera se compara píxel a píxel con la primera de su fila: imprime el porcentaje de píxeles
 distintos (algún canal difiere en más de 8) y agrega una columna «Δ» con esos píxeles en magenta sobre la captura en
-gris (diff() de page.py). Abre la página con Map de tools/page.py (--gl metal: la GPU del Mac). Sale con 1 si hubo
+gris (diff() de page.py). Abre la página con Map de tools/page.py (--gl gpu: la GPU del equipo). Sale con 1 si hubo
 errores de consola.
 """
 import argparse, asyncio, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from page import Map, add_page_args, parse_views, diff
+
+# the sheet's labels: Arial on a Mac, DejaVu or Liberation on Linux; Pillow's own font, tiny, if none is there
+FONTS = ['/System/Library/Fonts/Supplemental/Arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+         '/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf', '/usr/share/fonts/TTF/DejaVuSans.ttf',
+         '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf']
 
 def diff_tile(a, b, name):
     """The pixels where b differs from a, in magenta over a in grey (diff()); prints their share."""
@@ -56,8 +61,11 @@ async def main(a):
     cols = [cn for cn, _ in variants] + ([f'Δ {cn}' for cn, _ in variants[1:]] if a.diff else [])
     sheet = Image.new('RGB', (left + len(cols) * (tw + gap), top + len(views) * (th + gap)), '#F4F1E8')
     d = ImageDraw.Draw(sheet)
-    try: font = ImageFont.truetype('/System/Library/Fonts/Supplemental/Arial.ttf', 16)
-    except OSError: font = ImageFont.load_default()
+    font = None
+    for f in FONTS:
+        try: font = ImageFont.truetype(f, 16); break
+        except OSError: pass
+    font = font or ImageFont.load_default()
     for ci, cn in enumerate(cols): d.text((left + ci * (tw + gap) + 4, 8), cn, fill='#222', font=font)
     for vi, (vn, _) in enumerate(views):
         d.text((8, top + vi * (th + gap) + th // 2 - 8), vn, fill='#222', font=font)

@@ -39,6 +39,15 @@ Requisitos: Python 3.9+ (el pipeline usa solo la biblioteca estándar). Opcional
 - `pip install -r requirements.txt` para los paneles de diagnóstico y las capturas.
 - `python -m playwright install chromium` y `npm install` para las capturas sin conexión.
 
+### En Linux
+
+Probado en Linux Mint 22.3 (base Ubuntu 24.04, X11) con una GTX 1650, en noviembre de 2026: la página, las capturas, `make juego` y `make cine`. Lo mismo que en el Mac, con estas diferencias:
+
+- Node, Python, make y ffmpeg de la distribución sirven (`apt install nodejs npm python3 make ffmpeg`); [uv](https://docs.astral.sh/uv/) para las herramientas de `tools/`.
+- El Chromium de las capturas, una vez: `uv run --with "playwright==1.63" python -m playwright install chromium-headless-shell` (queda en `~/.cache/ms-playwright/`). En una distribución que no es Ubuntu ni Debian, Playwright avisa y baja la versión de Ubuntu 24.04, que funciona.
+- La GPU en las herramientas de Playwright: `--gl gpu` usa la NVIDIA si está su driver propietario, o si no la GPU por omisión por EGL (`--gl nvidia` y `--gl egl` eligen una). La carga del mapa es de la CPU (~14 s con cualquiera), pero dibujar un cuadro de toda la comuna pasa de ~5 s con SwiftShader a 70 ms en una Intel UHD 630 y 15 ms en la GTX 1650: lo notan `video.py` (la usa por omisión), `gif.py` y `perf.py`. `regress.py` y `hitos.py` comparan contra referencias tomadas con SwiftShader: ahí no cambie el `--gl`.
+- El juego: Godot 4.7 de [godotengine.org](https://godotengine.org/download/linux/) como `godot` o `godot4` en el PATH (el `Makefile` lo busca ahí; si no, `make juego GODOT=<ruta>`), y para jugar `godot --path juego`. `tools/godot_oculto.sh` lo corre en una pantalla virtual (`apt install xvfb`), sin abrir ventanas ni quitarle el teclado a nadie. Dibuja con la GPU solo con el driver propietario de NVIDIA (Vulkan de Mesa no puede presentar en Xvfb; `GODOT_OCULTO_VK=lavapipe` dibuja por CPU, ~15 veces más lento), y ahí `--fps` mide también la copia a la pantalla virtual.
+
 ## Publicar
 
 El sitio [talca.eduramirez.com](https://talca.eduramirez.com/) es `dist/index.html` en Cloudflare Pages (proyecto `talca-isometrica`):
@@ -120,7 +129,7 @@ scripts/deploy-cloudflare.sh  publica dist/ en Cloudflare Pages (make deploy); .
 tools/ml_buildings.py    huellas de edificios de Overture (Microsoft, Google) y alturas de Google 2.5D Temporal -> raw/edificios-ml/, para edificios.py (make edificios-ml)
 tools/export.py          la maqueta generada a glTF (Blender, Godot; --teselas: un archivo por tesela, con --instancias, --lejos, --medio y --liviano para el juego) y a STL cerrado para impresión 3D (tools/export.js corre en la página)
 tools/blender_ver.py     abre en Blender un glb o STL exportado, con sus colores y encuadrado (-b --png: una vista sin ventana)
-tools/godot_oculto.sh    corre el juego de Godot lanzado oculto (open -j -g), sin quitarle el teclado a quien trabaja: así lo revisan las sesiones de Claude
+tools/godot_oculto.sh    corre el juego de Godot lanzado oculto (en el Mac con open -j -g; en Linux en Xvfb), sin quitarle el teclado a quien trabaja: así lo revisan las sesiones de Claude
 tools/godot/             proyecto de Godot que carga un glb exportado (ver.gd: cámara ortográfica, colores por vértice; --png); comparar.gd: dos exportaciones de teselas en lo que Godot guarda, vértice por vértice
 juego/                   un juego de Godot para pasear por la comuna en tercera persona (make juego exporta juego/mapa/, la comuna en teselas de 500 m; Godot --path juego); juego/modelos/: la plaza, la catedral, las fachadas y las calles de alrededor, de cerca
 juego/mapa.gd, arboleda.gd   las teselas alrededor de la cámara (en hilos, con los edificios solos hasta 3 km, lo de lejos y la colisión cercana; cuantizado.gd: el formato liviano) y los árboles de la página como los de la plaza; viaje.gd: Tab, ir a un lugar; recorte.gd: los recortes de los modelos sobre cada tesela

@@ -11,7 +11,7 @@
 Cada argumento es una expresión (o una IIFE) que se evalúa con page.evaluate; el resultado se imprime como JSON, una
 línea por expresión. Sirve para mirar lo que la página expone en window.__* (__rail, __stats, __usos, __pads,
 __trains) sin tomar capturas. Cada --js espera a que el mapa quede quieto antes de seguir. Abre la página con Map de
-tools/page.py (una sola carga, ~1 min con SwiftShader; --gl metal, la GPU del Mac). Sale con 1 si una expresión falla
+tools/page.py (una sola carga, ~1 min con SwiftShader; --gl gpu, la GPU del equipo). Sale con 1 si una expresión falla
 o hubo errores de consola.
 """
 import argparse, asyncio, json, sys

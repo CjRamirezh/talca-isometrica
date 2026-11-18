@@ -17,7 +17,7 @@ misma velocidad). Cada cuadro lleva su propia paleta (--colors), sin tramado (el
 píxeles por los cuadros (un giro cambia la imagen entera; menos colores casi no lo baja): 800x500 con 48 cuadros por
 vuelta pesa ~22 MB, 640x400 con 32, ~7 MB.
 Abre la página con Map de tools/page.py (necesita dist/: make build); ~1 s por cuadro con SwiftShader, mucho menos
-con --gl metal (la GPU del Mac). Sale con 1 si hubo errores de consola.
+con --gl gpu (la GPU del equipo). Sale con 1 si hubo errores de consola.
 """
 import argparse, asyncio, io, math, sys
 from pathlib import Path

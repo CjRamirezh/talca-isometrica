@@ -13,7 +13,7 @@
   uv run tools/perf.py --android --arranque 3 --url https://e951faec.talca-isometrica.pages.dev/
       # el sitio publicado (o una publicación anterior de Cloudflare Pages: wrangler pages deployment list), por la red del teléfono
   TALCA_DIST=shots/dist-antes uv run tools/perf.py --arranque 3   # otra copia de dist/, para comparar
-  uv run tools/perf.py --gl metal     # con la GPU del Mac en vez de SwiftShader
+  uv run tools/perf.py --gl gpu       # con la GPU del equipo en vez de SwiftShader (metal, egl o nvidia: page.py GL)
 
 Para cada vista (JS que mueve la cámara, como en screenshot.py) da tres cuadros que pasan por el loop() real:
   refit   el mapa de sombras rehecho (fitShadow(true)): lo que cuesta un salto o un zoom grande

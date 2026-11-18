@@ -12,7 +12,8 @@
   uv run tools/screenshot.py shots/puente.png --js "__look(-1640,533,6,Math.PI/4+Math.PI)"  # cámara en (x, y) de grilla, zoom, giro
   uv run tools/screenshot.py shots/ --view "plaza=__look(-60,30,14.2)" --view "giro=__look(-60,30,14.2,Math.PI/4+Math.PI/2)"
       # varias vistas de una sola carga (shots/plaza.png, shots/giro.png): genera una vez, no una por captura
-  uv run tools/screenshot.py shots/x.png --gl metal                 # con la GPU del Mac (~6 veces más rápido)
+  uv run tools/screenshot.py shots/x.png --gl gpu                   # con la GPU del equipo (metal en un Mac; en Linux, egl
+                                                                     # o la NVIDIA si está su driver); la carga sigue en la CPU
   uv run tools/screenshot.py shots/smoke.png --strict             # además falla si la generación sale vacía (sin
       # edificios, árboles o vértices) o perdió polígonos (__stats.triFail): es `make smoke`, la prueba de humo del repo
 

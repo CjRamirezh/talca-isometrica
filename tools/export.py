@@ -13,7 +13,7 @@
   uv run tools/export.py --teselas shots/teselas --comuna        # un glb por km² e indice.json (Godot)
   uv run tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos --lejos --medio --liviano   # make juego
 
-Carga dist/ en Chromium (Map de tools/page.py, ~1 min; --gl metal, la GPU del Mac) con window.__KEEP, para que las
+Carga dist/ en Chromium (Map de tools/page.py, ~1 min; --gl gpu, la GPU del equipo) con window.__KEEP, para que las
 mallas conserven sus arreglos después de subir a la GPU, espera la generación completa e inyecta tools/export.js, que
 lee la escena. Sale con 1 si hubo errores de consola.
 

@@ -9,7 +9,7 @@ cambiar nada (más fino que tools/regress.py, que solo mira siete vistas).
   uv run tools/hitos.py --save shots/hitos-ref.json     # antes del cambio
   uv run tools/hitos.py --against shots/hitos-ref.json  # después: qué hito cambió y en qué parte
 
-Carga el mapa (Map de tools/page.py, ~1 min; --gl metal, la GPU del Mac; TALCA_ESPERA=<s> alarga la espera de la
+Carga el mapa (Map de tools/page.py, ~1 min; --gl gpu, la GPU del equipo; TALCA_ESPERA=<s> alarga la espera de la
 carga, 300 s por omisión) con window.__HITOS_HASH, para que buildModels guarde después de
 cada hito una huella por parte (hitoClock() en src/js/45-landmarks.js: los vértices e índices nuevos de S y B, occ, el
 relieve EH, MODELS, PADS, GLOW, NOLOTS, TREES, CLEAR, RAIL_BR, las marcas de las calles y los `keep` de los usos), y

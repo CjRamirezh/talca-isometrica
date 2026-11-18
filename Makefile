@@ -2,7 +2,11 @@
 PY ?= python3
 PW ?= uv run --with "playwright==1.63" python   # Python con Playwright, para las capturas (el del sistema no lo tiene)
 PIL ?= uv run --with pillow python               # Python con Pillow: lo que lee las teselas de Esri (golf) o dibuja paneles
+ifeq ($(shell uname -s),Darwin)
 GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
+else
+GODOT ?= $(or $(shell command -v godot 2>/dev/null),$(shell command -v godot4 2>/dev/null),godot)   # Linux: godot o godot4 del PATH
+endif
 PORT ?= 8765
 DRY_RUN ?= 0
 CINE ?= 1920x1080             # la resolución de make cine (1280x720 para una prueba rápida)

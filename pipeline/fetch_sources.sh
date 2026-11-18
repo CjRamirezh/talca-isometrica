@@ -10,6 +10,7 @@
 # config/usos.json y DATA.railx) y cada archivo se comprueba al final contra pipeline/fuentes.sha256 (shasum -c). Para
 # pasar a otra versión: cambie el commit, borre la carpeta, corra make fetch y luego actualice las sumas con
 #   (cd raw && shasum -a 256 $(awk '{print $2}' ../pipeline/fuentes.sha256)) > pipeline/fuentes.sha256
+# (sin shasum, en una distribución Linux sin Perl: sha256sum en vez de shasum -a 256, que da lo mismo)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 RAW="${TALCA_RAW:-raw}"
@@ -51,7 +52,9 @@ if [ -f "$RAW/dem/copernicus/$COP.tif" ]; then echo "· $RAW/dem/copernicus/$COP
 else curl -fL --retry 3 -o "$RAW/dem/copernicus/$COP.tif" "https://copernicus-dem-30m.s3.amazonaws.com/$COP/$COP.tif"; fi
 
 echo "Sumas de pipeline/fuentes.sha256:"
-if ! (cd "$RAW" && shasum -a 256 -c "$SUMS"); then
+# shasum viene con Perl (el Mac, Debian, Ubuntu); sha256sum, con coreutils (toda distribución Linux): el mismo formato
+if command -v shasum >/dev/null; then SHA256=(shasum -a 256); else SHA256=(sha256sum); fi
+if ! (cd "$RAW" && "${SHA256[@]}" -c "$SUMS"); then
   echo "Una fuente no es la que dio los datos de hoy: make data puede cambiar data/ (vea el comienzo de este archivo)." >&2
   exit 1
 fi

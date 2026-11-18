@@ -261,7 +261,7 @@ def main(dist=True):
             app = [u for u in local if re.fullmatch(r'assets/app\.\w+\.js', u)]
             node = shutil.which('node')
             if len(app) != 1: fail(f'dist/index.html: debe pedir un script assets/app.<hash>.js (pide {len(app)})')
-            elif not node: fail('node no está en el PATH: hace falta para node --check (nodenv / brew install node)')
+            elif not node: fail('node no está en el PATH: hace falta para node --check (nodenv / brew install node; Linux: apt install nodejs o nvm)')
             else:
                 r = subprocess.run([node, '--check', str(ROOT / 'dist' / app[0])], capture_output=True, text=True)
                 if r.returncode:
