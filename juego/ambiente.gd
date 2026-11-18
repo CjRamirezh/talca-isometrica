@@ -275,6 +275,9 @@ func poner_hora(h: float) -> void:
 		f.light_energy = 2.5 * noche
 	if focos:
 		focos.visible = noche > 0.3
+	var fz := faroles_mapa()
+	if fz:
+		fz.noche(noche)
 	if reloj:
 		reloj.text = "%02d:%02d  ·  T: avanzar la hora (Mayús+T: retroceder)" % [int(h24), int(fmod(h24, 1.0) * 60.0)]
 
@@ -313,8 +316,14 @@ func hud() -> void:
 # ---------- los faroles de la plaza ----------
 
 # Las luces de noche de los hitos del glb (GLOW de la página: tools/export.py las escribe en mapa/indice.json, «luces»): en
-# cada una va una lámpara y una luz. Las que caen donde un modelo propio recorta los hitos (main.gd recortado()) no:
-# ese modelo pone las suyas (plaza.gd luces_de_noche()).
+# cada una va una lámpara, y su luz de verdad la reparte mapa.gd/faroles.gd entre las más cercanas a la cámara, con las
+# de las calles (hasta noviembre de 2026 eran ~600 OmniLight3D, una por lámpara, y la lámpara una esfera de 4.000
+# triángulos: 2,4 millones de noche). Las que caen donde un modelo propio recorta los hitos (main.gd recortado()) no:
+# ese modelo pone las suyas (plaza.gd luces_de_noche(), en `faroles`).
+func faroles_mapa() -> Node:
+	return get_parent().get_node_or_null("mapa/faroles")
+
+
 func buscar_faroles() -> void:
 	var main := get_parent()
 	var altos: Array[Vector3] = []
@@ -325,6 +334,8 @@ func buscar_faroles() -> void:
 	var lampara := SphereMesh.new()
 	lampara.radius = 0.22
 	lampara.height = 0.44
+	lampara.radial_segments = 10
+	lampara.rings = 5
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = lampara
@@ -332,19 +343,9 @@ func buscar_faroles() -> void:
 	for i in altos.size():
 		var p := altos[i]
 		mm.set_instance_transform(i, Transform3D(Basis(), p))
-		var f := OmniLight3D.new()
-		f.position = p
-		f.light_color = Color(1.0, 0.78, 0.5)
-		f.omni_range = 14.0
-		f.omni_attenuation = 1.4
-		f.shadow_enabled = false
-		f.light_energy = 0.0
-		f.visible = false
-		f.distance_fade_enabled = true  # son las de toda la comuna: solo cuentan las cercanas
-		f.distance_fade_begin = 160.0
-		f.distance_fade_length = 40.0
-		add_child(f)
-		faroles.append(f)
+	var fz := faroles_mapa()
+	if fz:
+		fz.poner_fijas(altos)
 	if altos.size() > 0:
 		focos = MultiMeshInstance3D.new()
 		focos.multimesh = mm

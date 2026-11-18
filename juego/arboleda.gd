@@ -43,6 +43,8 @@ func _ready() -> void:
 static func preparar(datos: Dictionary, recs: Array) -> Dictionary:
 	var out := {}
 	for capa in datos:
+		if not ESPECIE.has(capa):  # los autos y faroles del mismo archivo (autos.gd, faroles.gd)
+			continue
 		var a: Array = datos[capa]
 		var pols := []
 		for r in recs:

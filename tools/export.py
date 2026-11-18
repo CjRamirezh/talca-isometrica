@@ -275,6 +275,23 @@ async def export_glb(pg, box, skip, path, lugares=True, liviano=False, medio=Non
             'capas': {k: L['ni'] // 3 for k, L in res['layers'].items()}, 'medio': m}
 
 
+async def datos_tesela(pg, caja, inst, faroles, sin_poste):
+    """los objetos de una tesela como datos (t_<i>_<j>.json): {capa: números} de las capas instanciadas (__exInst: 9 por
+    árbol, 10 por auto, __exInstN) y, con faroles, los de las calles (__exLamps: «faroles», 6 por farol, y «luces», los
+    de la Alameda, 3); y cuántos hay de cada uno, para indice.json"""
+    o, n = {}, {}
+    if inst:
+        r = await pg.evaluate('([b, c]) => { const o = __exInst(b, c), n = {}; for (const k in o) n[k] = __exInstN(k); return [o, n]; }', [caja, inst])
+        for k, v in r[0].items():
+            if v: o[k], n[k] = v, len(v) // r[1][k]
+    if faroles:
+        r = await pg.evaluate('b => __exLamps(b)', caja)
+        for k, m in (('faroles', 6), ('luces', 3)):
+            if r[k]: o[k], n[k] = r[k], len(r[k]) // m
+        for k, v in r['sin'].items(): sin_poste[k] = sin_poste.get(k, 0) + v
+    return o, n
+
+
 async def main(a):
     if a.comuna and (a.caja or a.centro): raise SystemExit('--comuna va sin --caja ni --centro')
     t0 = time.time()
@@ -306,6 +323,7 @@ async def main(a):
             medio = [s for s in (a.medio or '').split(',') if s]
             if set(medio) - set(capas): raise SystemExit(f"export: --medio con capas que no existen: {', '.join(set(medio) - set(capas))}")
             for f in [*d.glob('t_*.glb'), *d.glob('t_*.json'), *d.glob('m_*.glb')]: f.unlink()  # las de una exportación anterior (otra caja)
+            sin_poste = {}  # los faroles sin poste (__exLamps: sin.cruce), para el resumen
             for j in range(math.floor(y0 / t), math.ceil(y1 / t)):
                 for i in range(math.floor(x0 / t), math.ceil(x1 / t)):
                     f, caja = d / f't_{i}_{j}.glb', [i * t, j * t, (i + 1) * t, (j + 1) * t]
@@ -314,12 +332,10 @@ async def main(a):
                     if r:
                         e = {'archivo': f.name, 'i': i, 'j': j, 'caja_m': caja, 'triangulos': r['triangulos'], 'MB': r['MB']}
                         if r['medio']: e['medio'] = r['medio']
-                        if inst:  # los árboles como datos: t_<i>_<j>.json
-                            o = await pg.evaluate('([b, c]) => __exInst(b, c)', [caja, inst])
-                            o = {k: v for k, v in o.items() if v}
-                            if o:
-                                f.with_suffix('.json').write_text(json.dumps(o, separators=(',', ':')))
-                                e['instancias'] = {k: len(v) // 9 for k, v in o.items()}
+                        o, cuenta = await datos_tesela(pg, caja, inst, a.faroles, sin_poste)
+                        if o:  # los árboles, autos y faroles como datos: t_<i>_<j>.json
+                            f.with_suffix('.json').write_text(json.dumps(o, separators=(',', ':')))
+                            e['instancias'] = cuenta
                         lista.append(e)
                         if a.lejos is not None:
                             rl = await geom(pg, caja, skip_l, a.liviano)
@@ -335,6 +351,10 @@ async def main(a):
                 write_glb(str(d / 'lejos.glb'), {'box': box}, lejos)
                 ind['lejos'] = {'archivo': 'lejos.glb', 'capas': solo, 'MB': round((d / 'lejos.glb').stat().st_size / 1e6, 1)}
                 print('->', d / 'lejos.glb', ind['lejos']['MB'], 'MB')
+            if a.faroles:
+                ind['faroles'] = {'datos': 'x, y y altura del pie del poste, dirección del brazo (ax, ay) y su largo (tools/export.js __exLamps)',
+                                  'n': sum(x.get('instancias', {}).get('faroles', 0) for x in lista), 'sin_poste': sin_poste}
+                print('faroles:', ind['faroles']['n'], '; sin poste (en un cruce):', sin_poste.get('cruce', 0))
             (d / 'indice.json').write_text(json.dumps(ind, ensure_ascii=False, indent=1))
             print('->', d / 'indice.json', len(lista), 'teselas,', round(sum(x['MB'] for x in lista)), 'MB' +
                   (f", {sum(1 for x in lista if 'medio' in x)} medias, {ind['medio']['MB']} MB" if medio else ''))
@@ -378,6 +398,7 @@ if __name__ == '__main__':
     ap.add_argument('--teselas', help='directorio: un glb por tesela de --tam metros (t_<i>_<j>.glb, la caja x de i·tam a (i+1)·tam) e indice.json')
     ap.add_argument('--tam', type=float, default=1000, help='lado de las teselas (m)')
     ap.add_argument('--instancias', help='--teselas: capas de objetos instanciados (arboles,alamos) que van como datos en t_<i>_<j>.json y no en el glb')
+    ap.add_argument('--faroles', action='store_true', help='--teselas: los faroles de las calles como datos en t_<i>_<j>.json (el poste en la vereda; la página solo dibuja su brillo): juego/faroles.gd')
     ap.add_argument('--lejos', nargs='?', const='terreno,agua,borde', help='--teselas: además, lejos.glb con un nodo por tesela y solo estas capas (por omisión terreno,agua,borde): lo que el juego muestra donde no cargó la tesela')
     ap.add_argument('--medio', nargs='?', const='edificios,hitos,ciudad', help='--teselas: además, m_<i>_<j>.glb con solo estas capas de cada tesela (por omisión edificios,hitos,ciudad): lo que el juego carga entre las teselas completas y lejos.glb, para la silueta de la ciudad')
     ap.add_argument('--liviano', action='store_true', help='--teselas: normales y colores de un byte por componente (KHR_mesh_quantization, que el juego declara en juego/cuantizado.gd) e índices de 16 bits donde caben (make juego)')

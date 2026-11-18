@@ -49,6 +49,7 @@ const SIN := {
 	"sombras": "ambiente.gd", "blandas": "ambiente.gd", "lejos": "ambiente.gd", "nubes": "ambiente.gd",
 	"plaza": "modelos/plaza.gd (el modelo entero: el hito del glb queda)", "arboles": "modelos/plaza.gd",
 	"pasto": "modelos/plaza.gd",
+	"autos": "autos.gd (los autos del mapa, de cerca y de lejos)", "luces": "faroles.gd (las luces de verdad: quedan lámparas y brillos)",
 }
 
 

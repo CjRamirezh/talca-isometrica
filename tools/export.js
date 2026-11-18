@@ -130,6 +130,12 @@
   // la caja, como datos en vez de triángulos, para que el juego ponga los suyos (juego/arboleda.gd). Por capa, nueve
   // números por instancia: x, y de grilla, la altura del pie (Y del juego), la escala horizontal y la vertical, el giro
   // en torno a Y (radianes, el de three.js y Godot) y el tinte de la instancia (r, g, b, en el espacio de la página).
+  // Los autos (tipo auto en LAYERS: autos, autos-ruta5; juego/autos.gd) llevan un décimo número: la inclinación en
+  // torno a su eje transversal (radianes, la trompa hacia arriba si es positiva; carsMesh de 60-streets.js gira con
+  // el Euler YZX: el giro y luego la pendiente). Su escala horizontal es la del largo (× 4,5 m: el auto de carGeo) y
+  // la vertical, la del alto (1, un furgón 1,3, un camión de la Ruta 5 2,1). __exInstN(capa): los números de cada una.
+  const INST_N = cat => LAYERS[cat] && LAYERS[cat].tipo === 'auto' ? 10 : 9;
+  window.__exInstN = INST_N;
   window.__exInst = (box, cats) => {
     const [x0, y0, x1, y1] = box, want = new Set(cats), out = {}, m = new T.Matrix4(), mi = new T.Matrix4(), sph = new T.Sphere();
     const r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
@@ -141,8 +147,10 @@
       for (let i = 0; i < obj.count; i++) {
         mi.fromArray(obj.instanceMatrix.array, i * 16); m.multiplyMatrices(obj.matrixWorld, mi);
         const e = m.elements; if (e[12] < x0 || e[12] >= x1 || -e[14] < y0 || -e[14] >= y1) continue;
-        A.push(r2(e[12]), r2(-e[14]), r2(e[13]), r3(Math.hypot(e[0], e[1], e[2])), r3(Math.hypot(e[4], e[5], e[6])), r3(Math.atan2(-e[2], e[0])),
+        const sh = Math.hypot(e[0], e[1], e[2]);
+        A.push(r2(e[12]), r2(-e[14]), r2(e[13]), r3(sh), r3(Math.hypot(e[4], e[5], e[6])), r3(Math.atan2(-e[2], e[0])),
           ...(IC ? [r3(IC[i * 3]), r3(IC[i * 3 + 1]), r3(IC[i * 3 + 2])] : [1, 1, 1]));
+        if (INST_N(cat) === 10) A.push(r3(Math.asin(Math.max(-1, Math.min(1, e[1] / (sh || 1))))));
       }
     }
     return out;
@@ -164,6 +172,32 @@
       if (nv < 65535) b.I = Uint16Array.from(b.I);
     }
     return Object.fromEntries(Object.entries(window.__exBuf).map(([k, b]) => [k, b.I instanceof Uint16Array]));
+  };
+
+  // __exLamps([x0,y0,x1,y1]): los faroles de las calles cuyo poste cae en la caja (juego/faroles.gd). La página dibuja
+  // solo su brillo, sobre el eje de la calle a 6 m (lamps(), streetLamps() de 84-lights.js); el juego pone un poste en
+  // la vereda, a POSTE m de la solera, con un brazo hasta sobre la calzada. En las calles de clase 0 y 1 (avenidas) van
+  // alternados a los dos lados; en las demás, a la izquierda del sentido en que está dibujada la calle. Si ese lado cae
+  // en la calzada de otra calle (un cruce), al otro; si los dos, el farol no va (sin.cruce). faroles: seis números por
+  // farol: x, y del pie del poste, su altura (la vereda), la dirección del brazo (ax, ay: hacia el eje de la calle) y
+  // su largo. luces: los de la Alameda (ALAM_LAMPS, con su poste ya en la geometría), x, y y la altura de la lámpara.
+  const POSTE = 0.45, BRAZO = 1.6, ALTO_ALAMEDA = 4.6;
+  window.__exLamps = box => {
+    const [x0, y0, x1, y1] = box, r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
+    const out = { faroles: [], luces: [] }, sin = { cruce: 0 }, en = (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1;
+    for (const [x, y, tx, ty, cw, n, c] of X.streetLamps()) {
+      const pref = c <= 1 ? (n % 2 ? -1 : 1) : 1;
+      let lado = 0;
+      for (const sd of [pref, -pref]) { const px = x - ty * sd * (cw + POSTE), py = y + tx * sd * (cw + POSTE); if (!X.onRoad(px, py)) { lado = sd; break; } }
+      if (!lado) { if (en(x, y)) sin.cruce++; continue; }
+      const px = x - ty * lado * (cw + POSTE), py = y + tx * lado * (cw + POSTE);
+      if (!en(px, py)) continue;
+      out.faroles.push(r2(px), r2(py), r2(X.E(px, py) + X.walkY), r3(ty * lado), r3(-tx * lado), r2(BRAZO));
+    }
+    const A = X.ALAM_LAMPS;
+    for (let i = 0; i + 1 < A.length; i += 2) if (en(A[i], A[i + 1])) out.luces.push(r2(A[i]), r2(A[i + 1]), r2(X.E(A[i], A[i + 1]) + ALTO_ALAMEDA));
+    out.sin = sin;
+    return out;
   };
 
   // el trozo [o, o + n) en bytes del arreglo a de la capa k, en base64

@@ -8,6 +8,7 @@
 #   Mat.patron("ladrillo")              # los dibujos de los modelos del entorno (shaders/patron.gdshader; PATRON),
 #                                       # uno por nombre, compartido: malla.gd construir() y malla()
 #   Mat.plaza("piedra", {"rugoso": 0.8})  # un sombreador de shaders/plaza/ con sus parámetros (plaza.gd, plaza/*.gd)
+#   Mat.tinte("pintura")                # patron() en un MultiMesh: el alfa 0 toma el color de la instancia (autos.gd)
 #   Mat.textura(tex)                    # una textura con transparencia por recorte (rejas, filigranas)
 #
 # En capa.gdshader el color va en sRGB, como en la página; las texturas son en coordenadas del mundo y reconocen la
@@ -105,6 +106,19 @@ static func patron(nombre: String) -> Material:
 		m = sm
 	_patrones[nombre] = m
 	return m
+
+
+# patron(nombre) para un MultiMesh con use_custom_data: los vértices de alfa 0 toman el color de su instancia (la
+# carrocería de los autos de autos.gd); el vidrio, que no lo usa, es el de patron()
+static func tinte(nombre: String) -> Material:
+	var k := nombre + "/tinte"
+	if not _patrones.has(k):
+		var m := patron(nombre)
+		if m is ShaderMaterial:
+			m = m.duplicate()
+			m.set_shader_parameter("tinte", true)
+		_patrones[k] = m
+	return _patrones[k]
 
 
 # un material nuevo con un sombreador de shaders/plaza/ (piedra, pavimento, pasto, pasto_hojas, agua, zinc, farol,

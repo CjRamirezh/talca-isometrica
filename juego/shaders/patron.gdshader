@@ -10,12 +10,17 @@ uniform float rugosidad = 0.9;
 uniform float metalico = 0.0;
 uniform float especular = 0.5;
 uniform float emision = 0.0;
+// tinte: en un MultiMesh con datos propios (use_custom_data), los vértices de alfa 0 toman el color de su instancia
+// (INSTANCE_CUSTOM, en sRGB): la carrocería de los autos de autos.gd, una malla para todos los colores
+uniform bool tinte = false;
 varying vec3 wp;
 varying vec3 wn;
+varying vec3 tinte_v;
 
 void vertex() {
 	wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wn = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	tinte_v = tinte ? INSTANCE_CUSTOM.rgb : vec3(1.0);
 }
 
 float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -34,6 +39,9 @@ float junta(vec2 f, vec2 w, vec2 fw) {
 
 void fragment() {
 	vec3 c = COLOR.rgb;
+	if (tinte && COLOR.a < 0.5) {
+		c = tinte_v;
+	}
 	c = c * (c * (c * 0.305306011 + 0.682171111) + 0.012522878);  // los colores se dan en sRGB, como en la página
 	float r = rugosidad;
 	bool suelo = abs(wn.y) > 0.7;
