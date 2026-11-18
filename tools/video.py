@@ -19,8 +19,9 @@ controles de Instagram (~250 px arriba y ~340 abajo de 1920). Los tiempos van en
 --night (alejarse a --to); --speed son grados de giro por segundo. --stills escribe un PNG cada --every cuadros en
 vez del video, para revisar el encuadre en segundos. --crf 18 con --maxrate 16 (Mbit/s) dan ~35 MB por 18 s: Instagram
 lo vuelve a comprimir a unos pocos Mbit/s, y sin tope un giro de pixel art pasa de 90 MB.
-Usa la GPU del Mac (Chromium con ANGLE sobre Metal, ~0,2 s por cuadro; --gl swiftshader sin GPU, ~6 veces más lento)
-y ffmpeg (brew install ffmpeg). Abre la página con Map de tools/page.py (necesita dist/: make build) y captura cada
+Usa la GPU del equipo (--gl gpu: ANGLE sobre Metal en un Mac, ~0,2 s por cuadro; sobre EGL en Linux, la NVIDIA si
+está su driver; --gl swiftshader sin GPU, de ~6 a cientos de veces más lento) y ffmpeg (brew install ffmpeg; en
+Linux, el de la distribución: apt install ffmpeg). Abre la página con Map de tools/page.py (necesita dist/: make build) y captura cada
 cuadro cuando el mapa quedó quieto (Map.settle()). Los trenes corren con el reloj: entre dos cuadros pasa más tiempo
 que en el video, así que saltan. Sale con 1 si hubo errores de consola.
 """
@@ -93,7 +94,7 @@ async def main(a):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('out'); add_page_args(ap, size='540x960', dpr=2, gl='metal')
+    ap.add_argument('out'); add_page_args(ap, size='540x960', dpr=2, gl='gpu')
     ap.add_argument('--centro', default='0,0', help='x,y de grilla del punto al que se acerca y alrededor del que gira')
     alias(ap, '--center', '--centro')
     ap.add_argument('--from', dest='start', type=float, default=1.6, help='zoom inicial')

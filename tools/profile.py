@@ -34,7 +34,7 @@ corre la segunda etapa: mediana, percentil 90, máximo y cuántos pasan de 50 ms
 --gesto desplaza el mapa en cada cuadro desde el primero hasta el final de rest() (__three.pan, 4 px de ida y vuelta),
 como quien lo arrastra mientras carga: sliced() usa entonces tajadas de SLICE_BUSY y la lista de tareas muestra cuánto
 dura cada pieza de rest() que no se puede partir.
-Abre la página con Map de tools/page.py (--gl metal: la GPU del Mac). Sale con 1 si hubo errores de consola.
+Abre la página con Map de tools/page.py (--gl gpu: la GPU del equipo). Sale con 1 si hubo errores de consola.
 """
 import argparse, asyncio, json, re, sys
 
