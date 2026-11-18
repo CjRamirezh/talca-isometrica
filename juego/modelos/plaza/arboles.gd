@@ -15,6 +15,7 @@
 #            «Talca, plaza (14836795037)»), 4–6 m
 #   arbusto  bolas recortadas de ~1,2 m junto a las soleras (foto de 2024 «01»)
 #   agapanto matas de hojas en cinta en los bordes de los prados (fotos de 2014 y 2024)
+#   alamo    Populus nigra 'Italica', columnar, 16–21 m: no está en la plaza; lo usa arboleda.gd para los álamos del mapa
 extends RefCounted
 
 const Malla := preload("res://malla.gd")
@@ -30,6 +31,7 @@ const ESPECIES := {
 	"cordyline": {"corteza": Color(0.50, 0.45, 0.38), "tipo": 2, "hojas": Color(0.38, 0.52, 0.22)},
 	"arbusto": {"corteza": Color(0.4, 0.35, 0.3), "tipo": 0, "hojas": Color(0.24, 0.40, 0.16)},
 	"agapanto": {"corteza": Color(0.4, 0.35, 0.3), "tipo": 0, "hojas": Color(0.22, 0.40, 0.16)},
+	"alamo": {"corteza": Color(0.42, 0.40, 0.36), "tipo": 0, "hojas": Color(0.36, 0.52, 0.22)},
 }
 const VARIANTES := 3
 
@@ -40,7 +42,7 @@ var mat_datiles: ShaderMaterial
 var cache := {}
 var radios := {}  # especie/variante -> radio del tronco a 1 m (colisión)
 var sombras := {}  # especie/variante -> la malla de la sombra
-const SOMBRA_K := {"frondoso": 2, "podado": 2, "arbusto": 2, "cedro": 2, "araucaria": 3}  # una tarjeta de cada k
+const SOMBRA_K := {"frondoso": 2, "podado": 2, "arbusto": 2, "cedro": 2, "araucaria": 3, "alamo": 2}  # una tarjeta de cada k
 
 
 func _init() -> void:
@@ -51,6 +53,7 @@ func _init() -> void:
 		"frondoso": Tx.hojas(14, Color(0.36, 0.54, 0.22)),
 		"podado": Tx.hojas(15, Color(0.28, 0.45, 0.18), 520, 6.0, 3.2),
 		"arbusto": Tx.hojas(16, Color(0.26, 0.43, 0.17), 480, 6.0, 3.0),
+		"alamo": Tx.hojas(18, Color(0.38, 0.55, 0.23), 420, 7.0, 4.0),
 	}
 	for e in ESPECIES:
 		mat_corteza[e] = Mat.plaza("corteza", {"tipo": ESPECIES[e]["tipo"], "vueltas": 5.0 if e == "palmera" else 6.0})
@@ -86,6 +89,7 @@ func malla(especie: String, variante: int) -> ArrayMesh:
 		"cordyline": r = cordyline(rng, tr, extra)
 		"arbusto": r = arbusto(rng, fo)
 		"agapanto": r = agapanto(rng, extra)
+		"alamo": r = alamo(rng, tr, fo)
 	var m := ArrayMesh.new()
 	tr.malla(mat_corteza[especie], m)
 	if especie in mat_follaje:
@@ -370,6 +374,35 @@ func ramas(rng: RandomNumberGenerator, tr: Malla, p: Vector3, d: Vector3, L: flo
 		var d2 := d.rotated(eje, rng.randf_range(0.35, 0.8))
 		d2 = (d2 + (e - c).normalized() * 0.3 + Vector3.UP * 0.15).normalized()
 		ramas(rng, tr, e, d2, L * rng.randf_range(0.55, 0.75), r * 0.58, nivel - 1, puntas, c, R, ry)
+
+
+# Populus nigra 'Italica', el álamo de las hileras del campo y de los caminos (el cono de la página, treeGeo('poplar') de
+# src/js/80-trees.js; arboleda.gd lo usa en todo el mapa): 16–21 m, una copa columnar de 3–4,5 m de ancho desde ~2 m
+# del suelo, más ancha a un tercio de su alto, con ramas cortas que suben pegadas al tronco. Lo típico de la especie,
+# sin una foto de Talca.
+func alamo(rng: RandomNumberGenerator, tr: Malla, fo: Malla) -> float:
+	var E: Dictionary = ESPECIES["alamo"]
+	var H := rng.randf_range(16.0, 21.0)
+	var R := rng.randf_range(1.5, 2.2)
+	var r0 := rng.randf_range(0.26, 0.36)
+	var h0 := rng.randf_range(1.6, 2.4)  # donde empieza la copa
+	rama(tr, [Vector3.DOWN * 0.3, Vector3.UP * h0, Vector3.UP * H * 0.55, Vector3.UP * H * 0.92], [r0 * 1.4, r0, r0 * 0.6, r0 * 0.18], 8, E["corteza"])
+	var ancho := func(t: float) -> float: return R * pow(sin(PI * clampf(t * 0.88 + 0.1, 0.0, 1.0)), 0.6)
+	for i in rng.randi_range(6, 9):  # ramas que suben
+		var t := rng.randf_range(0.05, 0.75)
+		var y := lerpf(h0, H, t)
+		var az := rng.randf() * TAU
+		var d := Vector3(cos(az) * 0.4, 1.0, sin(az) * 0.4).normalized()
+		rama(tr, [Vector3.UP * y, Vector3.UP * y + d * ancho.call(t) * 1.6], [r0 * 0.3, r0 * 0.1], 4, E["corteza"])
+	var col: Color = E["hojas"]
+	var n := int(H * R * 4.5)
+	for i in n:
+		var t := rng.randf()
+		var y := lerpf(h0, H, t)
+		var rr: float = ancho.call(t) * rng.randf_range(0.5, 1.0)
+		var az := rng.randf() * TAU
+		racimo(fo, rng, Vector3(cos(az) * rr, y, sin(az) * rr), rng.randf_range(1.5, 2.1), Vector3(0, y - 0.4, 0), col, 2)
+	return r0
 
 
 func podado(rng: RandomNumberGenerator, tr: Malla, fo: Malla) -> float:

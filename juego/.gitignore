@@ -1,6 +1,7 @@
-# lo genera Godot y `make juego` (tools/export.py; datos/: copias de config/fachadas.json y data/plaza-osm.json): no van en git
+# lo genera Godot y `make juego` (tools/export.py; datos/: copias de config/fachadas.json y data/plaza-osm.json; mapa/: las teselas de la comuna): no van en git
 .godot/
 plaza.glb
 plaza.glb.import
 plaza.json
 datos/
+mapa/

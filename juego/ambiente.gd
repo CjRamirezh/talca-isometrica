@@ -5,14 +5,14 @@
 # retrocede), con atardecer, crepúsculo y noche: de noche la luz es la de la luna, las ventanas se encienden y los
 # faroles de la plaza alumbran. El cielo es shaders/cielo.gdshader (nubes, la cordillera, estrellas) y también da la luz
 # ambiente y los reflejos. Las capas del glb toman su material de materiales.gd (shaders/capa.gdshader): la textura,
-# las ventanas y el brillo de cada superficie, sobre el color por vértice de la maqueta. Más allá del borde de la caja
-# exportada, una ciudad lejana de bloques bajos (lejos()) para que el horizonte no quede vacío.
+# las ventanas y el brillo de cada superficie, sobre el color por vértice de la maqueta. Hasta noviembre de 2026, más
+# allá de la caja de 400 m de plaza.glb había una ciudad inventada de bloques bajos; ahora está la comuna (mapa.gd).
 #
 #   --hora 20.5      la hora al comenzar (decimal, hora de verano)
 #   --dia 172        el día del año (1 = 1 de enero)
 #   --calidad baja   sin SSIL, SSAO ni sombras blandas (para máquinas más lentas)
 #   --sin a,b        apaga partes para medir su costo con --fps (modelos/calles.gd): ssil, ssao, glow, niebla,
-#                    sombras, blandas, lejos, nubes
+#                    sombras, blandas, lejos (las teselas de lejos.glb), nubes
 extends Node3D
 
 const Mat := preload("res://materiales.gd")
@@ -34,7 +34,6 @@ var faroles: Array[OmniLight3D] = []
 var focos: MultiMeshInstance3D
 var reloj: Label
 var reloj_t := 0.0
-var lejanos: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -47,7 +46,6 @@ func _ready() -> void:
 	copas()
 	materiales()
 	buscar_faroles()
-	lejos()
 	hud()
 	poner_hora(hora)
 	apagar(Array(Args.sin_()))
@@ -314,7 +312,7 @@ func hud() -> void:
 
 # ---------- los faroles de la plaza ----------
 
-# Las luces de noche de los hitos del glb (GLOW de la página: tools/export.py las escribe en plaza.json, «luces»): en
+# Las luces de noche de los hitos del glb (GLOW de la página: tools/export.py las escribe en mapa/indice.json, «luces»): en
 # cada una va una lámpara y una luz. Las que caen donde un modelo propio recorta los hitos (main.gd recortado()) no:
 # ese modelo pone las suyas (plaza.gd luces_de_noche()).
 func buscar_faroles() -> void:
@@ -342,6 +340,9 @@ func buscar_faroles() -> void:
 		f.shadow_enabled = false
 		f.light_energy = 0.0
 		f.visible = false
+		f.distance_fade_enabled = true  # son las de toda la comuna: solo cuentan las cercanas
+		f.distance_fade_begin = 160.0
+		f.distance_fade_length = 40.0
 		add_child(f)
 		faroles.append(f)
 	if altos.size() > 0:
@@ -360,157 +361,6 @@ func buscar_faroles() -> void:
 
 
 
-# ---------- la ciudad más allá de la caja ----------
-
-# Bloques bajos con techos de colores y árboles sueltos en una grilla de manzanas de ~100 m, desde el borde de la caja
-# hasta 1,5 km, sobre un suelo plano: la niebla los funde con el cielo. No tienen colisión (los muros de main.gd no dejan
-# llegar a ellos) y son inventados: solo dan la idea de que la ciudad sigue.
-const SUELO_LEJOS := -2.5  # la altura del suelo lejano
-
-
-func lejos() -> void:
-	var caja := caja_maqueta()
-	if caja.size == Vector3.ZERO:
-		return
-	suelo_lejano(caja)
-	var m := manzanas_lejanas(caja)
-	poner_casas(m["casas"], m["colores"])
-	poner_arboles(m["arboles"])
-	print("ambiente.gd: ciudad lejana, %d casas y %d árboles" % [m["casas"].size(), m["arboles"].size()])
-
-
-# la caja de lo que hay en la escena (el glb y los modelos), o una vacía
-func caja_maqueta() -> AABB:
-	var caja := AABB()
-	var primera := true
-	for n in get_parent().get_children():
-		if not n is Node3D or n == self:
-			continue
-		for mi in n.find_children("*", "MeshInstance3D", true, false):
-			var b: AABB = mi.global_transform * mi.get_aabb()
-			caja = b if primera else caja.merge(b)
-			primera = false
-	return caja
-
-
-# el suelo: un plano grande con un agujero donde está la caja (cuatro rectángulos)
-func suelo_lejano(caja: AABB) -> void:
-	var suelo_y := SUELO_LEJOS
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var R := 6000.0
-	var x0 := caja.position.x + 0.5
-	var x1 := caja.end.x - 0.5
-	var z0 := caja.position.z + 0.5
-	var z1 := caja.end.z - 0.5
-	for r in [[-R, -R, R, z0], [-R, z1, R, R], [-R, z0, x0, z1], [x1, z0, R, z1]]:
-		var a := Vector3(r[0], suelo_y, r[1])
-		var b := Vector3(r[2], suelo_y, r[1])
-		var c := Vector3(r[2], suelo_y, r[3])
-		var d := Vector3(r[0], suelo_y, r[3])
-		st.set_normal(Vector3.UP)
-		for p in [a, b, c, a, c, d]:
-			st.add_vertex(p)
-	var plano := MeshInstance3D.new()
-	plano.mesh = st.commit()
-	plano.material_override = Mat.tierra(Color("8d8a7c"))
-	plano.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(plano)
-	lejanos.append(plano)
-
-
-# las casas (cajas por manzana, de 3 a 7 m, más altas cerca del centro) y los árboles sueltos de cada manzana fuera de
-# la caja: {"casas": [Transform3D], "colores": [Color], "arboles": [Transform3D]}
-func manzanas_lejanas(caja: AABB) -> Dictionary:
-	var suelo_y := SUELO_LEJOS
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7101
-	var casas: Array[Transform3D] = []
-	var colores: Array[Color] = []
-	var arboles: Array[Transform3D] = []
-	var paleta := [Color("e5d2c2"), Color("d8c19e"), Color("efe7d9"), Color("cab899"), Color("d7c8b7"), Color("c8cabf"), Color("e2ceb1")]
-	var M := 104.0  # una cuadra con su calle
-	var C := 84.0   # la manzana
-	for i in range(-15, 16):
-		for j in range(-15, 16):
-			var cx := i * M
-			var cz := j * M
-			if cx + C / 2 > caja.position.x - 4 and cx - C / 2 < caja.end.x + 4 and cz + C / 2 > caja.position.z - 4 and cz - C / 2 < caja.end.z + 4:
-				continue
-			var d := Vector2(cx, cz).length()
-			if d > 1600:
-				continue
-			# casas a lo largo del borde de la manzana
-			for lado in 4:
-				var k := 0.0
-				while k < C:
-					var ancho := rng.randf_range(6.0, 14.0)
-					var fondo := rng.randf_range(8.0, 16.0)
-					var alto := rng.randf_range(3.0, 6.5) * (1.6 if d < 500 and rng.randf() < 0.25 else 1.0)
-					var t := -C / 2 + k + ancho / 2
-					var p := Vector3.ZERO
-					var bs := Basis().scaled(Vector3(ancho, alto, fondo))
-					match lado:
-						0: p = Vector3(cx + t, 0, cz - C / 2 + fondo / 2)
-						1: p = Vector3(cx + t, 0, cz + C / 2 - fondo / 2)
-						2:
-							p = Vector3(cx - C / 2 + fondo / 2, 0, cz + t)
-							bs = Basis().scaled(Vector3(fondo, alto, ancho))
-						3:
-							p = Vector3(cx + C / 2 - fondo / 2, 0, cz + t)
-							bs = Basis().scaled(Vector3(fondo, alto, ancho))
-					p.y = suelo_y + alto / 2
-					casas.append(Transform3D(bs, p))
-					colores.append(paleta[rng.randi() % paleta.size()])
-					k += ancho
-			for a in rng.randi_range(2, 7):
-				var p := Vector3(cx + rng.randf_range(-C / 3, C / 3), 0, cz + rng.randf_range(-C / 3, C / 3))
-				var s := rng.randf_range(5.0, 9.0)
-				p.y = suelo_y + s * 0.75
-				arboles.append(Transform3D(Basis().scaled(Vector3(s, s * 0.9, s)), p))
-	return {"casas": casas, "colores": colores, "arboles": arboles}
-
-
-func poner_casas(casas: Array[Transform3D], colores: Array[Color]) -> void:
-	var caja_m := BoxMesh.new()
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = caja_m
-	mm.instance_count = casas.size()
-	for i in casas.size():
-		mm.set_instance_transform(i, casas[i])
-		mm.set_instance_color(i, colores[i])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.9
-	mmi.material_override = mat
-	add_child(mmi)
-	lejanos.append(mmi)
-
-
-func poner_arboles(arboles: Array[Transform3D]) -> void:
-	var copa := SphereMesh.new()
-	copa.radial_segments = 8
-	copa.rings = 4
-	copa.radius = 0.5
-	copa.height = 1.0
-	var ma := MultiMesh.new()
-	ma.transform_format = MultiMesh.TRANSFORM_3D
-	ma.mesh = copa
-	ma.instance_count = arboles.size()
-	for i in arboles.size():
-		ma.set_instance_transform(i, arboles[i])
-	var ami := MultiMeshInstance3D.new()
-	ami.multimesh = ma
-	ami.material_override = Mat.follaje(Color("587d3a"))
-	ami.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(ami)
-	lejanos.append(ami)
-
-
 # ---------- rendimiento ----------
 
 # --sin ssil,ssao,glow,niebla,sombras,blandas,lejos,nubes: apaga partes para medir cuánto cuestan (--calidad baja:
@@ -527,7 +377,8 @@ func apagar(que: Array) -> void:
 				RenderingServer.directional_shadow_atlas_set_size(4096, true)
 				RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
 				sol.light_angular_distance = 0.0
-			"lejos":
-				for n in lejanos:
-					n.visible = false
+			"lejos":  # las teselas de lejos.glb (mapa.gd)
+				var m := get_parent().get_node_or_null("mapa")
+				if m:
+					m.lejos_visible(false)
 			"nubes": sky.process_mode = Sky.PROCESS_MODE_QUALITY

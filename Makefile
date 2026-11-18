@@ -58,12 +58,14 @@ smoke: build lint             ## carga la página en Chromium y falla si hay err
 hooks:                        ## instala .githooks/ (pre-commit = make check; pre-push = make deploy al empujar main a origin, sin bloquear)
 	git config core.hooksPath .githooks
 
-juego: build                  ## juego/plaza.glb (400 m alrededor de la plaza, tools/export.py) y su importación en Godot; luego: Godot --path juego
-	$(PW) tools/export.py --glb juego/plaza.glb --lado 400
+juego: build                  ## juego/mapa/: la comuna en teselas de 500 m, sus árboles como datos y lo de lejos (tools/export.py --teselas; ~3 min, ~800 MB) y la importación en Godot; luego: Godot --path juego
+	rm -f juego/plaza.glb juego/plaza.glb.import juego/plaza.json   # el glb de 400 m de antes de noviembre de 2026
+	$(PW) tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos --lejos
+	touch juego/mapa/.gdignore    # Godot no importa los glb: mapa.gd los lee al jugar
 	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json juego/datos/   # lo que el juego comparte con la página
 	$(GODOT) --headless --path juego --import
 
-cine:                         ## la película de juego/cine.gd (requiere juego/plaza.glb: make juego): shots/cine/plaza.mp4 (H.264, 30 cuadros por segundo; ~1 min con la GPU del Mac)
+cine:                         ## la película de juego/cine.gd (requiere juego/mapa/: make juego): shots/cine/plaza.mp4 (H.264, 30 cuadros por segundo; ~1 min con la GPU del Mac)
 	mkdir -p shots/cine
 	@# juego/override.cfg (Godot lo lee al partir): el tamaño, porque --resolution no cambia lo que graba Movie Maker, y la calidad del MJPEG, que por omisión (0,75) deja una grilla de 8 × 8 en las copas oscuras y en el cielo de noche (y el H.264 gasta bits en copiarla); la ruta, absoluta: Godot la toma relativa a juego/
 	printf '[display]\nwindow/size/viewport_width=%s\nwindow/size/viewport_height=%s\n[editor]\nmovie_writer/video_quality=1.0\n' $(subst x, ,$(strip $(CINE))) > juego/override.cfg

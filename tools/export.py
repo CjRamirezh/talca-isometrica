@@ -11,6 +11,7 @@
   uv run tools/export.py --stl shots/comuna.stl --comuna --paso 25 --escala 100000
   uv run tools/export.py --glb shots/c.glb --stl shots/c.stl --vista shots/c.png
   uv run tools/export.py --teselas shots/teselas --comuna        # un glb por km² e indice.json (Godot)
+  uv run tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos --lejos   # make juego
 
 Carga dist/ en Chromium (Map de tools/page.py, ~1 min; --gl metal, la GPU del Mac) con window.__KEEP, para que las
 mallas conserven sus arreglos después de subir a la GPU, espera la generación completa e inyecta tools/export.js, que
@@ -33,8 +34,12 @@ con --comuna o una caja que cruza el límite, recortado al contorno de la comuna
 (por omisión, el lado mayor mide 200 mm); --vert exagera la altura además del relieve de la maqueta. Sin autos.
 
 --teselas escribe un glb por tesela de --tam metros alineada con la plaza (t_<i>_<j>.glb: x de i·tam a (i+1)·tam, y
-de j·tam a (j+1)·tam), solo las que tienen algo, e indice.json con su lista y los lugares. La comuna entera en un solo
-glb pesa ~400 MB sin árboles ni edificios: para un motor de juegos van por teselas.
+de j·tam a (j+1)·tam), solo las que tienen algo, e indice.json con su lista, los lugares, las luces de los hitos y el
+límite de la comuna (un anillo de grilla). La comuna entera en un solo glb pesa ~400 MB sin árboles ni edificios: para
+un motor de juegos van por teselas (make juego: juego/mapa/, 500 m). Con --instancias arboles,alamos esas capas no van
+como triángulos sino como datos, en t_<i>_<j>.json (__exInst de tools/export.js: x, y, altura del pie, escala, giro y
+tinte de cada árbol; el juego pone los suyos, juego/arboleda.gd); con --lejos, además lejos.glb: un nodo por tesela
+con solo el relieve, el agua y el borde, para lo que está más allá de lo cargado.
 
 --vista dibuja el glb exportado, cargado de vuelta con el GLTFLoader de three.js, en un PNG (para revisarlo), y el STL\nen <vista>-stl.png.
 """
@@ -57,8 +62,10 @@ def unb64(s, t):
 
 
 # ---------- glTF ----------
-def write_glb(path, res):
-    bin_, views, accs, meshes, mats, nodes = bytearray(), [], [], [], [], []
+def write_glb(path, res, nodos=None):
+    """res['layers'] en un glb: un nodo y una malla por capa. Con nodos ([(nombre, layers)], --lejos), un nodo por
+    elemento con una malla de una primitiva por capa (los materiales, uno por capa, compartidos)"""
+    bin_, views, accs, meshes, mats, nodes, mat_of = bytearray(), [], [], [], [], [], {}
 
     def view(data, target):
         while len(bin_) % 4: bin_.append(0)
@@ -70,19 +77,30 @@ def write_glb(path, res):
         if mn is not None: a['min'], a['max'] = mn, mx
         accs.append(a); return len(accs) - 1
 
-    for name, L in res['layers'].items():
+    def material(name, L):
+        if name not in mat_of:
+            mat = {'name': name, 'pbrMetallicRoughness': {'baseColorFactor': [1, 1, 1, 1], 'metallicFactor': 0, 'roughnessFactor': MAT.get(name, 1)}}
+            if name == 'borde': mat['doubleSided'] = True
+            if L['win']: mat['extras'] = {'ventanas': {'cada_m': [3.4, 3.0], 'desde_m': 1.0, 'nota': 'la página las pinta en toda cara vertical (winMat, src/js/40-three.js)'}}
+            mats.append(mat); mat_of[name] = len(mats) - 1
+        return mat_of[name]
+
+    def primitive(name, L):
         P = array('f'); P.frombytes(L['P'])
         mn = [min(P[i::3]) for i in range(3)]; mx = [max(P[i::3]) for i in range(3)]
         attrs = {'POSITION': acc(P.tobytes(), 5126, L['nv'], 'VEC3', 34962, mn, mx),
                  'NORMAL': acc(L['N'], 5126, L['nv'], 'VEC3', 34962),
                  'COLOR_0': acc(L['C'], 5126, L['nv'], 'VEC3', 34962)}
-        ind = acc(L['I'], 5125, L['ni'], 'SCALAR', 34963)
-        mat = {'name': name, 'pbrMetallicRoughness': {'baseColorFactor': [1, 1, 1, 1], 'metallicFactor': 0, 'roughnessFactor': MAT.get(name, 1)}}
-        if name == 'borde': mat['doubleSided'] = True
-        if L['win']: mat['extras'] = {'ventanas': {'cada_m': [3.4, 3.0], 'desde_m': 1.0, 'nota': 'la página las pinta en toda cara vertical (winMat, src/js/40-three.js)'}}
-        mats.append(mat)
-        meshes.append({'name': name, 'primitives': [{'attributes': attrs, 'indices': ind, 'material': len(mats) - 1}]})
-        nodes.append({'name': name, 'mesh': len(meshes) - 1})
+        return {'attributes': attrs, 'indices': acc(L['I'], 5125, L['ni'], 'SCALAR', 34963), 'material': material(name, L)}
+
+    for nombre, layers in (nodos if nodos is not None else [(None, res['layers'])]):
+        if nombre is None:
+            for name, L in layers.items():
+                meshes.append({'name': name, 'primitives': [primitive(name, L)]})
+                nodes.append({'name': name, 'mesh': len(meshes) - 1})
+        elif layers:
+            meshes.append({'name': nombre, 'primitives': [primitive(name, L) for name, L in layers.items()]})
+            nodes.append({'name': nombre, 'mesh': len(meshes) - 1})
     root = {'name': 'talca', 'children': list(range(len(nodes))), 'extras': meta(res, None)}
     nodes.append(root)
     gl = {'asset': {'version': '2.0', 'generator': 'talca-isometrica tools/export.py'}, 'scene': 0,
@@ -197,8 +215,8 @@ async def vista(p, glb, png, stl=False, gl='swiftshader'):
     return n
 
 
-async def export_glb(pg, box, skip, path, lugares=True):
-    """las mallas de la caja en un glb (y, con lugares, su JSON al lado); None si no hay nada"""
+async def geom(pg, box, skip):
+    """las mallas de la caja (__exGeom), con sus arreglos traídos de la página; None si no hay nada"""
     res = await pg.evaluate('([b, s]) => __exGeom(b, {skip: s})', [box, skip])
     res['capas'] = await pg.evaluate('__exLayers')  # all of them: the contract, not only this box's
     if res['unknown']: raise SystemExit(f"export: capas sin entrada en LAYERS de tools/export.js: {', '.join(res['unknown'])}")
@@ -209,6 +227,13 @@ async def export_glb(pg, box, skip, path, lugares=True):
             for o in range(0, n, 1 << 25):
                 buf += base64.b64decode(await pg.evaluate('([k, a, o, n]) => __exChunk(k, a, o, n)', [k, key, o, 1 << 25]))
             L[key] = bytes(buf)
+    return res
+
+
+async def export_glb(pg, box, skip, path, lugares=True):
+    """las mallas de la caja en un glb (y, con lugares, su JSON al lado); None si no hay nada"""
+    res = await geom(pg, box, skip)
+    if res is None: return None
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     write_glb(path, res)
     if lugares: Path(path).with_suffix('.json').write_text(json.dumps({**meta(res, None), 'capas': res['capas'], 'lugares': res['pois'], 'luces': res['luces']}, ensure_ascii=False, indent=1))
@@ -238,14 +263,40 @@ async def main(a):
             print('->', a.glb, json.dumps(info['glb'], ensure_ascii=False))
         if a.teselas:  # una tesela por archivo, en la grilla de --tam metros desde la plaza, y un índice
             d, t = Path(a.teselas), a.tam; d.mkdir(parents=True, exist_ok=True); lista = []
+            inst = [s for s in (a.instancias or '').split(',') if s]
+            capas = await pg.evaluate('__exLayers')
+            if a.lejos is not None:
+                solo = [s for s in a.lejos.split(',') if s]
+                if set(solo) - set(capas): raise SystemExit(f"export: --lejos con capas que no existen: {', '.join(set(solo) - set(capas))}")
+                skip_l, lejos = [k for k in capas if k not in solo] + ['otros'], []
+            for f in [*d.glob('t_*.glb'), *d.glob('t_*.json')]: f.unlink()  # las de una exportación anterior (otra caja)
             for j in range(math.floor(y0 / t), math.ceil(y1 / t)):
                 for i in range(math.floor(x0 / t), math.ceil(x1 / t)):
-                    f = d / f't_{i}_{j}.glb'
-                    r = await export_glb(pg, [i * t, j * t, (i + 1) * t, (j + 1) * t], skip_g, str(f), lugares=False)
-                    if r: lista.append({'archivo': f.name, 'i': i, 'j': j, 'caja_m': [i * t, j * t, (i + 1) * t, (j + 1) * t], 'triangulos': r['triangulos'], 'MB': r['MB']})
+                    f, caja = d / f't_{i}_{j}.glb', [i * t, j * t, (i + 1) * t, (j + 1) * t]
+                    r = await export_glb(pg, caja, skip_g + inst, str(f), lugares=False)
+                    if r:
+                        e = {'archivo': f.name, 'i': i, 'j': j, 'caja_m': caja, 'triangulos': r['triangulos'], 'MB': r['MB']}
+                        if inst:  # los árboles como datos: t_<i>_<j>.json
+                            o = await pg.evaluate('([b, c]) => __exInst(b, c)', [caja, inst])
+                            o = {k: v for k, v in o.items() if v}
+                            if o:
+                                f.with_suffix('.json').write_text(json.dumps(o, separators=(',', ':')))
+                                e['instancias'] = {k: len(v) // 9 for k, v in o.items()}
+                        lista.append(e)
+                        if a.lejos is not None:
+                            rl = await geom(pg, caja, skip_l)
+                            if rl: lejos.append((f't_{i}_{j}', rl['layers']))
                     print(f'  t_{i}_{j}:', r and r['triangulos'], 'triángulos', flush=True)
             pois = await pg.evaluate('b => __export.PD.pois.filter(p => p.x >= b[0] && p.x < b[2] && p.y >= b[1] && p.y < b[3]).map(p => ({id: p.id, nombre: p.n, cat: p.c, lat: p.lat, lon: p.lon, x: p.x, y: p.y, h: +__export.E(p.x, p.y).toFixed(2)}))', box)
-            (d / 'indice.json').write_text(json.dumps({**meta({'box': box}, None), 'capas': await pg.evaluate('__exLayers'), 'tesela_m': t, 'teselas': lista, 'lugares': pois}, ensure_ascii=False, indent=1))
+            luces = await pg.evaluate('b => { const G = __export.GLOW || [], o = []; for (let i = 0; i + 2 < G.length; i += 3) if (G[i] >= b[0] && G[i] < b[2] && G[i + 2] >= b[1] && G[i + 2] < b[3]) o.push([+G[i].toFixed(2), +G[i + 2].toFixed(2), +G[i + 1].toFixed(2)]); return o; }', box)
+            limite = await pg.evaluate('__export.LIM.map(p => [+p[0].toFixed(1), +p[1].toFixed(1)])')
+            ind = {**meta({'box': box}, None), 'capas': capas, 'tesela_m': t, 'teselas': lista, 'lugares': pois, 'luces': luces,
+                   'limite': limite, 'instancias': inst}
+            if a.lejos is not None:  # lo de lejos: un nodo por tesela (t_<i>_<j>), con las capas de --lejos
+                write_glb(str(d / 'lejos.glb'), {'box': box}, lejos)
+                ind['lejos'] = {'archivo': 'lejos.glb', 'capas': solo, 'MB': round((d / 'lejos.glb').stat().st_size / 1e6, 1)}
+                print('->', d / 'lejos.glb', ind['lejos']['MB'], 'MB')
+            (d / 'indice.json').write_text(json.dumps(ind, ensure_ascii=False, indent=1))
             print('->', d / 'indice.json', len(lista), 'teselas,', round(sum(x['MB'] for x in lista)), 'MB')
         if a.stl:
             paso = a.paso or max(1.0, max(x1 - x0, y1 - y0) / 500)
@@ -286,6 +337,8 @@ if __name__ == '__main__':
     ap.add_argument('--vert', type=float, default=1, help='STL: exageración vertical extra')
     ap.add_argument('--teselas', help='directorio: un glb por tesela de --tam metros (t_<i>_<j>.glb, la caja x de i·tam a (i+1)·tam) e indice.json')
     ap.add_argument('--tam', type=float, default=1000, help='lado de las teselas (m)')
+    ap.add_argument('--instancias', help='--teselas: capas de objetos instanciados (arboles,alamos) que van como datos en t_<i>_<j>.json y no en el glb')
+    ap.add_argument('--lejos', nargs='?', const='terreno,agua,borde', help='--teselas: además, lejos.glb con un nodo por tesela y solo estas capas (por omisión terreno,agua,borde): lo que el juego muestra donde no cargó la tesela')
     ap.add_argument('--vista', help='PNG del glb exportado, cargado de vuelta (revisión)')
     add_page_args(ap, size='1200x800', only=('size', 'gl'))
     a = ap.parse_args()

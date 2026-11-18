@@ -223,7 +223,7 @@ function hooksView(trees,cars){Object.assign(window,{
   __train:trainHold,__trains:trainsList,__trainFps:trainFps, // hold a train at s, the trains' state, the frames they ask for (70-trains.js)
   __E:(x,y)=>E(x,y),                     // the ground's height (grid metres), to measure the structures from --js
   __three:{renderer,scene,cam,sun,pan,placeCam,fitShadow,get PA(){return PA;}}, // tools/perf.py: the renderer and what a frame depends on
-  __export:{PD,E,inTerrain,ext:[XMIN,XMAX,YMIN,YMAX],matBld,GLOW}, // tools/export.py (with window.__KEEP; GLOW: the landmarks' lights, for the game)
+  __export:{PD,E,inTerrain,ext:[XMIN,XMAX,YMIN,YMAX],matBld,GLOW,LIM}, // tools/export.py (with window.__KEEP; GLOW: the landmarks' lights, LIM: the commune's limit, for the game)
   __pads:PADS,                           // the landmark pads [x0,y0,x1,y1,h]: pipeline/traces.py check --pads
   __rail:RAILP,                          // the rail lines as paths for the train (68-rail.js): tools/probe.py
   __ed:EDS});}                           // the OSM buildings' counts and ms (52-edificios.js): tools/perf.py

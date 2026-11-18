@@ -21,6 +21,9 @@ var cam := Camera3D.new()
 var cuerpo := Node3D.new()
 var pose := -1.0
 var peaton: Node3D = preload("res://peaton.gd").new()  # el cuerpo que se ve (peaton.gd)
+var mapa: Node3D  # mapa.gd: mientras la colisión bajo el personaje no está, no cae
+var quieto := false  # viaje.gd: con la lista de lugares abierta, las teclas no lo mueven
+var llegar := Vector3.INF  # ir(): el punto de grilla (x, y, altura del lugar) donde aparece cuando su tesela esté lista
 
 
 func _ready() -> void:
@@ -69,13 +72,29 @@ func _unhandled_input(e: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
+# aparece en el punto (x, y) de grilla, cuya altura del suelo es h (el «h» de los lugares de mapa/indice.json),
+# cuando mapa.gd tenga ahí su colisión
+func ir(x: float, y: float, h: float) -> void:
+	llegar = Vector3(x, y, h)
+	velocity = Vector3.ZERO
+	global_position = Vector3(x, h + 1.0, -y)
+
+
 func _physics_process(dt: float) -> void:
+	if llegar != Vector3.INF:
+		if mapa and not mapa.solido(llegar.x, llegar.y):
+			return
+		global_position = suelo_en(llegar) + Vector3.UP * 0.1
+		inicio = global_position
+		llegar = Vector3.INF
+	elif mapa and not mapa.solido(global_position.x, -global_position.z):
+		return  # la tesela de adelante todavía no tiene colisión: espera
 	if not is_on_floor():
 		velocity.y -= g * dt
-	elif Input.is_action_pressed("saltar"):
+	elif Input.is_action_pressed("saltar") and not quieto:
 		velocity.y = SALTO
 
-	var v := Input.get_vector("izquierda", "derecha", "adelante", "atras")
+	var v := Vector2.ZERO if quieto else Input.get_vector("izquierda", "derecha", "adelante", "atras")
 	var dir := Vector3(v.x, 0, v.y).rotated(Vector3.UP, yaw)
 	var rapidez := CORRER if Input.is_action_pressed("correr") else CAMINAR
 	var k := 1.0 - exp(-12.0 * dt)  # arranca y frena en ~0,2 s
@@ -86,9 +105,24 @@ func _physics_process(dt: float) -> void:
 	var deseo := Vector3(velocity.x, 0, velocity.z) * dt  # antes de que el choque lo anule
 	move_and_slide()
 	subir_cordon(deseo)
-	if global_position.y < inicio.y - 60:  # se cayó de la maqueta
-		global_position = inicio
+	if is_on_floor():
+		inicio = global_position
+	elif global_position.y < inicio.y - 60:  # se cayó de la maqueta: vuelve al último suelo
+		global_position = inicio + Vector3.UP * 0.5
 		velocity = Vector3.ZERO
+
+
+# el suelo en el punto de un lugar: un rayo desde poco más arriba del suelo (h), para no quedar en un techo; si no da
+# con nada, desde arriba
+func suelo_en(p: Vector3) -> Vector3:
+	var esp := get_world_3d().direct_space_state
+	for desde in [p.z + 1.6, 1500.0]:
+		var q := PhysicsRayQueryParameters3D.create(Vector3(p.x, desde, -p.y), Vector3(p.x, p.z - 30.0, -p.y))
+		q.exclude = [get_rid()]
+		var r := esp.intersect_ray(q)
+		if r:
+			return r.position
+	return Vector3(p.x, p.z, -p.y)
 
 
 # Las soleras y los peldaños bajos (hasta PELDANO): CharacterBody3D no sube escalones solo. Si choca un muro al

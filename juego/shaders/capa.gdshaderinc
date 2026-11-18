@@ -13,6 +13,8 @@ uniform vec2 ventana_cada = vec2(3.4, 3.0);   // m (ancho, alto de cada vano con
 uniform float ventana_desde = 1.0;            // m sobre el origen (la plaza)
 uniform float viento = 1.0;                   // cuánto se mecen las copas
 uniform float detalle = 1.0;                  // multiplica el relieve procedural
+uniform float alzar = 0.0;                    // m que se sube la capa: el agua (materiales.gd capa()), que en la
+                                              // página gana con polygonOffset donde coincide con el ripio de la orilla
 
 const int C_ESTUCO = 0;
 const int C_ASFALTO = 1;
@@ -69,6 +71,7 @@ int clasificar(vec3 lin, vec3 n, vec3 p) {
 }
 
 void vertex() {
+	VERTEX += (inverse(MODEL_MATRIX) * vec4(0.0, alzar, 0.0, 0.0)).xyz;
 	wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wn = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	verde = 0.0;

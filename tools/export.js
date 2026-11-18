@@ -126,6 +126,28 @@
     return res;
   };
 
+  // __exInst([x0,y0,x1,y1], cats): los objetos instanciados de esas capas (los árboles: arboles, alamos) cuyo pie cae en
+  // la caja, como datos en vez de triángulos, para que el juego ponga los suyos (juego/arboleda.gd). Por capa, nueve
+  // números por instancia: x, y de grilla, la altura del pie (Y del juego), la escala horizontal y la vertical, el giro
+  // en torno a Y (radianes, el de three.js y Godot) y el tinte de la instancia (r, g, b, en el espacio de la página).
+  window.__exInst = (box, cats) => {
+    const [x0, y0, x1, y1] = box, want = new Set(cats), out = {}, m = new T.Matrix4(), mi = new T.Matrix4(), sph = new T.Sphere();
+    const r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
+    for (const { o: obj, geo, cat } of meshes(new Set())) {
+      if (!want.has(cat) || !obj.isInstancedMesh || !obj.instanceMatrix.array) continue;
+      if (geo.boundingSphere) { sph.copy(geo.boundingSphere).applyMatrix4(obj.matrixWorld); const c = sph.center, r = sph.radius;
+        if (c.x + r < x0 || c.x - r > x1 || -c.z + r < y0 || -c.z - r > y1) continue; }
+      const A = out[cat] || (out[cat] = []), IC = obj.instanceColor && obj.instanceColor.array;
+      for (let i = 0; i < obj.count; i++) {
+        mi.fromArray(obj.instanceMatrix.array, i * 16); m.multiplyMatrices(obj.matrixWorld, mi);
+        const e = m.elements; if (e[12] < x0 || e[12] >= x1 || -e[14] < y0 || -e[14] >= y1) continue;
+        A.push(r2(e[12]), r2(-e[14]), r2(e[13]), r3(Math.hypot(e[0], e[1], e[2])), r3(Math.hypot(e[4], e[5], e[6])), r3(Math.atan2(-e[2], e[0])),
+          ...(IC ? [r3(IC[i * 3]), r3(IC[i * 3 + 1]), r3(IC[i * 3 + 2])] : [1, 1, 1]));
+      }
+    }
+    return out;
+  };
+
   // el trozo [o, o + n) en bytes del arreglo a de la capa k, en base64
   window.__exChunk = (k, a, o, n) => { const v = window.__exBuf[k][a]; return b64(new Uint8Array(v.buffer, v.byteOffset + o, Math.min(n, v.byteLength - o))); };
   window.__exLen = (k, a) => window.__exBuf[k][a].byteLength;

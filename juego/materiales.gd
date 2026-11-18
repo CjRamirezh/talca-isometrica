@@ -3,8 +3,8 @@
 #
 #   const Mat := preload("res://materiales.gd")
 #   Mat.capa("edificios", "edificio")   # una capa del glb (shaders/capa.gdshader), con su color por vértice; el tipo
-#                                       # sale de plaza.json (glb.gd): suelo, edificio, hito, arbol, auto
-#   Mat.follaje(c), Mat.tierra(c)       # capa.gdshader con un color fijo: copas y suelo lejanos (ambiente.gd lejos())
+#                                       # sale de mapa/indice.json (glb.gd): suelo, edificio, hito, arbol, auto
+#   Mat.follaje(c), Mat.tierra(c)       # capa.gdshader con un color fijo
 #   Mat.patron("ladrillo")              # los dibujos de los modelos del entorno (shaders/patron.gdshader; PATRON),
 #                                       # uno por nombre, compartido: malla.gd construir() y malla()
 #   Mat.plaza("piedra", {"rugoso": 0.8})  # un sombreador de shaders/plaza/ con sus parámetros (plaza.gd, plaza/*.gd)
@@ -18,7 +18,7 @@ const SHADER := preload("res://shaders/capa.gdshader")
 const SHADER_FOLLAJE := preload("res://shaders/follaje.gdshader")  # tipo 3: las copas no reciben sombras
 const SHADER_PATRON := preload("res://shaders/patron.gdshader")
 
-# el número de cada tipo de capa (el «tipo» de plaza.json, LAYERS de tools/export.js) en capa.gdshader
+# el número de cada tipo de capa (el «tipo» de mapa/indice.json, LAYERS de tools/export.js) en capa.gdshader
 const TIPOS := {"suelo": 0, "edificio": 1, "hito": 2, "arbol": 3, "auto": 4}
 
 # las clases de capa.gdshader (su uniform `clase`; -1: la reconoce por el color)
@@ -47,6 +47,7 @@ const PATRON := {"liso": 0, "ladrillo": 1, "hormigon": 2, "baldosa": 3, "teja": 
 	"metal": 7, "vidrio": 8, "pintura": 9, "tela": 10, "emisivo": 11, "asfalto": 12}
 const RUGOSIDAD := {"metal": 0.38, "pintura": 0.55, "granito": 0.7, "emisivo": 0.5, "pizarra": 0.6}
 
+const ALZAR_AGUA := 0.06  # m: el agua sobre el ripio de las orillas, que está a su misma altura (CLAUDE.md, «Los ríos están sobre las manzanas, a 0,11»)
 static var _capas := {}
 static var _patrones := {}
 static var _plaza := {}
@@ -56,6 +57,8 @@ static var _plaza := {}
 static func capa(nombre: String, tipo: String) -> ShaderMaterial:
 	if not _capas.has(nombre):
 		_capas[nombre] = _vertices(TIPOS[tipo])
+		if nombre == "agua":  # la página la dibuja con polygonOffset: gana donde coincide con la orilla (ALZAR_AGUA)
+			_capas[nombre].set_shader_parameter("alzar", ALZAR_AGUA)
 	return _capas[nombre]
 
 

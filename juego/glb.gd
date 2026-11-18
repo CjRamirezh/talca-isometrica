@@ -1,16 +1,18 @@
-# Lo que tools/export.py escribe al lado de juego/plaza.glb (juego/plaza.json), leído una vez: las capas que puede
-# tener el glb con su tipo y si son sólidas (LAYERS de tools/export.js), los lugares y las luces de noche de los
-# hitos (GLOW de la página). El juego no tiene listas propias de capas: las toma de aquí.
+# El índice de las teselas que tools/export.py escribe en juego/mapa/ (indice.json; make juego), leído una vez: las
+# capas que puede tener un glb con su tipo y si son sólidas (LAYERS de tools/export.js), los lugares, las luces de
+# noche de los hitos (GLOW de la página), el límite de la comuna y las teselas (mapa.gd). El juego no tiene listas
+# propias de capas: las toma de aquí. (Hasta noviembre de 2026, plaza.json, al lado de un solo plaza.glb de 400 m.)
 #
 #   const Glb := preload("res://glb.gd")
 #   Glb.tipo("edificios")      # "edificio" (suelo, edificio, hito, arbol, auto; "" sin material propio)
 #   Glb.solida("arboles")      # false: sin colisión
 #   Glb.es_capa("hitos")       # para revisar los nombres de los recortes de modelos/
 #   Glb.lugar("plaza-de-armas")   # {id, nombre, x, y, h, ...} o {}
-#   Glb.luces()                # [Vector3] en Godot: cada lámpara de un hito dentro de la caja
+#   Glb.luces()                # [Vector3] en Godot: cada lámpara de un hito de la comuna
+#   Glb.info()                 # todo el índice (mapa.gd: «teselas», «tesela_m», «lejos», «limite»)
 extends RefCounted
 
-const RUTA := "res://plaza.json"
+const RUTA := "res://mapa/indice.json"
 
 static var _info := {}
 
@@ -20,8 +22,8 @@ static func info() -> Dictionary:
 		var f := FileAccess.open(RUTA, FileAccess.READ)
 		var j: Variant = JSON.parse_string(f.get_as_text()) if f else null
 		if not (j is Dictionary) or not j.has("capas"):
-			push_error("glb.gd: %s no está o es de antes de las capas (noviembre de 2026): corra `make juego`" % RUTA)
-			j = {"capas": {}, "lugares": [], "luces": []}
+			push_error("glb.gd: falta %s: corra `make juego` en la raíz del repositorio" % RUTA)
+			j = {"capas": {}, "lugares": [], "luces": [], "teselas": []}
 		_info = j
 	return _info
 

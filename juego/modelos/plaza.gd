@@ -14,7 +14,7 @@
 #   2024-10  «Plaza de Armas de Talca en 2024 01–04» (TomasVial, CC0): paseos, prados, especies, faroles, Spano
 # y la imagen de Esri (z19, 2015: `pipeline/satellite.py punto 0 0 130 19`), para la hilera de árboles del borde.
 # Lo que es aproximado está dicho en cada pieza. Coordenadas: metros de grilla (x al oriente, y al norte; en Godot
-# X = x, Z = -y), origen en la plaza; las alturas, sobre el suelo del glb en la plaza (plaza.json, «h» del lugar).
+# X = x, Z = -y), origen en la plaza; las alturas, sobre el suelo del mapa en la plaza (mapa/indice.json, «h» del lugar).
 extends Node3D
 
 const Args := preload("res://args.gd")
@@ -54,7 +54,7 @@ const LARRAIN := Vector2(-35.2, 27.5)
 # las palmeras canarias que flanquean las entradas diagonales (fotos de 2024 «01» y «04»: dos por entrada)
 const PALMAS_ENTRADA := [[26.5, 32.5], [32.5, 25], [-26.5, 32.5], [-31, 23], [26.5, -32.5], [32.5, -25], [-26.5, -32.5], [-32.5, -25]]
 
-var Y0 := -0.19   # el suelo del glb en la plaza (plaza.json); se lee en _init
+var Y0 := -0.19   # el suelo del mapa en la plaza (mapa/indice.json); se lee en _init
 var PAV := 0.11   # la cara de las baldosas
 var pz: PackedVector2Array
 var prados: Array[PackedVector2Array] = []
