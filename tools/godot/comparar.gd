@@ -6,6 +6,8 @@
 #
 #   /Applications/Godot.app/Contents/MacOS/Godot --headless -s tools/godot/comparar.gd -- <dir A> <dir B> [cada N]
 #
+# Con --headless el binario directo no abre ventana (no hace falta tools/godot_oculto.sh).
+#
 # Con cada N compara una de cada N teselas (por omisión todas, ~1 min). Imprime por capa los vértices, los índices
 # distintos, la mayor diferencia de posición (m), de color (en bytes, 0 a 255) y el mayor ángulo entre normales
 # (grados), y sale con 1 si una tesela o una capa falta en B, o si cambian los vértices o los índices.
