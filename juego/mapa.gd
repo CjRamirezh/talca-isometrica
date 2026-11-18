@@ -6,7 +6,10 @@
 # (GLTFDocument), en hilos (WorkerThreadPool), mientras se juega.
 #
 # Alrededor de la cámara (la que esté en uso: el personaje, cine.gd, vp.gd) se cargan las teselas a menos de CARGA y
-# se sueltan las que pasan de SOLTAR; donde no hay una cargada se ve la de lejos.glb. Cada tesela, al leerla y antes de
+# se sueltan las que pasan de SOLTAR; donde no hay una cargada se ve la de lejos.glb. Entre CARGA y MEDIO (el fin de
+# la cámara, 3 km), sobre lejos.glb, los edificios de la tesela solos (m_<i>_<j>.glb: edificios, hitos y ciudad, los
+# mismos de la tesela completa: en el borde de CARGA aparece el suelo, no cambian los edificios), sin colisión ni
+# sombra; una tesela completa que se suelta espera a que esté su media. Cada tesela, al leerla y antes de
 # agregarla, pasa por los recortes de los modelos (recorte.gd) y toma el material de cada capa (materiales.gd); su
 # colisión (una malla exacta por capa sólida, glb.gd) se arma solo a menos de COLISION, y se suelta lejos. Las capas
 # chicas se dejan de dibujar antes que las teselas (VISTA). En el borde de la comuna, un muro invisible.
@@ -23,9 +26,12 @@ const Glb := preload("res://glb.gd")
 const Mat := preload("res://materiales.gd")
 const Recorte := preload("res://recorte.gd")
 const Arboleda := preload("res://arboleda.gd")
+const Cuantizado := preload("res://cuantizado.gd")
 const DIR := "res://mapa/"
 const CARGA := 1800.0  # m de la cámara al borde de la tesela
 const SOLTAR := 2300.0
+const MEDIO := 3000.0  # m: los edificios solos, donde no hay tesela completa (el fin de la cámara, cam.far)
+const SOLTAR_MEDIO := 3400.0
 const COLISION := 250.0
 const SIN_COLISION := 500.0
 const ARRANQUE := 250.0
@@ -39,17 +45,19 @@ var teselas := {}  # "i_j" -> la entrada de indice.json
 var cargadas := {}  # "i_j" -> Node3D (la raíz del glb)
 var colision := {}  # "i_j" -> true: tiene su colisión
 var lejos := {}  # "i_j" -> MeshInstance3D de lejos.glb
-var tareas := {}  # id de WorkerThreadPool -> ["leer" | "colision", clave]
+var medios := {}  # "i_j" -> Node3D (la raíz de m_<i>_<j>.glb), solo donde no está la tesela completa
+var tareas := {}  # id de WorkerThreadPool -> ["leer" | "colision" | "medio", clave]
 var hechas := []  # lo que terminaron los hilos: [tipo, clave, resultado]
 var cerrojo := Mutex.new()
 var arboleda: Node3D
 var foco := Vector2(INF, INF)
 var t_revisar := 0.0
-var stats := {"leidas": 0, "ms": 0}
+var stats := {"leidas": 0, "ms": 0, "medios": 0, "ms_medios": 0}
 
 
 func _init() -> void:
 	name = "mapa"
+	Cuantizado.registrar()  # las teselas de make juego (tools/export.py --liviano)
 	info = Glb.info()
 	tam = float(info.get("tesela_m", 500.0))
 	for t in info.get("teselas", []):
@@ -193,6 +201,7 @@ func poner(clave: String, r: Dictionary) -> void:
 			mi.visibility_range_end = VISTA[capa]
 	add_child(raiz)
 	cargadas[clave] = raiz
+	quitar_medio(clave)
 	if lejos.has(clave):
 		lejos[clave].visible = false
 	if not r["arboles"].is_empty():
@@ -238,6 +247,55 @@ func soltar(clave: String) -> void:
 		lejos[clave].visible = true
 
 
+# ---------- lo de en medio: los edificios solos ----------
+
+func tiene_medio(clave: String) -> bool:
+	return teselas[clave].has("medio")
+
+
+# en un hilo: m_<i>_<j>.glb con los recortes aplicados (los modelos reemplazan edificios que también están aquí)
+func leer_medio(clave: String) -> Dictionary:
+	var t0 := Time.get_ticks_msec()
+	var raiz := leer_glb(DIR + String(teselas[clave]["medio"]["archivo"]))
+	if raiz:
+		raiz.name = "m_" + clave
+		if Recorte.toca(recs, caja(clave)):
+			for mi in raiz.find_children("*", "MeshInstance3D", true, false):
+				Recorte.recortar(mi, recs)
+	return {"raiz": raiz, "ms": Time.get_ticks_msec() - t0}
+
+
+func poner_medio(clave: String, r: Dictionary) -> void:
+	var raiz: Node3D = r["raiz"]
+	if raiz == null:
+		return
+	# con la tesela completa: si ya pasó de SOLTAR, la media la reemplaza (revisar() la pidió para eso); si no, la
+	# completa llegó o volvió a hacer falta mientras se leía
+	var reemplaza := cargadas.has(clave) and distancia(clave, foco) > SOLTAR
+	if medios.has(clave) or (cargadas.has(clave) and not reemplaza):
+		raiz.free()
+		return
+	for mi in raiz.find_children("*", "MeshInstance3D", true, false):
+		var capa := String(mi.name)
+		if Glb.tipo(capa) != "":
+			mi.material_override = Mat.capa(capa, Glb.tipo(capa))
+		else:
+			colores(mi.mesh)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(raiz)
+	medios[clave] = raiz
+	if reemplaza:
+		soltar(clave)
+	stats["medios"] += 1
+	stats["ms_medios"] += int(r.get("ms", 0))
+
+
+func quitar_medio(clave: String) -> void:
+	if medios.has(clave):
+		medios[clave].queue_free()
+		medios.erase(clave)
+
+
 # sin hilos, al comenzar: lo que necesitan los modelos (suelo.gd lee el «terreno» de las teselas cargadas) y el lugar
 # donde aparece el personaje, con colisión. Con r = CARGA, todo lo que la cámara pedirá ahí (--cine: Movie Maker graba
 # cada cuadro, también los de una carga en hilos, así que la película carga antes del primero)
@@ -276,9 +334,15 @@ func revisar(p: Vector2) -> void:
 	for k in cargadas.keys():
 		var d := distancia(k, p)
 		if d > SOLTAR and not ocupada(k):
-			soltar(k)
+			if d > MEDIO or not tiene_medio(k) or medios.has(k):
+				soltar(k)
+			elif tareas.size() < HILOS:  # primero su media, para que los edificios no desaparezcan un momento
+				lanzar("medio", k, false)
 		elif d > SIN_COLISION and colision.has(k):
 			quitar_colision(k)
+	for k in medios.keys():
+		if distancia(k, p) > SOLTAR_MEDIO:
+			quitar_medio(k)
 	for k in cerca_de(p, CARGA):
 		if tareas.size() >= HILOS:
 			break
@@ -289,6 +353,11 @@ func revisar(p: Vector2) -> void:
 			lanzar("leer", k, con)
 		elif con and not colision.has(k):
 			lanzar("colision", k, true)
+	for k in cerca_de(p, MEDIO):  # después de las completas: los edificios de en medio
+		if tareas.size() >= HILOS:
+			break
+		if not cargadas.has(k) and not medios.has(k) and tiene_medio(k) and not ocupada(k):
+			lanzar("medio", k, false)
 
 
 func ocupada(clave: String) -> bool:
@@ -303,6 +372,12 @@ func lanzar(tipo: String, clave: String, con: bool) -> void:
 	if tipo == "leer":
 		f = func():
 			var r := leer(clave, con)
+			cerrojo.lock()
+			hechas.append([tipo, clave, r])
+			cerrojo.unlock()
+	elif tipo == "medio":
+		f = func():
+			var r := leer_medio(clave)
 			cerrojo.lock()
 			hechas.append([tipo, clave, r])
 			cerrojo.unlock()
@@ -332,11 +407,14 @@ func recoger() -> void:
 			if cargadas.has(h[1]):
 				continue
 			poner(h[1], h[2])
+		elif h[0] == "medio":
+			poner_medio(h[1], h[2])
 		elif cargadas.has(h[1]) and not colision.has(h[1]):
 			poner_colision(h[1], h[2])
 
 
-# si ya está todo lo que pide la cámara: las teselas a menos de CARGA y la colisión a menos de COLISION
+# si ya está todo lo que pide la cámara: las teselas a menos de CARGA, la colisión a menos de COLISION y los
+# edificios de en medio hasta MEDIO
 func listo() -> bool:
 	if not tareas.is_empty():
 		return false
@@ -347,6 +425,9 @@ func listo() -> bool:
 	for k in cerca_de(p, CARGA):
 		if not cargadas.has(k) or (distancia(k, p) <= COLISION and not colision.has(k)):
 			return false
+	for k in cerca_de(p, MEDIO):
+		if tiene_medio(k) and not cargadas.has(k) and not medios.has(k):
+			return false
 	return true
 
 
@@ -356,7 +437,15 @@ func esperar() -> void:
 	while not listo():
 		t_revisar = 0.0
 		await get_tree().process_frame
-	print("mapa.gd: %d teselas cargadas en %d ms (%d MB)" % [cargadas.size(), Time.get_ticks_msec() - t0, roundi(_mb(cargadas.keys()))])
+	print("mapa.gd: %d teselas cargadas en %d ms (%d MB), %d medias (%.1f MB)" % [cargadas.size(), Time.get_ticks_msec() - t0,
+		roundi(_mb(cargadas.keys())), medios.size(), _mb_medios()])
+
+
+func _mb_medios() -> float:
+	var s := 0.0
+	for k in medios:
+		s += float(teselas[k]["medio"].get("MB", 0.0))
+	return s
 
 
 # si la colisión bajo el punto (x, y) de grilla ya está (jugador.gd no cae mientras no)

@@ -148,6 +148,24 @@
     return out;
   };
 
+  // __exLiviano(): los arreglos de window.__exBuf (de __exGeom) en el formato liviano de las teselas del
+  // juego (tools/export.py --liviano): normales en BYTE normalizado (KHR_mesh_quantization) y colores en UNSIGNED_BYTE
+  // normalizado, los dos de a cuatro bytes por vértice (glTF pide cada elemento alineado a 4), e índices de 16 bits si
+  // la capa tiene menos de 65.535 vértices. El color se trunca (floor(x · 255)) como lo guarda Godot al recibir un
+  // color en float (RGBA8 en la malla): en el juego queda el mismo byte. De 36 a 20 bytes por vértice.
+  window.__exLiviano = () => {
+    for (const b of Object.values(window.__exBuf)) {
+      const nv = b.P.length / 3, N = new Int8Array(nv * 4), C = new Uint8Array(nv * 4);
+      for (let i = 0; i < nv; i++) for (let q = 0; q < 3; q++) {
+        N[i * 4 + q] = Math.max(-127, Math.min(127, Math.round(b.N[i * 3 + q] * 127)));
+        C[i * 4 + q] = Math.max(0, Math.min(255, Math.floor(b.C[i * 3 + q] * 255)));
+      }
+      b.N = N; b.C = C; b.liviano = true;
+      if (nv < 65535) b.I = Uint16Array.from(b.I);
+    }
+    return Object.fromEntries(Object.entries(window.__exBuf).map(([k, b]) => [k, b.I instanceof Uint16Array]));
+  };
+
   // el trozo [o, o + n) en bytes del arreglo a de la capa k, en base64
   window.__exChunk = (k, a, o, n) => { const v = window.__exBuf[k][a]; return b64(new Uint8Array(v.buffer, v.byteOffset + o, Math.min(n, v.byteLength - o))); };
   window.__exLen = (k, a) => window.__exBuf[k][a].byteLength;

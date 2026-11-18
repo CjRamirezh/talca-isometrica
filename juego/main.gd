@@ -100,7 +100,13 @@ func _ready() -> void:
 	ayuda()
 
 	if Args.has("--desde"):
+		# primero el personaje allá (jugador.gd no lo deja caer mientras no haya colisión): mapa.gd arma la colisión
+		# alrededor de la cámara y suelta la de más de 500 m, así que un rayo en este cuadro no daba con nada lejos de
+		# la plaza (el Cerro quedaba bajo el suelo)
 		var d := Args.vec2("--desde", INICIO)
+		jugador.global_position = Vector3(d.x, jugador.global_position.y, -d.y)
+		while not mapa.solido(d.x, d.y):
+			await get_tree().physics_frame
 		jugador.inicio = suelo(d.x, -d.y) + Vector3.UP * 0.1
 		jugador.global_position = jugador.inicio
 	if Args.has("--girar"):

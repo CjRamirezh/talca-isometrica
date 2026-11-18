@@ -58,9 +58,9 @@ smoke: build lint             ## carga la página en Chromium y falla si hay err
 hooks:                        ## instala .githooks/ (pre-commit = make check; pre-push = make deploy al empujar main a origin, sin bloquear)
 	git config core.hooksPath .githooks
 
-juego: build                  ## juego/mapa/: la comuna en teselas de 500 m, sus árboles como datos y lo de lejos (tools/export.py --teselas; ~3 min, ~800 MB) y la importación en Godot; luego: Godot --path juego
+juego: build                  ## juego/mapa/: la comuna en teselas de 500 m, sus árboles como datos, sus edificios solos (de 1,8 a 3 km) y lo de lejos (tools/export.py --teselas; ~3 min, ~540 MB) y la importación en Godot; luego: Godot --path juego
 	rm -f juego/plaza.glb juego/plaza.glb.import juego/plaza.json   # el glb de 400 m de antes de noviembre de 2026
-	$(PW) tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos --lejos
+	$(PW) tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos --lejos --medio --liviano
 	touch juego/mapa/.gdignore    # Godot no importa los glb: mapa.gd los lee al jugar
 	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json juego/datos/   # lo que el juego comparte con la página
 	$(GODOT) --headless --path juego --import
