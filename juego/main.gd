@@ -8,8 +8,8 @@
 #
 # WASD o flechas: caminar; Mayús: correr; Espacio: saltar; mouse: mirar; rueda: acercar la cámara (hasta la primera
 # persona); Esc: soltar el mouse (un clic lo vuelve a tomar); Tab: ir a un lugar (viaje.gd); M: el mapa grande, donde un
-# clic pone un marcador y ruta.gd traza el camino hasta él (plano.gd, que dibuja también el mapa en miniatura; N: con el
-# norte arriba). E: subir a la bicicleta o
+# clic pone un marcador y ruta.gd traza el camino hasta él, y un doble clic (o Enter, al marcador) lleva al personaje
+# ahí (plano.gd, que dibuja también el mapa en miniatura; N: con el norte arriba). E: subir a la bicicleta o
 # al auto, o bajar (si está lejos, lo trae); V: cambiar entre los dos; montado, W/S acelera y frena (detenido,
 # retrocede), A/D gira, Espacio frena de golpe y, en la bicicleta, Q pedalea de pie (vehiculo.gd). --png guarda un cuadro
 # (cuando el mapa terminó de cargar alrededor de la cámara) y sale; --desde x,y pone al
@@ -159,17 +159,24 @@ func _ready() -> void:
 		if Args.has("--escala-plano"):
 			plano.esc = Args.num("--escala-plano", 0.3, plano.ESC_MIN, plano.ESC_MAX)
 			plano.vista_grande()
-		if Args.has("--clic"):  # un clic izquierdo en ese punto de la pantalla, por la misma entrada que el mouse
-			var c := Args.vec2("--clic", Vector2.ZERO)
-			await get_tree().process_frame
-			for abajo in [true, false]:
-				var e := InputEventMouseButton.new()
-				e.button_index = MOUSE_BUTTON_LEFT
-				e.pressed = abajo
-				e.position = c
-				e.global_position = c
-				Input.parse_input_event(e)
+		for b in ["--clic", "--doble-clic"]:  # clics izquierdos en ese punto de la pantalla, por la entrada del mouse
+			if Args.has(b):
+				var c := Args.vec2(b, Vector2.ZERO)
 				await get_tree().process_frame
+				for k in (2 if b == "--doble-clic" else 1):
+					for abajo in [true, false]:
+						var e := InputEventMouseButton.new()
+						e.button_index = MOUSE_BUTTON_LEFT
+						e.pressed = abajo
+						e.double_click = abajo and k == 1
+						e.position = c
+						e.global_position = c
+						Input.parse_input_event(e)
+						await get_tree().process_frame
+		if Args.has("--doble-clic"):  # fue a otra parte: la captura espera a que cargue
+			await get_tree().create_timer(0.5).timeout
+			await mapa.esperar()
+			print("main.gd: jugador en x %.1f, y %.1f, altura %.2f" % [jugador.global_position.x, -jugador.global_position.z, jugador.global_position.y])
 	if Args.has("--camara"):  # largo del brazo de la cámara en m (0: primera persona)
 		jugador.largo = Args.num("--camara", jugador.largo, 0.0, 100.0)
 		jugador.brazo.spring_length = jugador.largo
@@ -251,7 +258,7 @@ func ayuda() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 	var l := Label.new()
-	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta o auto · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nM: mapa (un clic pone el marcador y el camino hasta él) · N: el mapa chico con el norte arriba"
+	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta o auto · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba"
 	l.position = Vector2(16, 12)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))

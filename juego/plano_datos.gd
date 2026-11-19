@@ -47,7 +47,7 @@ var via_seg := PackedVector2Array()
 var ruta5_seg := PackedVector2Array()
 var relleno := ArrayMesh.new()
 var caja := Rect2()  # la de la comuna
-var lugares := []  # [{nombre, x, y, cat}], de mapa/indice.json
+var lugares := []  # [{nombre, x, y, h, cat}], de mapa/indice.json
 
 # la red (pipeline/plano.py): nodos, aristas y A*
 var nodos := PackedVector2Array()
@@ -122,7 +122,7 @@ func leer() -> bool:
 	red(j.get("red", {}))
 	ms["red"] = (Time.get_ticks_usec() - t0) / 1000.0
 	for l in preload("res://glb.gd").info().get("lugares", []):
-		lugares.append({"nombre": String(l.get("nombre", l.get("id", "?"))), "x": float(l["x"]), "y": float(l["y"]), "cat": String(l.get("cat", ""))})
+		lugares.append({"nombre": String(l.get("nombre", l.get("id", "?"))), "x": float(l["x"]), "y": float(l["y"]), "h": float(l.get("h", 0.0)), "cat": String(l.get("cat", ""))})
 	print("plano_datos.gd: %d calles, %d nodos, %d tramos (ms: %s)" % [calles.size(), nodos.size(), tramos.size() / 3, ms])
 	return true
 

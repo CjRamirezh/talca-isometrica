@@ -6,8 +6,9 @@
 #   marcador (en el borde si está fuera, con la distancia que falta por el camino). Se aleja con la rapidez.
 # - el mapa grande (M): a pantalla completa, con el mouse suelto. Arrastrar lo mueve, la rueda (o el trackpad) lo
 #   acerca, abre centrado en el personaje, con los nombres de las calles y de los lugares de cerca. Un clic pone el
-#   marcador (sobre un lugar, en el lugar, con su nombre); un clic sobre el marcador o el botón derecho lo quita. M o Esc
-#   lo cierran y devuelven el mouse a la cámara, como viaje.gd (Tab).
+#   marcador (sobre un lugar, en el lugar, con su nombre); un clic sobre el marcador o el botón derecho lo quita. Un
+#   doble clic lleva ahí al personaje (o al vehículo en que va), y Enter, al marcador: ir_a(). M o Esc lo cierran y
+#   devuelven el mouse a la cámara, como viaje.gd (Tab).
 #
 # El camino y lo que se ve en el mundo (la cinta y la columna de luz) son de ruta.gd. Lo que no cambia de un cuadro a
 # otro se dibuja una vez: las calles y los rellenos van en un Node2D en metros de grilla (Mundo) que se vuelve a dibujar
@@ -28,6 +29,7 @@ const ESC_MAX := 4.0
 const C_FONDO_MINI := Color(0.07, 0.08, 0.10, 0.92)
 const C_BORDE := Color(1, 1, 1, 0.85)
 const C_JUGADOR := Color(1, 1, 1)
+const PEGAR := 40.0  # m: ir a un punto a menos de esto de una calle lleva a la calle (no adentro de un edificio)
 
 var jugador: CharacterBody3D
 var vehiculo: CharacterBody3D
@@ -55,6 +57,8 @@ var centro := Vector2.ZERO
 var esc := 0.3
 var arrastre := false
 var movio := 0.0
+var soltar_doble := false  # la suelta del segundo clic de un doble clic no es un clic
+var deshacer := []  # el marcador antes del último clic: [marcador, nombre, s]; el doble clic lo deja como estaba
 var etiquetas := []  # [texto, posición en la pantalla, ángulo, tamaño de letra, color]
 
 
@@ -177,7 +181,7 @@ func _ready() -> void:
 	grande_encima.set_anchors_preset(Control.PRESET_FULL_RECT)
 	grande_encima.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	grande.add_child(grande_encima)
-	ayuda.text = "Clic: poner el marcador · clic en el marcador o botón derecho: quitarlo · arrastrar: mover · rueda: acercar · M o Esc: cerrar"
+	ayuda.text = "Clic: poner el marcador · clic en el marcador o botón derecho: quitarlo · doble clic: ir ahí · Enter: ir al marcador · arrastrar: mover · rueda: acercar · M o Esc: cerrar"
 	estilo(ayuda, 18)
 	ayuda.position = Vector2(16, 12)
 	grande.add_child(ayuda)
@@ -558,9 +562,15 @@ func entrada_grande(e: InputEvent) -> void:
 		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN and e.pressed:
 			zoom(1.0 / 1.2, e.position)
 		elif e.button_index == MOUSE_BUTTON_LEFT:
-			if e.pressed:
+			if e.pressed and e.double_click:
+				arrastre = false
+				soltar_doble = true
+				doble_clic(e.position)
+			elif e.pressed:
 				arrastre = true
 				movio = 0.0
+			elif soltar_doble:
+				soltar_doble = false
 			else:
 				arrastre = false
 				if movio < 5.0:
@@ -589,6 +599,7 @@ func zoom(k: float, en: Vector2) -> void:
 func clic(en: Vector2) -> void:
 	if ruta == null:
 		return
+	deshacer = [ruta.marcador, ruta.nombre, Time.get_ticks_msec() / 1000.0]
 	var t := t_grande()
 	if ruta.activo() and (t * ruta.marcador + Vector2(0, -14)).distance_to(en) < 16.0:
 		ruta.quitar()
@@ -598,6 +609,45 @@ func clic(en: Vector2) -> void:
 			ruta.marcar(Vector2(l["x"], l["y"]), l["nombre"])
 			return
 	ruta.marcar(t.affine_inverse() * en)
+
+
+# Doble clic: ir ahí (sobre un lugar, al lugar). El primer clic ya puso o quitó el marcador: vuelve a como estaba.
+func doble_clic(en: Vector2) -> void:
+	if ruta and deshacer.size() == 3 and Time.get_ticks_msec() / 1000.0 - deshacer[2] < 1.0:
+		if deshacer[0] == Vector2.INF:
+			ruta.quitar()
+		elif deshacer[0] != ruta.marcador:
+			ruta.marcar(deshacer[0], deshacer[1])
+	deshacer = []
+	var t := t_grande()
+	for l in datos.lugares:
+		if (t * Vector2(l["x"], l["y"])).distance_to(en) < 10.0:
+			ir_a(Vector2(l["x"], l["y"]), l["h"], false, l["nombre"])
+			return
+	ir_a(t.affine_inverse() * en)
+
+
+# Lleva al personaje (o al vehículo en que va) al punto p de grilla y cierra el mapa: jugador.ir(), como la lista de
+# lugares (Tab), que lo deja ahí cuando la tesela tenga su colisión. Un punto fuera de la comuna pasa adentro; con
+# `pegar`, uno a menos de PEGAR m de una calle va a la calle. La altura h (la del suelo, para que el rayo de jugador.gd
+# no quede en un techo) sale del relieve de lejos.glb si no se sabe.
+func ir_a(p: Vector2, h := NAN, pegar := true, nombre := "") -> void:
+	if jugador == null:
+		return
+	var q: Vector2 = ruta.adentro(p) if ruta else p
+	if pegar:
+		var c: Array = datos.cercano(q, -1, PEGAR)
+		if not c.is_empty():
+			q = c[1]
+	if is_nan(h):
+		h = ruta.altura_lejos(q) if ruta else NAN
+	if is_nan(h):
+		h = 0.0
+	abrir(false)
+	jugador.ir(q.x, q.y, h)
+	print("plano.gd: a (%.0f, %.0f)%s" % [q.x, q.y, " «%s»" % nombre if nombre != "" else ""])
+	if nombre != "":
+		avisar(nombre)
 
 
 func _input(e: InputEvent) -> void:
@@ -617,6 +667,9 @@ func _input(e: InputEvent) -> void:
 		return  # se está escribiendo en la lista de lugares
 	if e.physical_keycode == KEY_M:
 		abrir(not grande.visible)
+		get_viewport().set_input_as_handled()
+	elif grande.visible and e.keycode in [KEY_ENTER, KEY_KP_ENTER] and ruta and ruta.activo():
+		ir_a(ruta.marcador, NAN, ruta.nombre == "", ruta.nombre)
 		get_viewport().set_input_as_handled()
 	elif grande.visible and e.keycode == KEY_ESCAPE:
 		abrir(false)

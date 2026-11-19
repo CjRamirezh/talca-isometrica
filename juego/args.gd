@@ -28,6 +28,7 @@ const BANDERAS := {
 	"--plano": ["", "main.gd: abre el mapa grande (plano.gd), después de --marcar"],
 	"--escala-plano": ["px/m", "main.gd: con --plano, la escala del mapa grande (0,035 la comuna entera … 4)"],
 	"--clic": ["px,py", "main.gd: con --plano, un clic izquierdo en ese punto de la pantalla (pone o quita el marcador)"],
+	"--doble-clic": ["px,py", "main.gd: con --plano, un doble clic en ese punto de la pantalla (va ahí) e imprime dónde quedó"],
 	"--norte": ["", "plano.gd: el mapa en miniatura con el norte arriba (N lo cambia jugando)"],
 	"--vp": ["", "main.gd: producción virtual (vp.gd)"],
 	"--cine": ["", "main.gd: un plano de cine de 30 s, sin personaje (cine.gd; make cine)"],
