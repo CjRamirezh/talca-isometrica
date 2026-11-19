@@ -11,15 +11,19 @@
 # persona); Esc: soltar el mouse (un clic lo vuelve a tomar); Tab: ir a un lugar (viaje.gd); M: el mapa grande, donde un
 # clic pone un marcador y ruta.gd traza el camino hasta él, y un doble clic (o Enter, al marcador) lleva al personaje
 # ahí (plano.gd, que dibuja también el mapa en miniatura; N: con el norte arriba). E: subir a la bicicleta o
-# al auto, o bajar (si está lejos, lo trae); V: cambiar entre los dos; montado, W/S acelera y frena (detenido,
-# retrocede), A/D gira, Espacio frena de golpe y, en la bicicleta, Q pedalea de pie (vehiculo.gd). J: la red local,
+# al auto, o bajar (si está lejos, lo trae), o ponerse o sacarse el jetpack; V: cambiar entre los tres; montado, W/S
+# acelera y frena (detenido, retrocede), A/D gira, Espacio frena de golpe y, en la bicicleta, Q pedalea de pie; con el
+# jetpack, Espacio sube, C baja rápido, WASD lo mueve y Mayús más rápido (vehiculo.gd). J: la red local,
 # para jugar con otros en la misma red (red.gd: crear una partida o unirse; --servidor, --unirse ip, --nombre). --png guarda un cuadro
 # (cuando el mapa terminó de cargar alrededor de la cámara) y sale; --desde x,y pone al
 # personaje en ese punto de grilla, --girar G gira la vista G grados a
 # la izquierda, --mirar P la inclina P grados, --camara L pone la cámara a L m (0: primera persona) y --caminar N camina N segundos hacia adelante antes (para revisar la colisión sin teclado).
-# --vehiculo bici|auto sube al vehículo al comenzar y --conducir N acelera N segundos (--volante v: girando, -1 a la
-# izquierda … 1 a la derecha; --fuerte: con Q) e imprime dónde terminó, contra qué chocó, cuánto esperó la colisión
-# y los cuadros más lentos (--bajar: se baja al final); con --png, la captura es del final; sin --png, sale.
+# --vehiculo bici|auto|jetpack sube al vehículo al comenzar y --conducir N acelera N segundos (--volante v: girando,
+# -1 a la izquierda … 1 a la derecha; --fuerte: con Q) e imprime dónde terminó, contra qué chocó, cuánto esperó la
+# colisión y los cuadros más lentos (--bajar: se baja al final); con --png, la captura es del final; sin --png, sale.
+# Con el jetpack, --volar N despega, sube, avanza y aterriza en ~N s (--fuerte: con Mayús; --pausa s: congela el vuelo
+# s segundos después de despegar, para --png; --bajar: al final se lo saca, camina y se lo pone otra vez) e imprime la
+# altura máxima, lo recorrido, el combustible y la rapidez al aterrizar.
 # --saltos N camina 1 s hacia adelante y salta N veces seguidas e imprime la altura de cada salto (--pausa s: congela el
 # juego s segundos después del último, para que --png capture la voltereta); sin --png, sale.
 # --dano N le quita N de vida y --caer M lo deja caer desde M m sobre el suelo, e imprimen la vida, la caída y, si
@@ -40,7 +44,7 @@
 #   vida.gd          la barra de vida, la muerte en pantalla y los carritos de completos, donde se recupera
 #   plano.gd         el mapa en miniatura y el mapa grande (M), con plano_datos.gd (datos/plano.json, de pipeline/plano.py)
 #   ruta.gd          el marcador del mapa grande y el camino hasta él, con la cinta de flechas y la columna de luz
-#   vehiculo.gd      la bicicleta y el auto (E, V), con su cámara
+#   vehiculo.gd      la bicicleta, el auto y el jetpack (E, V), con su cámara
 #   red.gd           la red local (J, --servidor, --unirse ip): los otros jugadores, como peatones o en sus vehículos
 #   modelos/*.gd     modelos propios del juego, más detallados que los de la página. Cada uno es un Node3D que construye
 #                    lo suyo (geometría y colisión) en _ready() y puede declarar
@@ -168,10 +172,11 @@ func _ready() -> void:
 		jugador.pitch = deg_to_rad(Args.num("--mirar", 0.0, -89.0, 89.0))
 	if Args.has("--vehiculo"):
 		await mapa.esperar()
-		if Args.texto("--vehiculo") == "auto":
-			vehiculo.cambiar()
-		elif Args.texto("--vehiculo") != "bici":
-			push_warning("main.gd: --vehiculo espera bici o auto")
+		var tv := Args.texto("--vehiculo")
+		if vehiculo.TIPOS.has(tv):
+			vehiculo.armar(tv)
+		else:
+			push_warning("main.gd: --vehiculo espera bici, auto o jetpack")
 		vehiculo.usar()
 	if Args.has("--marcar"):  # el marcador en ese punto de grilla y el camino hasta él (ruta.gd)
 		await mapa.esperar()
@@ -227,6 +232,11 @@ func _ready() -> void:
 	if Args.has("--conducir"):
 		await vehiculo.prueba()
 		if not Args.has("--png"):  # sin captura (--headless), sale al terminar
+			get_tree().quit()
+			return
+	if Args.has("--volar"):  # el jetpack sin teclado (vehiculo.gd prueba_vuelo())
+		await vehiculo.prueba_vuelo()
+		if not Args.has("--png"):
 			get_tree().quit()
 			return
 	await png()
@@ -295,7 +305,7 @@ func ayuda() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 	var l := Label.new()
-	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos en movimiento: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta o auto · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba · J: red local (jugar con otros)\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente"
+	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos en movimiento: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta, auto o jetpack · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nJetpack: Espacio sube · C baja rápido · WASD lo mueve · Mayús: más rápido · se recarga en el suelo\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba · J: red local (jugar con otros)\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente"
 	l.position = Vector2(16, 12)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
