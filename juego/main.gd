@@ -8,7 +8,8 @@
 #
 # WASD o flechas: caminar; Mayús: correr; Espacio: saltar (otra vez apenas cae: más alto; la tercera, en movimiento,
 # una voltereta: el triple salto, jugador.gd); mouse: mirar; rueda: acercar la cámara (hasta la primera
-# persona); Esc: soltar el mouse (un clic lo vuelve a tomar); Tab: ir a un lugar (viaje.gd); M: el mapa grande, donde un
+# persona); Esc: el menú (menu.gd: pausa; seguir, ir a un lugar, el mapa, volver a la plaza, día o noche, la red, la
+# ayuda en pantalla, pantalla completa, salir); Tab: ir a un lugar (viaje.gd); M: el mapa grande, donde un
 # clic pone un marcador y ruta.gd traza el camino hasta él, y un doble clic (o Enter, al marcador) lleva al personaje
 # ahí (plano.gd, que dibuja también el mapa en miniatura; N: con el norte arriba). E: subir a la bicicleta o
 # al auto, o bajar (si está lejos, lo trae), o ponerse o sacarse el jetpack; V: cambiar entre los tres; montado, W/S
@@ -51,6 +52,7 @@
 #   plano.gd         el mapa en miniatura y el mapa grande (M), con plano_datos.gd (datos/plano.json, de pipeline/plano.py)
 #   ruta.gd          el marcador del mapa grande y el camino hasta él, con la cinta de flechas y la columna de luz
 #   vehiculo.gd      la bicicleta, el auto y el jetpack (E, V), con su cámara
+#   menu.gd          el menú de Esc (pausa)
 #   red.gd           la red local (J, --servidor, --unirse ip): los otros jugadores, como peatones o en sus vehículos
 #   armas.gd         el cuchillo, la pistola y el rifle (1, 2, 3), con sus modelos en modelos/entorno/armas.gd
 #   blancos.gd       los muñecos de práctica, cerca de donde parte el personaje
@@ -80,6 +82,9 @@ var plano: CanvasLayer  # plano.gd: el mapa en miniatura y el mapa grande (M)
 var red: Node3D  # red.gd: los otros jugadores de la red local (J)
 var vida: CanvasLayer  # vida.gd: la barra de vida y los carritos de completos
 var armas: Node3D  # armas.gd
+var ambiente: Node3D  # ambiente.gd: el cielo y la hora (el menú pasa del día a la noche)
+var ayuda_texto: Label  # la ayuda de arriba a la izquierda (ayuda(); el menú la muestra u oculta)
+var menu: CanvasLayer  # menu.gd: Esc
 var recs := []  # los recortes de los modelos (recortes()): [{"poligono", "capas"}]
 
 
@@ -109,7 +114,8 @@ func _ready() -> void:
 	var desde := Args.vec2("--desde", INICIO) if Args.has("--desde") else INICIO
 	# la plaza (los modelos leen su suelo) y donde aparece el personaje; para la película, todo lo que ve su cámara
 	mapa.arrancar([Vector2.ZERO, desde], Mapa.CARGA if Args.has("--cine") else Mapa.ARRANQUE)
-	add_child(preload("res://ambiente.gd").new())
+	ambiente = preload("res://ambiente.gd").new()
+	add_child(ambiente)
 	for m in mods:
 		add_child(m)
 	var fps := Fps.pedido()
@@ -170,6 +176,9 @@ func _ready() -> void:
 	jugador.global_position = jugador.inicio
 	jugador.plaza = Vector3(INICIO.x, INICIO.y, jugador.inicio.y - 0.1)  # donde reaparece al morir
 	ayuda()
+	menu = preload("res://menu.gd").new()  # el último: su _input ve Esc antes que los paneles (menu.gd)
+	menu.main = self
+	add_child(menu)
 
 	if Args.has("--desde"):
 		# primero el personaje allá (jugador.gd no lo deja caer mientras no haya colisión): mapa.gd arma la colisión
@@ -261,6 +270,15 @@ func _ready() -> void:
 		if not Args.has("--png"):
 			get_tree().quit()
 			return
+	if Args.has("--menu-prueba"):  # Esc, Tab y M sin teclado (menu.gd prueba())
+		await mapa.esperar()
+		await menu.prueba()
+		if not Args.has("--png"):
+			get_tree().quit()
+			return
+	if Args.has("--menu"):  # el menú de Esc abierto, para la captura
+		await mapa.esperar()
+		menu.abrir(true)
 	await png()
 
 
@@ -335,9 +353,10 @@ func ayuda() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 	var l := Label.new()
-	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta, auto o jetpack · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nJetpack: Espacio sube · C baja rápido · WASD lo mueve · Mayús: más rápido · se recarga en el suelo\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba · J: red local (jugar con otros)\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente\n1: cuchillo · 2: pistola · 3: rifle (otra vez o 0: guardar) · clic: disparar · botón derecho: apuntar · R: recargar"
+	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: menú\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta, auto o jetpack · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nJetpack: Espacio sube · C baja rápido · WASD lo mueve · Mayús: más rápido · se recarga en el suelo\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba · J: red local (jugar con otros)\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente\n1: cuchillo · 2: pistola · 3: rifle (otra vez o 0: guardar) · clic: disparar · botón derecho: apuntar · R: recargar"
 	l.position = Vector2(16, 12)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	l.add_theme_constant_override("outline_size", 4)
 	capa.add_child(l)
+	ayuda_texto = l

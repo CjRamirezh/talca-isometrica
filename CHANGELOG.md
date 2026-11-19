@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- **Un menú con Esc en el juego** (`juego/menu.gd`): pausa el juego y ofrece seguir jugando, ir a un lugar (lo mismo que Tab), el mapa (M), volver a la Plaza de Armas, pasar del día a la noche (L), la red local (J), mostrar u ocultar la ayuda de arriba a la izquierda, la pantalla completa y salir; las flechas y Enter recorren los botones. Antes Esc solo soltaba el mouse; abierto el menú, queda suelto igual.
+  - En una partida en red no pausa, porque los demás siguen jugando: el personaje queda quieto (también montado, y sin armas) y las teclas del juego no hacen nada.
+  - Con la lista de lugares, el mapa grande o el panel de la red abiertos, Esc los cierra a ellos y no abre el menú: Godot llama `_input` en el orden inverso del árbol, así que el menú, el último que agrega `main.gd`, ve Esc primero y la deja pasar.
+  - `ambiente.gd ir_a_hora()`: lo que hacen T y L, para que el menú también lo use.
+  - `--menu` lo abre al comenzar (para `--png`) y `--menu-prueba` aprieta Esc, Tab y M por la misma entrada que el teclado e imprime qué queda abierto.
+
 - **Vida en el juego, con los carritos de completos para recuperarla.** Una barra abajo al centro, con el número (`juego/vida.gd`): verde, amarilla bajo 50 y roja y latiendo bajo 25; destella al recibir daño, enrojece los bordes de la pantalla y deja lo perdido en claro antes de vaciarse.
   - Las caídas duelen según la rapidez al tocar el suelo (`juego/jugador.gd`, `aterrizar()`): nada bajo 12 m/s (~7,3 m; los saltos, también el tercero del triple salto, a ~10 m/s, caen más lento), y de ahí con la altura hasta 23 m/s (~27 m), que mata: 10 m quitan ~14, 20 m 64.
   - Después de 6 s sin daño se recupera sola, 4 por segundo; en los carritos de completos de 5 y 6 Oriente, a pie y detenido, mucho más rápido («Comiendo un completo… +N»: de 30 a 100 en 2,5 s).

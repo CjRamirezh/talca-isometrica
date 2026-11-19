@@ -122,8 +122,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			largo = max(0.0, largo - 1.0)
 		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			largo = min(20.0, largo + 1.0)
-	elif e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# Esc abre el menú (menu.gd), que suelta el mouse
 
 
 # aparece en el punto (x, y) de grilla, cuya altura del suelo es h (el «h» de los lugares de mapa/indice.json),

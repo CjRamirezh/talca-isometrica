@@ -24,6 +24,8 @@ const BANDERAS := {
 	"--volante": ["v", "vehiculo.gd: con --conducir, gira (-1 izquierda … 1 derecha)"],
 	"--fuerte": ["", "vehiculo.gd: con --conducir, con Q apretada (la bicicleta pedalea de pie); con --volar, con Mayús"],
 	"--saltos": ["n", "main.gd: camina 1 s y salta n veces seguidas (el triple salto) e imprime la altura de cada uno (jugador.gd prueba_saltos())"],
+	"--menu-prueba": ["", "main.gd: aprieta Esc, Tab y M sin teclado e imprime qué queda abierto (menu.gd prueba())"],
+	"--menu": ["", "main.gd: abre el menú de Esc al comenzar (menu.gd; para --png)"],
 	"--pausa": ["s", "jugador.gd, vida.gd y armas.gd: con --saltos, --dano, --caer o --disparar, congela el juego s segundos después del último salto, del daño, del golpe contra el suelo o del último disparo (para --png); vehiculo.gd: con --volar, s segundos después de despegar"],
 	"--dano": ["n", "main.gd: le quita n de vida e imprime cómo se recupera, o si muere dónde reaparece (vida.gd prueba())"],
 	"--caer": ["m", "main.gd: lo deja caer desde m metros sobre el suelo (negativo: bajo él, fuera de la maqueta) e imprime la rapidez, el daño y la vida (vida.gd prueba())"],
