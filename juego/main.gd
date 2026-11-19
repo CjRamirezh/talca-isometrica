@@ -8,7 +8,9 @@
 #
 # WASD o flechas: caminar; Mayús: correr; Espacio: saltar (otra vez apenas cae: más alto; la tercera, en movimiento,
 # una voltereta: el triple salto, jugador.gd); mouse: mirar; rueda: acercar la cámara (hasta la primera
-# persona); Esc: soltar el mouse (un clic lo vuelve a tomar); Tab: ir a un lugar (viaje.gd). E: subir a la bicicleta o
+# persona); Esc: soltar el mouse (un clic lo vuelve a tomar); Tab: ir a un lugar (viaje.gd); M: el mapa grande, donde un
+# clic pone un marcador y ruta.gd traza el camino hasta él, y un doble clic (o Enter, al marcador) lleva al personaje
+# ahí (plano.gd, que dibuja también el mapa en miniatura; N: con el norte arriba). E: subir a la bicicleta o
 # al auto, o bajar (si está lejos, lo trae); V: cambiar entre los dos; montado, W/S acelera y frena (detenido,
 # retrocede), A/D gira, Espacio frena de golpe y, en la bicicleta, Q pedalea de pie (vehiculo.gd). --png guarda un cuadro
 # (cuando el mapa terminó de cargar alrededor de la cámara) y sale; --desde x,y pone al
@@ -32,6 +34,8 @@
 #   recorte.gd       los recortes de los modelos sobre cada tesela (abajo)
 #   ambiente.gd      cielo, luz, sombras, niebla y posproceso (un Node3D que se agrega a la escena)
 #   jugador.gd       el personaje y su cámara; viaje.gd, la lista de lugares para ir (Tab)
+#   plano.gd         el mapa en miniatura y el mapa grande (M), con plano_datos.gd (datos/plano.json, de pipeline/plano.py)
+#   ruta.gd          el marcador del mapa grande y el camino hasta él, con la cinta de flechas y la columna de luz
 #   vehiculo.gd      la bicicleta y el auto (E, V), con su cámara
 #   modelos/*.gd     modelos propios del juego, más detallados que los de la página. Cada uno es un Node3D que construye
 #                    lo suyo (geometría y colisión) en _ready() y puede declarar
@@ -53,6 +57,9 @@ const INICIO := Vector2(0, -45)  # x, y de grilla: el borde sur de la plaza, mir
 var jugador: CharacterBody3D
 var vehiculo: CharacterBody3D
 var mapa: Node3D
+var viaje: CanvasLayer
+var ruta: Node3D  # ruta.gd: el marcador y el camino
+var plano: CanvasLayer  # plano.gd: el mapa en miniatura y el mapa grande (M)
 var recs := []  # los recortes de los modelos (recortes()): [{"poligono", "capas"}]
 
 
@@ -102,11 +109,24 @@ func _ready() -> void:
 	jugador.mouse = not (Args.has("--png") or Args.has("--caminar"))
 	jugador.mapa = mapa
 	add_child(jugador)
-	add_child(preload("res://viaje.gd").new())
+	viaje = preload("res://viaje.gd").new()
+	add_child(viaje)
 	vehiculo = preload("res://vehiculo.gd").new()
 	vehiculo.jugador = jugador
 	vehiculo.mapa = mapa
 	add_child(vehiculo)
+	ruta = preload("res://ruta.gd").new()
+	ruta.jugador = jugador
+	ruta.vehiculo = vehiculo
+	ruta.mapa = mapa
+	add_child(ruta)
+	if not "plano" in Args.sin_():  # --sin plano: sin los mapas (para medir con --fps cuánto cuestan)
+		plano = preload("res://plano.gd").new()
+		plano.jugador = jugador
+		plano.vehiculo = vehiculo
+		plano.ruta = ruta
+		plano.viaje = viaje
+		add_child(plano)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	jugador.inicio = suelo(INICIO.x, -INICIO.y) + Vector3.UP * 0.1
@@ -134,6 +154,32 @@ func _ready() -> void:
 		elif Args.texto("--vehiculo") != "bici":
 			push_warning("main.gd: --vehiculo espera bici o auto")
 		vehiculo.usar()
+	if Args.has("--marcar"):  # el marcador en ese punto de grilla y el camino hasta él (ruta.gd)
+		await mapa.esperar()
+		ruta.marcar(Args.vec2("--marcar", Vector2.ZERO))
+	if Args.has("--plano") and plano:
+		plano.abrir(true)
+		if Args.has("--escala-plano"):
+			plano.esc = Args.num("--escala-plano", 0.3, plano.ESC_MIN, plano.ESC_MAX)
+			plano.vista_grande()
+		for b in ["--clic", "--doble-clic"]:  # clics izquierdos en ese punto de la pantalla, por la entrada del mouse
+			if Args.has(b):
+				var c := Args.vec2(b, Vector2.ZERO)
+				await get_tree().process_frame
+				for k in (2 if b == "--doble-clic" else 1):
+					for abajo in [true, false]:
+						var e := InputEventMouseButton.new()
+						e.button_index = MOUSE_BUTTON_LEFT
+						e.pressed = abajo
+						e.double_click = abajo and k == 1
+						e.position = c
+						e.global_position = c
+						Input.parse_input_event(e)
+						await get_tree().process_frame
+		if Args.has("--doble-clic"):  # fue a otra parte: la captura espera a que cargue
+			await get_tree().create_timer(0.5).timeout
+			await mapa.esperar()
+			print("main.gd: jugador en x %.1f, y %.1f, altura %.2f" % [jugador.global_position.x, -jugador.global_position.z, jugador.global_position.y])
 	if Args.has("--camara"):  # largo del brazo de la cámara en m (0: primera persona)
 		jugador.largo = Args.num("--camara", jugador.largo, 0.0, 100.0)
 		jugador.brazo.spring_length = jugador.largo
@@ -221,7 +267,7 @@ func ayuda() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 	var l := Label.new()
-	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos en movimiento: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta o auto · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie"
+	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos en movimiento: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta o auto · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba"
 	l.position = Vector2(16, 12)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
