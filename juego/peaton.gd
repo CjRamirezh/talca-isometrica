@@ -29,7 +29,7 @@ var salto := 0
 var t_salto := 0.0
 var vuelta := 0.0  # rad: el giro de la voltereta, en la cadera (negativo: la cabeza hacia adelante)
 const VUELTA_0 := 0.06  # s desde el salto hasta que empieza a girar
-const VUELTA_T := 0.62  # s que dura la vuelta (el tercero sube 0,75 s)
+const VUELTA_T := 0.8  # s que dura la vuelta (el tercero sube 1,0 s y está 2 s en el aire)
 
 
 func _ready() -> void:
