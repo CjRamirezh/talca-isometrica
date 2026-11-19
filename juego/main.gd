@@ -21,6 +21,8 @@
 # y los cuadros más lentos (--bajar: se baja al final); con --png, la captura es del final; sin --png, sale.
 # --saltos N camina 1 s hacia adelante y salta N veces seguidas e imprime la altura de cada salto (--pausa s: congela el
 # juego s segundos después del último, para que --png capture la voltereta); sin --png, sale.
+# --dano N le quita N de vida y --caer M lo deja caer desde M m sobre el suelo, e imprimen la vida, la caída y, si
+# muere, dónde reaparece (vida.gd prueba(); --pausa s: congela el juego s segundos después, para --png); sin --png, sale.
 #
 # Coordenadas como en la página: X = x de grilla (oriente), Y = altura, Z = -y (norte), origen en la plaza.
 # Colisión: una malla exacta (trimesh) por capa sólida de cada tesela cercana (mapa.gd), salvo los árboles (se
@@ -33,7 +35,8 @@
 #   arboleda.gd      los árboles de la página, como los de la plaza de cerca y copas redondas de lejos
 #   recorte.gd       los recortes de los modelos sobre cada tesela (abajo)
 #   ambiente.gd      cielo, luz, sombras, niebla y posproceso (un Node3D que se agrega a la escena)
-#   jugador.gd       el personaje y su cámara; viaje.gd, la lista de lugares para ir (Tab)
+#   jugador.gd       el personaje y su cámara, su vida y las caídas; viaje.gd, la lista de lugares para ir (Tab)
+#   vida.gd          la barra de vida, la muerte en pantalla y los carritos de completos, donde se recupera
 #   plano.gd         el mapa en miniatura y el mapa grande (M), con plano_datos.gd (datos/plano.json, de pipeline/plano.py)
 #   ruta.gd          el marcador del mapa grande y el camino hasta él, con la cinta de flechas y la columna de luz
 #   vehiculo.gd      la bicicleta y el auto (E, V), con su cámara
@@ -60,6 +63,7 @@ var mapa: Node3D
 var viaje: CanvasLayer
 var ruta: Node3D  # ruta.gd: el marcador y el camino
 var plano: CanvasLayer  # plano.gd: el mapa en miniatura y el mapa grande (M)
+var vida: CanvasLayer  # vida.gd: la barra de vida y los carritos de completos
 var recs := []  # los recortes de los modelos (recortes()): [{"poligono", "capas"}]
 
 
@@ -127,10 +131,14 @@ func _ready() -> void:
 		plano.ruta = ruta
 		plano.viaje = viaje
 		add_child(plano)
+	vida = preload("res://vida.gd").new()
+	vida.jugador = jugador
+	add_child(vida)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	jugador.inicio = suelo(INICIO.x, -INICIO.y) + Vector3.UP * 0.1
 	jugador.global_position = jugador.inicio
+	jugador.plaza = Vector3(INICIO.x, INICIO.y, jugador.inicio.y - 0.1)  # donde reaparece al morir
 	ayuda()
 
 	if Args.has("--desde"):
@@ -196,6 +204,12 @@ func _ready() -> void:
 	if Args.has("--saltos"):  # el triple salto sin teclado (jugador.gd prueba_saltos())
 		await mapa.esperar()
 		await jugador.prueba_saltos(roundi(Args.num("--saltos", 3.0, 1.0, 20.0)), Args.num("--pausa", -1.0, 0.0, 5.0))
+		if not Args.has("--png"):
+			get_tree().quit()
+			return
+	if Args.has("--dano") or Args.has("--caer"):  # la vida sin teclado: daño, caídas y reaparición (vida.gd prueba())
+		await mapa.esperar()
+		await vida.prueba()
 		if not Args.has("--png"):
 			get_tree().quit()
 			return
@@ -267,7 +281,7 @@ func ayuda() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 	var l := Label.new()
-	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos en movimiento: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta o auto · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba"
+	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos en movimiento: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta o auto · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente"
 	l.position = Vector2(16, 12)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
