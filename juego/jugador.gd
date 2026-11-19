@@ -9,7 +9,7 @@ const CORRER := 18.0
 # siguiente, más alto; el tercero, solo en movimiento (TRIPLE m/s o más; si no, vuelve al primero), es una voltereta
 # hacia adelante (peaton.gd saltar()). Después del tercero la cadena empieza de nuevo. Espacio se aprieta para cada
 # salto (dejarla apretada no salta de nuevo), y lo apretado hasta ANTES s antes de tocar el suelo también vale.
-const SALTOS: Array[float] = [4.5, 5.6, 7.4]  # m/s hacia arriba: ~1,0, 1,6 y 2,8 m (en Mario 64, 42, 52 y 69: 1, 1,5 y 2,7 veces la altura)
+const SALTOS: Array[float] = [4.5, 5.6, 10.0]  # m/s hacia arriba: ~1,0, 1,6 y 5,1 m (en Mario 64, 42, 52 y 69: 1, 1,5 y 2,7 veces la altura; aquí el tercero, ~5 veces, sube al techo de una casa)
 const VENTANA := 0.2  # s (en Mario 64, 5 cuadros a 30 por segundo: 0,17)
 const ANTES := 0.12
 const TRIPLE := 6.0  # m/s horizontales: caminando (8) alcanza; detenido o casi, no
