@@ -5,7 +5,14 @@ extends CharacterBody3D
 
 const CAMINAR := 8.0  # m/s (de verdad, ~1,4: se siente lento en una caja de 400 m)
 const CORRER := 18.0
-const SALTO := 4.5
+# El triple salto, como el de Super Mario 64: saltar otra vez hasta VENTANA s después de caer de un salto encadena el
+# siguiente, más alto; el tercero, solo en movimiento (TRIPLE m/s o más; si no, vuelve al primero), es una voltereta
+# hacia adelante (peaton.gd saltar()). Después del tercero la cadena empieza de nuevo. Espacio se aprieta para cada
+# salto (dejarla apretada no salta de nuevo), y lo apretado hasta ANTES s antes de tocar el suelo también vale.
+const SALTOS: Array[float] = [4.5, 5.6, 7.4]  # m/s hacia arriba: ~1,0, 1,6 y 2,8 m (en Mario 64, 42, 52 y 69: 1, 1,5 y 2,7 veces la altura)
+const VENTANA := 0.2  # s (en Mario 64, 5 cuadros a 30 por segundo: 0,17)
+const ANTES := 0.12
+const TRIPLE := 6.0  # m/s horizontales: caminando (8) alcanza; detenido o casi, no
 const ALTO := 1.75
 const RADIO := 0.3
 const SENS := 0.004
@@ -29,6 +36,10 @@ var forma := CollisionShape3D.new()  # vehiculo.gd la apaga mientras va montado
 var vehiculo: Node = null  # vehiculo.gd, mientras va montado
 var largo_a_pie := 5.0  # el brazo de la cámara antes de subir (al bajar vuelve a ese)
 var t_mouse := 100.0  # s desde que se movió el mouse (vehiculo.gd: la cámara vuelve detrás del vehículo)
+var salto := 0  # el último salto de la cadena (1, 2 o 3; 0: ninguno)
+var en_salto := false  # en el aire por un salto (no por caerse de un borde)
+var t_suelo := 0.0  # s en el suelo desde que cayó del último salto
+var t_tecla := INF  # s desde que se apretó saltar
 
 
 func _ready() -> void:
@@ -86,6 +97,8 @@ func ir(x: float, y: float, h: float) -> void:
 	llegar = Vector3(x, y, h)
 	velocity = Vector3.ZERO
 	global_position = Vector3(x, h + 1.0, -y)
+	salto = 0
+	en_salto = false
 
 
 func _physics_process(dt: float) -> void:
@@ -99,10 +112,15 @@ func _physics_process(dt: float) -> void:
 		llegar = Vector3.INF
 	elif mapa and not mapa.solido(global_position.x, -global_position.z):
 		return  # la tesela de adelante todavía no tiene colisión: espera
+	t_tecla += dt
+	if Input.is_action_just_pressed("saltar") and not quieto:
+		t_tecla = 0.0
 	if not is_on_floor():
 		velocity.y -= g * dt
-	elif Input.is_action_pressed("saltar") and not quieto:
-		velocity.y = SALTO
+	else:
+		t_suelo += dt
+		if t_tecla <= ANTES and not quieto:
+			saltar()
 
 	var v := Vector2.ZERO if quieto else Input.get_vector("izquierda", "derecha", "adelante", "atras")
 	var dir := Vector3(v.x, 0, v.y).rotated(Vector3.UP, yaw)
@@ -117,9 +135,61 @@ func _physics_process(dt: float) -> void:
 	subir_cordon(deseo)
 	if is_on_floor():
 		inicio = global_position
+		if en_salto:  # cayó: desde aquí corre la ventana para el siguiente
+			en_salto = false
+			t_suelo = 0.0
 	elif global_position.y < inicio.y - 60:  # se cayó de la maqueta: vuelve al último suelo
 		global_position = inicio + Vector3.UP * 0.5
 		velocity = Vector3.ZERO
+
+
+# el salto que sigue en la cadena (SALTOS): el segundo o el tercero si cayó del anterior hace VENTANA s o menos; si no,
+# o después del tercero, el primero
+func saltar() -> void:
+	var rapidez := Vector2(velocity.x, velocity.z).length()
+	if t_suelo > VENTANA or salto >= 3 or (salto == 2 and rapidez < TRIPLE):
+		salto = 0
+	salto += 1
+	velocity.y = SALTOS[salto - 1]
+	en_salto = true
+	t_tecla = INF
+	peaton.saltar(salto)
+
+
+# --saltos n (main.gd): camina hacia adelante 1 s y salta n veces, cada una en el primer cuadro en el suelo después de
+# la anterior, e imprime cuánto subió cada una sobre el suelo del que partió; con pausa >= 0, congela el juego pausa s
+# después de apretar la última (Engine.time_scale 0: --png captura la pose, la voltereta del tercero, con la cámara
+# de costado) y vuelve sin esperar que caiga
+func prueba_saltos(n: int, pausa := -1.0) -> void:
+	var arbol := get_tree()
+	Input.action_press("adelante")
+	await arbol.create_timer(1.0).timeout
+	var dice := []
+	for i in n:
+		while not is_on_floor():
+			await arbol.physics_frame
+		var y0 := global_position.y
+		var v0 := Vector2(velocity.x, velocity.z).length()
+		Input.action_press("saltar")  # Input la da por recién apretada en el cuadro de física siguiente
+		var t := 0.0
+		while not en_salto and t < 0.1:
+			await arbol.physics_frame
+			t += get_physics_process_delta_time()
+		Input.action_release("saltar")
+		var cima := y0
+		while en_salto:
+			cima = max(cima, global_position.y)
+			if i == n - 1 and pausa >= 0.0 and t >= pausa:
+				Engine.time_scale = 0.0
+				yaw += PI / 2  # la cámara de costado (a la izquierda), para ver la pose
+				pitch = -0.1
+				print("jugador.gd: ", ", ".join(dice + ["salto %d congelado a %.2f s (%.2f m arriba)" % [salto, t, global_position.y - y0]]))
+				return
+			await arbol.physics_frame
+			t += get_physics_process_delta_time()
+		dice.append("salto %d: %.2f m (a %.1f m/s, %.2f s en el aire)" % [salto, cima - y0, v0, t])
+	Input.action_release("adelante")
+	print("jugador.gd: ", ", ".join(dice))
 
 
 # el suelo en el punto de un lugar: un rayo desde poco más arriba del suelo (h), para no quedar en un techo; si no da

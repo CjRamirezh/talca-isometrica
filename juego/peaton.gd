@@ -1,7 +1,7 @@
 # El peatón que maneja jugador.gd: una persona de 1,75 m hecha de cápsulas y esferas (polera, jeans, zapatillas),
 # articulada en caderas, rodillas, tobillos, hombros, codos y cuello, y animada en código según la velocidad: quieto
 # (respira y se balancea), camina, trota y corre (más zancada, más inclinado, codos doblados) y salta (una rodilla
-# arriba). La fase de los pasos avanza con la distancia recorrida, para que los pies no patinen; las poses se
+# arriba; en el triple salto de jugador.gd, el segundo con los brazos arriba y el tercero con una voltereta: saltar()). La fase de los pasos avanza con la distancia recorrida, para que los pies no patinen; las poses se
 # mezclan en ~0,1 s. Mira hacia -Z.
 extends Node3D
 
@@ -23,6 +23,13 @@ var mats := {}
 # M (muslo), R (rodilla), P (pie), H (hombro), HZ (hombro hacia afuera), C (codo); uno solo para todos los cuadros
 enum {M, R, P, H, HZ, C}
 var obj := PackedFloat64Array()
+# el salto en curso (saltar(), desde jugador.gd: el triple salto): 1, una rodilla arriba; 2, además los brazos arriba;
+# 3, una voltereta hacia adelante, encogido, y después los brazos abiertos. 0 en el suelo (o en el aire sin saltar).
+var salto := 0
+var t_salto := 0.0
+var vuelta := 0.0  # rad: el giro de la voltereta, en la cadera (negativo: la cabeza hacia adelante)
+const VUELTA_0 := 0.06  # s desde el salto hasta que empieza a girar
+const VUELTA_T := 0.62  # s que dura la vuelta (el tercero sube 0,75 s)
 
 
 func _ready() -> void:
@@ -113,9 +120,17 @@ func pieza(padre: Node3D, malla: Mesh, mat: String, pos: Vector3, rot := Vector3
 	padre.add_child(mi)
 
 
+func saltar(n: int) -> void:
+	salto = n
+	t_salto = 0.0
+
+
 # rapidez: m/s horizontales; en_suelo: si pisa
 func animar(dt: float, rapidez: float, en_suelo: bool) -> void:
 	t += dt
+	t_salto += dt
+	if en_suelo:
+		salto = 0
 	var paso := 0.55 + 0.25 * rapidez  # m por paso: 0,9 caminando de verdad, 2,5 a 8 m/s, 5 a 18 m/s
 	fase += dt * rapidez / (2.0 * paso) * TAU
 	var mov := smoothstep(0.3, 1.2, rapidez)    # 0 quieto, 1 en movimiento
@@ -157,7 +172,40 @@ func animar(dt: float, rapidez: float, en_suelo: bool) -> void:
 		obj[6 + C] = 0.6
 		y = 0.95
 		lean = -0.08
+		if salto >= 2:
+			giro = 0.0
+		var u := clampf((t_salto - VUELTA_0) / VUELTA_T, 0.0, 1.0)
+		if salto == 2:  # los dos brazos arriba, estirados
+			for i in 2:
+				obj[i * 6 + H] = 2.75
+				obj[i * 6 + HZ] = 0.25 * (-1 if i == 0 else 1)
+				obj[i * 6 + C] = 0.15
+			lean = 0.06
+		elif salto == 3 and u < 0.92:  # encogido: las rodillas al pecho y las manos en las canillas
+			for i in 2:
+				obj[i * 6 + M] = 1.85
+				obj[i * 6 + R] = -2.15
+				obj[i * 6 + P] = 0.35
+				obj[i * 6 + H] = 0.75
+				obj[i * 6 + HZ] = 0.22 * (-1 if i == 0 else 1)
+				obj[i * 6 + C] = 1.1
+			y = 1.02
+			lean = -0.45
+		elif salto == 3:  # la vuelta terminó: los brazos abiertos, las piernas casi estiradas, hasta caer
+			for i in 2:
+				obj[i * 6 + M] = 0.2 if i == 0 else -0.08
+				obj[i * 6 + R] = -0.35 if i == 0 else -0.2
+				obj[i * 6 + P] = 0.15
+				obj[i * 6 + H] = 0.35
+				obj[i * 6 + HZ] = 1.3 * (-1 if i == 0 else 1)
+				obj[i * 6 + C] = 0.12
+			lean = 0.04
+		if salto == 3:
+			vuelta = -TAU * u * u * (3.0 - 2.0 * u)
 	var k := 1.0 - exp(-14.0 * dt)
+	if salto != 3:  # en el suelo (o si cayó antes de terminar la vuelta): derecho por el camino más corto
+		vuelta = lerpf(wrapf(vuelta, -PI, PI), 0.0, k)
+	cadera.rotation.x = vuelta
 	for i in 2:
 		muslo[i].rotation.x = lerpf(muslo[i].rotation.x, obj[i * 6 + M], k)
 		canilla[i].rotation.x = lerpf(canilla[i].rotation.x, obj[i * 6 + R], k)
@@ -199,6 +247,9 @@ func sentar(dt: float, pies: Array, incl: float, hombros: float, codos: float) -
 		codo[i].rotation.x = lerpf(codo[i].rotation.x, codos, k)
 	cadera.position.y = lerpf(cadera.position.y, 0.95, k)
 	cadera.rotation.y = lerpf(cadera.rotation.y, 0.0, k)
+	salto = 0
+	vuelta = 0.0
+	cadera.rotation.x = 0.0
 	torso.rotation.x = lerpf(torso.rotation.x, -incl, k)
 	torso.rotation.y = lerpf(torso.rotation.y, 0.0, k)
 	torso.scale = Vector3.ONE
