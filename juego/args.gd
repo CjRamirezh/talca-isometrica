@@ -24,6 +24,11 @@ const BANDERAS := {
 	"--volante": ["v", "vehiculo.gd: con --conducir, gira (-1 izquierda … 1 derecha)"],
 	"--fuerte": ["", "vehiculo.gd: con --conducir, con Q apretada (la bicicleta pedalea de pie)"],
 	"--bajar": ["", "vehiculo.gd: con --conducir, se baja al final y dice dónde quedó el personaje"],
+	"--marcar": ["x,y", "main.gd: pone el marcador en ese punto de grilla y traza el camino hasta él (ruta.gd)"],
+	"--plano": ["", "main.gd: abre el mapa grande (plano.gd), después de --marcar"],
+	"--escala-plano": ["px/m", "main.gd: con --plano, la escala del mapa grande (0,035 la comuna entera … 4)"],
+	"--clic": ["px,py", "main.gd: con --plano, un clic izquierdo en ese punto de la pantalla (pone o quita el marcador)"],
+	"--norte": ["", "plano.gd: el mapa en miniatura con el norte arriba (N lo cambia jugando)"],
 	"--vp": ["", "main.gd: producción virtual (vp.gd)"],
 	"--cine": ["", "main.gd: un plano de cine de 30 s, sin personaje (cine.gd; make cine)"],
 	"--cuadro": ["s,s,…", "cine.gd: solo esos segundos de la toma (con --png: x-t<s>.png de cada uno) y sale"],
@@ -56,6 +61,7 @@ const SIN := {
 	"pasto": "modelos/plaza.gd",
 	"autos": "autos.gd (los autos del mapa, de cerca y de lejos)", "luces": "faroles.gd (las luces de verdad: quedan lámparas y brillos)",
 	"letreros": "letreros.gd (los de las calles de la comuna; los de calles.gd quedan)",
+	"plano": "main.gd (el mapa en miniatura y el mapa grande de plano.gd; el marcador de --marcar queda)",
 }
 
 
