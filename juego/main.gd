@@ -28,6 +28,12 @@
 # juego s segundos después del último, para que --png capture la voltereta); sin --png, sale.
 # --dano N le quita N de vida y --caer M lo deja caer desde M m sobre el suelo, e imprimen la vida, la caída y, si
 # muere, dónde reaparece (vida.gd prueba(); --pausa s: congela el juego s segundos después, para --png); sin --png, sale.
+# 1, 2, 3: el cuchillo, la pistola o el rifle (otra vez, o 0: guardarlo); clic: disparar o atacar; botón derecho:
+# apuntar; R: recargar (armas.gd; los muñecos de práctica del borde sur de la plaza son de blancos.gd). --arma
+# cuchillo|pistola|rifle la saca al comenzar, --apuntar apunta y --disparar N dispara N veces a lo que hay bajo la mira e
+# imprime cada impacto (--pausa s: congela s después del último, para --png; --orbitar G gira entonces la cámara G grados
+# alrededor del personaje); sin --png, sale. Los muñecos se ven desde donde parte: --girar 58 --mirar -3 --apuntar apunta
+# al más cercano.
 #
 # Coordenadas como en la página: X = x de grilla (oriente), Y = altura, Z = -y (norte), origen en la plaza.
 # Colisión: una malla exacta (trimesh) por capa sólida de cada tesela cercana (mapa.gd), salvo los árboles (se
@@ -46,6 +52,8 @@
 #   ruta.gd          el marcador del mapa grande y el camino hasta él, con la cinta de flechas y la columna de luz
 #   vehiculo.gd      la bicicleta, el auto y el jetpack (E, V), con su cámara
 #   red.gd           la red local (J, --servidor, --unirse ip): los otros jugadores, como peatones o en sus vehículos
+#   armas.gd         el cuchillo, la pistola y el rifle (1, 2, 3), con sus modelos en modelos/entorno/armas.gd
+#   blancos.gd       los muñecos de práctica, cerca de donde parte el personaje
 #   modelos/*.gd     modelos propios del juego, más detallados que los de la página. Cada uno es un Node3D que construye
 #                    lo suyo (geometría y colisión) en _ready() y puede declarar
 #                      func recortes() -> Array   # [{"poligono": PackedVector2Array([...]), "capas": ["hitos", ...]}]
@@ -71,6 +79,7 @@ var ruta: Node3D  # ruta.gd: el marcador y el camino
 var plano: CanvasLayer  # plano.gd: el mapa en miniatura y el mapa grande (M)
 var red: Node3D  # red.gd: los otros jugadores de la red local (J)
 var vida: CanvasLayer  # vida.gd: la barra de vida y los carritos de completos
+var armas: Node3D  # armas.gd
 var recs := []  # los recortes de los modelos (recortes()): [{"poligono", "capas"}]
 
 
@@ -149,6 +158,12 @@ func _ready() -> void:
 	vida = preload("res://vida.gd").new()
 	vida.jugador = jugador
 	add_child(vida)
+	armas = preload("res://armas.gd").new()
+	armas.jugador = jugador
+	add_child(armas)
+	var blancos := preload("res://blancos.gd").new()
+	blancos.mapa = mapa
+	add_child(blancos)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	jugador.inicio = suelo(INICIO.x, -INICIO.y) + Vector3.UP * 0.1
@@ -229,6 +244,13 @@ func _ready() -> void:
 		if not Args.has("--png"):
 			get_tree().quit()
 			return
+	if Args.has("--disparar"):  # las armas sin mouse (armas.gd prueba())
+		await mapa.esperar()
+		await blancos.listos()
+		await armas.prueba(roundi(Args.num("--disparar", 5.0, 1.0, 200.0)), Args.num("--pausa", -1.0, 0.0, 5.0))
+		if not Args.has("--png"):
+			get_tree().quit()
+			return
 	if Args.has("--conducir"):
 		await vehiculo.prueba()
 		if not Args.has("--png"):  # sin captura (--headless), sale al terminar
@@ -283,7 +305,9 @@ func recortado(p: Vector2, capa: String) -> bool:
 func acciones() -> void:
 	var teclas := {"adelante": [KEY_W, KEY_UP], "atras": [KEY_S, KEY_DOWN], "izquierda": [KEY_A, KEY_LEFT],
 		"derecha": [KEY_D, KEY_RIGHT], "saltar": [KEY_SPACE], "correr": [KEY_SHIFT], "vehiculo": [KEY_E], "cambiar": [KEY_V],
-		"impulso": [KEY_Q]}  # Q y no Mayús: en el Mac de Edu el Bloq Mayús está como Esc
+		"impulso": [KEY_Q],  # Q y no Mayús: en el Mac de Edu el Bloq Mayús está como Esc
+		"cuchillo": [KEY_1], "pistola": [KEY_2], "rifle": [KEY_3], "guardar": [KEY_0], "recargar": [KEY_R]}  # armas.gd
+	var botones := {"disparar": MOUSE_BUTTON_LEFT, "apuntar": MOUSE_BUTTON_RIGHT}  # armas.gd
 	for a in teclas:
 		if InputMap.has_action(a):
 			continue
@@ -291,6 +315,12 @@ func acciones() -> void:
 		for k in teclas[a]:
 			var e := InputEventKey.new()
 			e.physical_keycode = k
+			InputMap.action_add_event(a, e)
+	for a in botones:
+		if not InputMap.has_action(a):
+			InputMap.add_action(a)
+			var e := InputEventMouseButton.new()
+			e.button_index = botones[a]
 			InputMap.action_add_event(a, e)
 
 
@@ -305,7 +335,7 @@ func ayuda() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 	var l := Label.new()
-	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos en movimiento: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta, auto o jetpack · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nJetpack: Espacio sube · C baja rápido · WASD lo mueve · Mayús: más rápido · se recarga en el suelo\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba · J: red local (jugar con otros)\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente"
+	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos en movimiento: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: soltar el mouse\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta, auto o jetpack · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nJetpack: Espacio sube · C baja rápido · WASD lo mueve · Mayús: más rápido · se recarga en el suelo\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba · J: red local (jugar con otros)\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente\n1: cuchillo · 2: pistola · 3: rifle (otra vez o 0: guardar) · clic: disparar · botón derecho: apuntar · R: recargar"
 	l.position = Vector2(16, 12)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
