@@ -146,12 +146,12 @@ function scatterTrees(rr,poly,n,s0,ok,plant){let k=0,bb=[1e9,1e9,-1e9,-1e9];for(
 function ownTracks(ring){for(const s of streets)if(s.c===7){let k=0;for(const p of s.pts)if(inRing(p[0],p[1],ring))k++;if(k*2>=s.pts.length)s.bridge=true;}}
 // occFill(ring, margin): marks the ring's cells in occ (1, like occMark), leaving margin m free along the map's streets
 // (usosPlan's rule: the sidewalks, street trees and parked cars stay). A landmark that covers a land use with it makes
-// usosPlan skip that use (CLAUDE.md, trap «Un hito sobre un uso de suelo lo saca entero»)
+// usosPlan skip that use (trap «Un hito sobre un uso de suelo lo saca entero»)
 function occFill(ring,m){let y0=1e9,y1=-1e9;for(const p of ring){y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}
   for(let gy=Math.max(0,Math.floor((y0-YMIN)/OC));gy<=Math.min(ocH-1,Math.floor((y1-YMIN)/OC));gy++){const cy=YMIN+(gy+.5)*OC,xs=pipRow(ring,cy,[]);
     for(let i=0;i+1<xs.length;i+=2)for(let gx=Math.max(0,Math.ceil((xs[i]-XMIN)/OC-.5));gx<=Math.min(ocW-1,Math.floor((xs[i+1]-XMIN)/OC-.5));gx++){
       if(occ.get(gx,gy)===1)continue;if(!nearStreet(XMIN+(gx+.5)*OC,cy,m))occ.set(gx,gy,1);}}}
-// Flat layers on the terrain where a landmark has no pad (CLAUDE.md, trap «Capas planas sin explanada»): the layer is
+// Flat layers on the terrain where a landmark has no pad (trap «Capas planas sin explanada»): the layer is
 // filled in a GB of its own, cut along the terrain's edges and laid on it (drape()), and its triangles copied to S with
 // the normal [0,1,0] (EN() is still zero in buildModels), at S.dy 0 (S.dy is put back after).
 function drapeInto(S,G){const d=drape(G),sv=S.dy;S.dy=0;
@@ -160,11 +160,11 @@ function drapeInto(S,G){const d=drape(G),sv=S.dy;S.dy=0;
 // groundLayer(S, cap, F): such a layer, {G, lay, rc, pl, done}: G the GB (cap: its first size, ribbon(G, …) draws in
 // it), lay(q, o, col) a ring of grid metres at o over the ground (one of fewer than three points is skipped), with F
 // (localFrame) rc(u0, v0, u1, v1, o, col) a (u,v) rectangle and pl(pts, o, col) a (u,v) ring; done() lays it on S.
-// Heights: CLAUDE.md, trap «Capas planas sin explanada»
+// Heights: trap «Capas planas sin explanada»
 function groundLayer(S,cap,F){const G=new GB(cap),lay=(q,o,c)=>{if(q.length>2)G.flat(q,o,c);};
   return {G,lay,rc:F&&((u0,v0,u1,v1,o,c)=>lay(F.R(u0,v0,u1,v1),o,c)),pl:F&&((pts,o,c)=>lay(F.Gs(pts),o,c)),done:()=>drapeInto(S,G)};}
 // onFinalTerrain(fn): runs fn on the final terrain from inside buildModels, where E() is the terrain without pads
-// (CLAUDE.md, trap «E() dentro de buildModels…»): the pads registered so far are applied to EH (applyPads) while fn
+// (trap «E() dentro de buildModels…»): the pads registered so far are applied to EH (applyPads) while fn
 // runs and EH is put back after, also if fn throws. It sees only the pads of the landmarks before it in ORDER
 function onFinalTerrain(fn){const keep=EH.slice();applyPads();try{return fn();}finally{EH.set(keep);}}
 // buildModels(B, S): the landmarks, src/js/hitos/<id>.js pasted at /*HITOS*/ in the order of hitos/ORDER (build.py).
@@ -175,7 +175,7 @@ function onFinalTerrain(fn){const keep=EH.slice();applyPads();try{return fn();}f
 // (so their order matters; hitos/ORDER says where):
 //   MODELS[id]: each landmark's point and height; MODELS['plaza-de-armas'].pad is the pad height the buildings round
 //     the plaza take (memorial, Catedral, GORE, Municipalidad, Servicios Públicos, Torre Talca), so that their pads,
-//     which share terrain nodes, stay level (CLAUDE.md, trap «Explanadas vecinas»);
+//     which share terrain nodes, stay level (trap «Explanadas vecinas»);
 //   PADS (padAt), which onFinalTerrain() applies: it sees only the pads registered before it;
 //   TREES: deckBridge() removes those under its deck (puentes-rio-claro, after parque-rio-claro);
 //   streets[i].bridge: a street a landmark draws itself (bridges; the tracks inside a ground, ownTracks()), which the

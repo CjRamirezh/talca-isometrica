@@ -12,7 +12,7 @@
 #   - Antigua Intendencia (1 Norte con 1 Oriente): «Edificio de la Intendencia de la VII Región de Maule y Edificio de
 #     los Servicios Públicos de Talca.jpg» (2022-05-29): neoclásica, crema, ventanas de marco verde, en reconstrucción
 #     con andamios, una estructura de acero sobre el techo y un cierre de obra rojo en la vereda. Se dibuja así, como
-#     en 2022: no sabemos cómo quedó (CLAUDE.md, «Ideas pendientes»);
+#     en 2022: no sabemos cómo quedó (docs/PENDIENTES.md);
 #   - Municipalidad (1 Norte): «Talca Rathaus (3).jpg» (2018, CC BY-SA 4.0): tres pisos crema, una losa de techo que
 #     vuela 1,5 m con canto de plancha ondulada, el último piso de ventanal corrido, el letrero «I. MUNICIPALIDAD DE
 #     TALCA», una explanada de piedra con baranda y una palmera; OSM dice dos pisos y 5,6 m, la foto ~12 m;

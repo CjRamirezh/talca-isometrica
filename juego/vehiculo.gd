@@ -15,7 +15,7 @@
 #
 # La rapidez máxima del auto depende de dónde va: en una calzada de la Ruta 5 vmax_ruta, en el resto vmax. La calzada
 # sale de datos/ruta5.json (la copia de data/ruta5.json que hace `make juego`: las líneas de OSM entre la primera y la
-# segunda pista, CLAUDE.md, «Las líneas de OSM de la Ruta 5…»), no del suelo: en el glb su asfalto va en la capa «suelo»
+# segunda pista, trampa «Las líneas de OSM de la Ruta 5…»), no del suelo: en el glb su asfalto va en la capa «suelo»
 # como el de las calles. Mientras la tesela de adelante no tiene colisión (mapa.gd), frena;
 # sin la de abajo, espera quieto (jugador.gd hace lo mismo).
 #
@@ -482,7 +482,7 @@ static func material(rugoso: float, metal := 0.0) -> StandardMaterial3D:
 
 
 # una pieza del modelo: las capas de m con un material sin dibujo (el de patron.gdshader está en coordenadas del mundo y
-# se deslizaría sobre algo que se mueve, como las ventanas de la página: CLAUDE.md, «Lo que se mueve no usa winMat()»)
+# se deslizaría sobre algo que se mueve, como las ventanas de la página: trampa «Lo que se mueve no usa winMat()»)
 func pieza(padre: Node3D, m: Malla, pos := Vector3.ZERO) -> Node3D:
 	var mats := {"": material(0.5), "pintura": material(0.35, 0.25), "metal": material(0.35, 0.6), "goma": material(0.9),
 		"vidrio": Mat.patron("vidrio")}

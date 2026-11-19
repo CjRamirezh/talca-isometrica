@@ -9,7 +9,7 @@
   uv run tools/site_assets.py poster  # src/site/poster-movil.webp y poster-escritorio.webp: la vista inicial, sin interfaz
   uv run tools/site_assets.py         # las tres (make site-assets); varias: og poster
 
-El póster es la imagen que la página muestra mientras genera la maqueta (trampa «El póster del arranque» en CLAUDE.md):
+El póster es la imagen que la página muestra mientras genera la maqueta (trampa «El póster del arranque»):
 la vista inicial (homeView()) sin panel, marcadores ni etiquetas, con la Plaza de Armas al centro de la imagen. La
 página lo escala a la altura del mapa (la vista inicial muestra los mismos metros de alto en cualquier pantalla) y
 lo corre a la derecha del panel como homeView(); src/page.html lo enlaza. Vuelva a correrlo cuando cambie lo que se

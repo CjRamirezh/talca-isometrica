@@ -15,6 +15,9 @@ Comprueba:
   - que src/style.css no tenga colores fijos fuera de los tokens y que sus dos bloques oscuros coincidan (css_tokens);
   - que las dependencias tengan versiones fijas: == en requirements*.txt, iguales en los encabezados PEP 723 de tools/ y
     pipeline/, y exactas en package.json y scripts/deploy/package.json, como las resuelve su package-lock.json (pins);
+  - que la guía de Claude Code siga siendo progresiva (guide): CLAUDE.md y cada regla de .claude/rules/ bajo su tope
+    de tamaño, un `paths:` válido en cada regla y cuyos globs calcen con archivos, el índice de trampas de CLAUDE.md
+    igual a las trampas de las reglas, y cada cita de una trampa en el código y los docs, el comienzo de un título;
   - que data/pois.json tenga ids únicos y que cada recorrido apunte a lugares que existen;
   - que lo que el juego y tools/ copian de la página siga igual (juego_contratos: el contorno y los prados de la plaza,
     LEJOS, config/fachadas.json, data/plaza-osm.json, las fórmulas del relieve de tools/relieve.py);
@@ -195,7 +198,7 @@ def section_headers(fail):
 
 def layer_heights(fail):
     """The flat layers' heights (Y_LAYER in src/js/30-geometry.js): every pair of Y_OVER, [upper, lower], is in that order
-    and at least Y_STEP apart (a step of half a centimetre flickers: CLAUDE.md, «Capas planas sin explanada»);
+    and at least Y_STEP apart (a step of half a centimetre flickers: trap «Capas planas sin explanada»);
     street_top is the top class of street (street + 7 street_step)."""
     src = (build.SRC / 'js' / '30-geometry.js').read_text()
     m = re.search(r'const Y_LAYER=\{(.*?)\};', src, re.S); s = re.search(r'Y_STEP=([\d.]+)', src); o = re.search(r'Y_OVER=\[(.*?)\];', src, re.S)
@@ -207,6 +210,66 @@ def layer_heights(fail):
         if up not in Y or lo not in Y: fail(f'src/js/30-geometry.js: Y_OVER nombra una capa que Y_LAYER no tiene: {up if up not in Y else lo}'); continue
         if Y[up] - Y[lo] < step - 1e-9:
             fail(f'src/js/30-geometry.js: la capa {up} ({Y[up]}) debe quedar al menos {step} m sobre {lo} ({Y[lo]})')
+
+# ---- the guide for Claude Code: CLAUDE.md (always loaded) and .claude/rules/<tema>.md (loaded with the files of their
+# `paths:`). Progressive disclosure only holds while the root stays short and the rules stay findable.
+GUIDE_MAX = 30_000      # CLAUDE.md: loaded in every session, with ~/CLAUDE.md (Claude Code warns past 150k together)
+RULE_MAX = 24_000       # a rule: loaded on demand, cut past 40k with a 200k context window
+CITE_DIRS = ('src', 'juego', 'pipeline', 'tools', 'tests', 'docs', '.claude')
+GUILL = r'«((?:[^«»]|«[^«»]*»)+)»'   # «…», with one nested «…» (the trap «Manzanas «sin información»»)
+
+def _norm(s):
+    return re.sub(r'\s+', ' ', re.sub(r'[`*]', '', s)).strip().rstrip('.…').strip().lower()
+
+def guide(fail):
+    """CLAUDE.md and .claude/rules/ (see CLAUDE.md, «Cómo está organizada esta guía»): sizes under GUIDE_MAX and
+    RULE_MAX; each rule opens with a `paths:` list whose every glob matches a tracked file (with a broken frontmatter
+    Claude Code loads the rule in every session; with a stale glob, never); the trap index of CLAUDE.md lists exactly
+    the traps of each rule, in order; trap titles are unique; and every citation of a trap in the code and the docs (the
+    word trampa or trap before a title in guillemets) is the start of a trap title (CHANGELOG.md is history and may cite old names)."""
+    root = ROOT / 'CLAUDE.md'; rules = sorted((ROOT / '.claude' / 'rules').glob('*.md'))
+    text = root.read_text()
+    if len(text) > GUIDE_MAX:
+        fail(f'CLAUDE.md: {len(text)} caracteres, más que {GUIDE_MAX}: lo de un tema va en su regla (.claude/rules/)')
+    tracked = subprocess.run(['git', 'ls-files'], cwd=ROOT, capture_output=True, text=True).stdout.split('\n')
+    titles = {}                 # normalised title -> rule
+    index = dict(re.findall(r'(?m)^- \*\*`([\w-]+)\.md`\*\*: (.*)$', text))
+    for f in rules:
+        t, name = f.read_text(), f'.claude/rules/{f.name}'
+        if len(t) > RULE_MAX: fail(f'{name}: {len(t)} caracteres, más que {RULE_MAX}: pártala en dos temas')
+        fm = re.match(r'---\npaths:\n((?:  - "[^"\n]+"\n)+)---\n', t)
+        if not fm: fail(f'{name}: debe empezar con un frontmatter `paths:` (una lista de "globs" entre comillas)')
+        for g in re.findall(r'"([^"]+)"', fm.group(1)) if fm else ():
+            rx = re.compile('^' + re.escape(g).replace(r'\*\*/', '(?:.*/)?').replace(r'\*\*', '.*').replace(r'\*', '[^/]*') + '$')
+            if not any(rx.match(p) for p in tracked): fail(f'{name}: el glob «{g}» de paths no calza con ningún archivo de git')
+        sec = t.split('\n## Trampas\n', 1)
+        mine = [m.rstrip('.') for m in re.findall(r'(?m)^- \*\*(.+?)\*\*', sec[1])] if len(sec) == 2 else []
+        for m in mine:
+            if _norm(m) in titles: fail(f'{name}: trampa repetida «{m}» (también en {titles[_norm(m)]})')
+            titles[_norm(m)] = name
+        listed = re.findall(GUILL, index.get(f.stem, ''))
+        if f.stem not in index: fail(f'CLAUDE.md: el índice de trampas no tiene la línea de {f.stem}.md')
+        elif listed != mine:
+            miss = [m for m in mine if m not in listed]; extra = [m for m in listed if m not in mine]
+            fail(f'CLAUDE.md: el índice de {f.stem}.md no calza con su regla'
+                 + (f'; faltan: {miss}' if miss else '') + (f'; sobran: {extra}' if extra else '')
+                 + ('' if miss or extra else '; el orden difiere'))
+    for k in sorted(set(index) - {f.stem for f in rules}): fail(f'CLAUDE.md: el índice nombra {k}.md, que no existe')
+    for m in re.findall(r'(?m)^- \*\*(.+?)\*\*', text.split('\n## Trampas\n', 1)[-1].split('\nLas demás')[0]):
+        titles[_norm(m)] = 'CLAUDE.md'
+    files = [ROOT / 'README.md', root] + [p for d in CITE_DIRS for p in sorted((ROOT / d).rglob('*'))
+             if p.is_file() and p.suffix in ('.md', '.py', '.js', '.gd', '.sh', '')
+             and not {'node_modules', 'worktrees'} & set(p.relative_to(ROOT).parts)]
+    for p in files:
+        try: t = p.read_text()
+        except (UnicodeDecodeError, OSError): continue
+        t = re.sub(r'\n[ \t]*(?:#|//|\*)?[ \t]*', ' ', t)     # citations wrap across comment lines
+        for m in re.finditer(r'\b(?:[Tt]rampas?|[Tt]raps?) ' + GUILL + r'((?:(?: y | and |, )' + GUILL + r')*)', t):
+            for c in [m.group(1)] + re.findall(GUILL, m.group(2)):
+                n = _norm(c)
+                if len(n) < 6 or not any(k.startswith(n) for k in titles):
+                    fail(f'{p.relative_to(ROOT)}: cita una trampa que no está en el índice de CLAUDE.md: «{c}» '
+                         '(¿cambió de nombre?)')
 
 def main(dist=True):
     t0 = time.time(); bad = []
@@ -238,7 +301,7 @@ def main(dist=True):
         t, name = f.read_text(), f.relative_to(ROOT)
         if not t.endswith('\n'): fail(f'{name}: no termina en un salto de línea (build.py lo pegaría al siguiente)')
 
-    css_tokens(fail); section_headers(fail); layer_heights(fail); pins(fail)
+    css_tokens(fail); section_headers(fail); layer_heights(fail); pins(fail); guide(fail)
 
     pois = json.load(open(ROOT / 'data' / 'pois.json'))
     ids = [p['id'] for p in pois['pois']]
@@ -282,7 +345,7 @@ def main(dist=True):
     print(f'check: {len(bad)} fallas' if bad else f'check: ok ({(time.time()-t0)*1000:.0f} ms)')
     return 1 if bad else 0
 
-# ---- pipeline/ and config/: traps of CLAUDE.md made into checks
+# ---- pipeline/ and config/: traps (.claude/rules/) made into checks
 def usos_bi(fail):
     """Each entry of the land-use files given by a census block (`bi`, an index into data/geometry.json) carries `bc`, a
     point inside that block when the entry was written (usos.py writes it): if the blocks change (another clip, another

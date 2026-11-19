@@ -1,5 +1,5 @@
 # Los pasos bajo la Ruta 5 en la colisión de la capa «hitos». La página no puede hundir la autopista bajo los pasos
-# superiores de la ciudad (2 Norte, San Miguel, 8 Sur: CLAUDE.md, «La Ruta 5 va en trinchera y el relieve no la puede
+# superiores de la ciudad (2 Norte, San Miguel, 8 Sur: trampa «La Ruta 5 va en trinchera y el relieve no la puede
 # dibujar»), ni un camino bajo un terraplén: dibuja el paso con una rampa que sube 2–4 m y una cara oscura (K.void,
 # #2B3036, r5Over y los `voids` de r5Raise en 66-ruta5.js) donde la autopista o el camino pasarían por debajo. En el
 # juego esa cara era un muro de colisión que cerraba la Ruta 5 en cada paso (el auto, a 90 km/h, contra el de 8 Sur), y

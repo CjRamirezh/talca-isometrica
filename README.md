@@ -111,6 +111,8 @@ src/                     toda la aplicación (CSS, UI y motor three.js r128), en
   js/hitos/ORDER         el orden de los hitos (importa: explanadas vecinas, ayudantes de la plaza)
   site/                  lo que el sitio publicado lleva junto a index.html: favicon.svg, apple-touch-icon.png, og.jpg, los pósters del arranque (poster-movil.webp, poster-escritorio.webp) y _headers (la caché de assets/ en Cloudflare Pages)
 data/                    datos procesados (versionados)
+.claude/rules/           la guía de Claude Code por tema (CLAUDE.md es el índice); tools/check.py (guide) revisa que sigan calzando
+.claude/skills/          procedimientos para Claude Code (modelar-hito)
 dist/                    resultado (no versionado: `make build`): index.html, assets/ (app.<hash>.js, three-r128.<hash>.js y un .json con hash por fuente de datos) y los archivos de src/site/
 tools/page.py            lo que comparten las herramientas de Playwright: Map (sirve dist/, abre Chromium, espera a window.__idle()), --size --dpr --gl --init, diff()
 tools/screenshot.py      capturas con Chromium sin interfaz
@@ -168,7 +170,10 @@ Los cambios de código o de datos se reciben como pull request en GitHub. Antes 
 - [docs/PLAN-TREN.md](docs/PLAN-TREN.md): la vía férrea completa y sus puentes (hechos) y el plan del tren en movimiento.
 - [docs/PLAN-SITIO.md](docs/PLAN-SITIO.md): el sitio sin las restricciones del artifact de Claude: datos aparte y three.js propio (hechos); empaquetador, Worker, primera vista generada al armar, three.js nuevo y relieve más fino.
 - [docs/PLAN-COMUNAS.md](docs/PLAN-COMUNAS.md): qué de Talca está fijo en el código y un plan para hacer la maqueta de otra comuna (Curicó como prueba).
-- [CLAUDE.md](CLAUDE.md): guía para seguir trabajando con Claude Code (arquitectura, convenciones, trampas conocidas).
+- [CLAUDE.md](CLAUDE.md): guía para seguir trabajando con Claude Code. Corta, porque se carga en cada sesión: lo que vale para todo el repo, la arquitectura en una tabla y el índice de las trampas conocidas.
+- [.claude/rules/](.claude/rules/): el detalle de la guía, un archivo por tema (la generación, los hitos, la ciudad, los edificios, los usos de suelo, ríos y vías, el pipeline, la página, el juego, las herramientas), con sus comandos y sus trampas. Claude Code carga cada uno al tocar los archivos de su `paths:`; para una persona, son la referencia de cada parte.
+- [.claude/skills/modelar-hito/](.claude/skills/modelar-hito/SKILL.md): el procedimiento para modelar un hito, paso a paso (`/modelar-hito` en Claude Code).
+- [docs/PENDIENTES.md](docs/PENDIENTES.md): ideas pendientes, con lo medido y lo probado.
 - [CHANGELOG.md](CHANGELOG.md): cambios.
 
 ## Licencia

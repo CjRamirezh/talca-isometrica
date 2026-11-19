@@ -1,0 +1,64 @@
+---
+paths:
+  - "src/js/55-rivers.js"
+  - "src/js/60-streets.js"
+  - "src/js/62-diagonal.js"
+  - "src/js/63-paseos.js"
+  - "src/js/64-base.js"
+  - "src/js/66-ruta5.js"
+  - "src/js/68-rail.js"
+  - "src/js/70-trains.js"
+  - "src/js/hitos/puente*.js"
+  - "src/js/hitos/enlaces-ruta-5.js"
+  - "src/js/hitos/estacion.js"
+  - "pipeline/railway.py"
+  - "pipeline/traces.py"
+  - "pipeline/process_geometry.py"
+  - "pipeline/rutas.py"
+  - "config/trazados.json"
+  - "config/rutas.json"
+---
+
+# Ríos, calles, Ruta 5, vía férrea y trenes
+
+Las líneas que cruzan la comuna y lo que va sobre ellas: los ríos de OSM, las veredas, la Ruta 5, la vía y los trenes. Más detalle en docs/METODOLOGIA.md §5 y docs/PLAN-TREN.md.
+
+## Arquitectura
+
+| Archivo (`src/js/`) | Qué hace |
+|---|---|
+| `55-rivers.js` (ríos), `60-streets.js` (veredas, cruces, árboles de vereda, autos), `62-diagonal.js`, `63-paseos.js` (`paseosBase`: los paseos peatonales de `PASEOS`, en `10-decode.js`, con su ancho, baldosas, árboles, faroles y maceteros), `64-base.js` (`walkBase`, `buildBase`), `66-ruta5.js`, `68-rail.js` | parcelas agrícolas, manzanas, ríos (con suavizado Chaikin), Ruta 5 (`ruta5Base`: dos calzadas de OSM, `R5.c`, con sus pistas, líneas, bandejón y ramales `R5.k`, a 0,16 sobre las calles; sus tramos en puente o terraplén los dibujan los hitos con `r5Deck`/`r5Raise`, que dejan huecos en `R5C[k].gaps`; `ruta5Objects()` pone la barrera, los postes, cuyas luces van a `GLOW`, y los autos), calles, vía férrea (`railBase`, sobre ellas); todo pasa por `drape()`. Los tres ríos son de OSM (`RIV[k]`, de `DATA.area[k]`; ramas laterales en `DATA.branch`) y van sobre las manzanas (`riverBase`): el agua de todos en una malla propia (`riverWater`, `matWater` con `polygonOffset`), con franjas de ripio fuera de las orillas y una cinta de `ancho_m` sobre el eje donde no hay área (`riverRuns`); `riversLevel`/`riversRelevel` los nivelan, `riversOcc` los deja ocupados y `linesOcc` hace lo mismo con la Ruta 5 y la vía férrea. `walkRuns(sis, occOf)` traza las veredas de las calles `sis`; `walkBase()` (`64-base.js`) hace en la primera etapa solo las calles cuyas veredas alcanzan `STAGE`, y `walkRest()` las demás al comienzo de `rest()`, con `occWas`. `CLARO` e `inClaro` siguen como atajos para los hitos de la ribera. Una calle con `s.bridge` (la Ruta K-60-J sobre el río) no se dibuja: la dibuja el hito del puente. `railBase()` dibuja las dos líneas (`DATA.rail`, `DATA.ramal`) y las vías de patio (`RAIL_YARD`) muestreadas cada 0,7 m con un perfil de alturas: en el suelo, balasto, durmientes y rieles drapeados; donde una calle pasa bajo la vía (`DATA.railx` tipo 0), terraplén y tablero; los puentes que registran los hitos (`RAIL_BR`) se dibujan ahí, con el perfil final. Lo que no es plano (terraplenes, tableros, puentes, postes, señales, barreras) va en una malla propia que proyecta sombra. `RAILP` (`window.__rail`) guarda cada línea como camino para el tren |
+| `70-trains.js` | bajo `// ==== trains ====`: `trainCar()` construye cada coche (sfb, adm, loco, wagon; `nose` ±1 para las cabinas) en un marco local; `makeTrain()`/`trainPlace()` los ubican por su `s` sobre `RAILP`, a la altura `h` y orientados por la tangente entre sus bogies; `trainsInit()` (en `boot`, después de `buildBase`) arma los tres trenes y el horario de cada línea (`TRAIN.lines`); `trainsTick(now)` (desde `loop`) avanza el horario y los trenes y devuelve `true` cuando corresponde un cuadro: a `TRAIN_FPS` (18) mientras un tren se mueve dentro de la vista. `trainTurn()` da vuelta un tren: en su lugar (el Buscarril en el andén) o fuera del mapa (la locomotora sigue adelante). De noche, `trainsNight()`: ventanas por `matTrainWin.emissive` y el foco como un punto de `TRAIN.pts` (`GLOWPTS`, con los faroles). `trainHold`, `trainsList`, `trainFps`: `window.__train`, `__trains`, `__trainFps` |
+
+## Comandos
+
+```bash
+make ruta5 build                # raw/osm/map-comuna.json -> data/ruta5.json (las dos calzadas y los ramales de la Ruta 5)
+python tools/screenshot.py shots/ --view "tren=(p=__train('main',11261),__look(p[0],p[1],22))"   # un tren detenido con la cabeza en s (línea main o ramal; tipo sfb, carga, adm)
+python -I pipeline/rutas.py check [m]           # los nombres «Ruta …» del mapa contra los roles de la Red Vial del MOP; config/rutas.json corrige (make data)
+python pipeline/traces.py check piduco [--osm '{...}'] [--pads pads.txt] [--map comuna]   # un río de OSM contra el mapa: cruces, puentes, alcantarillas, manzanas en el agua
+uv run --with pillow python pipeline/traces.py panel lircay x0 x1 y0 y1 [18]  # eje, agua y puentes de OSM sobre la imagen satelital
+python pipeline/traces.py line <nombre> clave=regex [...] [--mid]   # encadena vías de OSM en `puntos` para config/trazados.json
+python pipeline/traces.py cruces comuna                             # cada cruce de la Ruta 5 en la comuna con su tipo (paso superior, pasarela, puente…)
+uv run --with pillow python pipeline/traces.py vial x0 x1 y0 y1 [18] # calzadas, ramales y cruces de OSM sobre la imagen satelital
+python pipeline/railway.py check comuna                             # la vía y el ramal de OSM: cruces con las calles (bajo la vía o a nivel), puentes, postes, señales
+python pipeline/railway.py write comuna                             # lo mismo, escrito en config/trazados.json -> ferrocarril (y su ramal); luego make data build
+```
+
+## Trampas
+
+- **Datos fuera del grafo.** El grafo de cicloconecta excluye autopistas (la Ruta 5 no está) y ferrocarriles. Por eso esos trazados están en `config/trazados.json`: puntos tomados de OSM una vez (la Ruta 5 y la vía; ver `fuente`). Las dos calzadas y los ramales de la Ruta 5 van en `data/ruta5.json` (`make ruta5`, de `traces.py calzadas comuna`), que `build.py` inyecta como `DATA.r5` (`R5` en la plantilla); el eje de `config/trazados.json` solo sirve para `linesOcc` y las revisiones de `traces.py`. Los ríos se bajan de OSM en `make data`.
+- **Los ríos están sobre las manzanas, a 0,11.** Su agua y las franjas de ripio de las orillas comparten esa altura sin tocarse; el agua tiene su propia malla con `polygonOffset` (factor −1, units −2: sin el factor, las manzanas asoman en astillas donde el cauce sube hacia la orilla) y gana donde coinciden. Una capa plana nueva junto al río no puede ir a 0,11 encima de la franja (6 m fuera del agua): el suelo del Parque Río Claro se detiene 8 m antes. Una capa 7 mm bajo otra también parpadea: el búfer de profundidad cubre ±30 km.
+- **Los ríos están nivelados.** Los nodos del relieve dentro del agua de un río valen el nivel del cauce, también para `E()` en `buildModels`; en las celdas de la orilla el agua sube hacia la ribera. Lo que flota en el río (muelles) se apoya con `drape()` o con `E(x, y)` en cada punto, no a una altura fija. Una explanada a menos de 40 m del agua toma nodos del cauce: `riversRelevel()` los repone después (Las Viejas Cochinas).
+- **Etiquetas de los ríos por punto.** Cada etiqueta toma el segmento del eje de OSM más cercano a un punto de grilla (`90-overlay.js`). Hasta octubre de 2026 eran índices del eje, que se corrieron todos cuando la maqueta pasó a ser la comuna y los ejes se alargaron. Una etiqueta nueva va en un segmento largo sobre el agua y lejos del límite de la comuna (donde el límite sigue el río, el eje queda en el borde).
+- **Dos ríos de OSM se tocan sin compartir nodos.** En las bocas del Piduco su agua y la del Claro se solapan o dejan una grieta de pocos metros. Las franjas de orilla que caen en el agua de otro río se dibujan con el agua (`riverBase`); si se agrega otro río que desemboque en uno de OSM, revise la boca de cerca.
+- **Ríos en `config/trazados.json`.** `osm.via` va en orden aguas abajo; `osm.agua` (opcional: sin ella el río es una cinta de `ancho_m`, como el Estero Pangue–Panguilemo y el Canal Pencahue) acepta un número (multipolígono) o una lista con `'w<id>'` para vías cerradas; `osm.ramas`, vías de brazos laterales; `osm.tunel`, vías de `via` bajo tierra (los sifones del canal), donde el eje se corta; `canal: true` le quita la franja verde de ribera. Las listas de ríos de la plantilla recorren `DATA.water`: uno nuevo solo necesita su entrada y, si se quiere, una etiqueta en `90-overlay.js`. La caché `raw/osm/rio-<río>.json` se vuelve a bajar sola si le falta un objeto.
+- **La Ruta 5 va en trinchera y el relieve no la puede dibujar.** Bajo los pasos superiores de la ciudad (2 Norte, San Miguel, 8 Sur) la autopista va unos 6 m bajo la calle, con las caleteras a nivel a pocos metros de los estribos (imagen de Esri, foto de 2011). Con nodos cada 40 m, una trinchera de 40 m de ancho no cabe en el terreno: bajarlos hundiría las manzanas vecinas. Por eso los pasos superiores suben 2–4 m sobre la calle con rampas cortas entre muros y una abertura oscura sobre la autopista (`r5Over`); donde la autopista sí va en puente (la vía férrea, el camino a 3958, 3485, el Lircay, el Piduco) sube en terraplén (`r5Raise`). Un paso superior nuevo necesita su tramo de calle hasta el cruce siguiente, para las rampas.
+- **Las líneas de OSM de la Ruta 5 son el borde entre la primera y la segunda pista.** También donde hay una tercera (`placement=right_of:1`): la calzada va de 4,5 m a la izquierda de la línea a 6 m (9,5 m con tercera pista) a su derecha (`R5R`). Cada calzada corre en su sentido, pero su orden en `R5.c` sale de su largo (`traces.py calzadas`) y se invirtió al pasar a la comuna: `R5C[0]` corre hoy hacia el norte. Lo que necesite «al norte por la calzada» lo toma de su tangente (`r5north(k, d)`, como `r5Raise`), no de `k`.
+- **La vía se dibuja después de las explanadas.** `railBase()` corre en `buildBase()`, con el terreno final, y todavía antes de la ciudad (puede marcar `occ`). Por eso los puentes ferroviarios no se dibujan en su bloque de `buildModels`: se registran en `RAIL_BR` con una función `draw(G, hAt)` que `railBase()` llama con la altura del perfil. Lo que se apoye en la vía (un andén, un tren) toma la altura de `RAILP` (`window.__rail`: `h` es la del riel), no `E()`: junto a los pasos bajo nivel la vía va hasta 3 m sobre el suelo.
+- **Los pasos bajo nivel suben la vía, no bajan la calle.** El relieve es una malla de 40 m y no puede hundir una calle de 11 m: la vía sube `RAIL_HU` (3 m) con rampas de 1:16 (48 m) y cruza en un tablero. Dos pasos a menos de `RAIL_FILL` (160 m) quedan unidos por el terraplén (1 Sur, 1 Norte y 2 Norte). La rampa de 1 Sur empieza justo al norte de la cubierta de la estación: un paso nuevo cerca de un andén no cabe sin acortar las rampas.
+- **Cada calle del mapa que cruza la vía está en `DATA.railx`.** `railway.py write` decide con OSM si pasa bajo la vía o a nivel. Sin entrada en `railx` la calle cruza a nivel, sin panel ni barreras, y el balasto queda sobre el asfalto: `make check` falla si una calle que cruza la vía no la tiene (otro grafo de cicloconecta); entonces `railway.py write comuna` y `make data`.
+- **La vía principal pasa bajo la cubierta de la estación.** El trazado a mano iba 26 m al oriente, por una vía de patio. La de OSM (`usage=main`) es la de la cubierta (u ≈ 18–20 del marco de la estación); el ramal sale de la cara poniente del andén descubierto.
+- **Lo que se mueve no usa `winMat()`.** Sus ventanas se calculan con la posición en el mundo (`vWP`): en un coche que avanza se deslizarían sobre la carrocería. Los trenes llevan las ventanas en una malla propia (`matTrainWin`) con `emissive` de noche. Y el foco que se mueve no puede ir en `GLOW` (que `lamps()` convierte en puntos fijos una sola vez): es un `Points` propio (`TRAIN.pts`) en `GLOWPTS`, que `paRender()` oculta en la pasada de normales y reduce con `k` como a los faroles.
+- **Una pestaña oculta no anima.** `requestAnimationFrame` no corre en una pestaña que no se ve (la que abre la extensión de Chrome queda en otra ventana): el horario de los trenes se detiene y `__trains()` muestra `run: false` para siempre. `trainsTick()` acota `dt` a 0,5 s para que al volver no salten.
+- **El tren detenido en la estación no se ve.** Para bajo la cubierta, que lo tapa; se ve entrar y salir. Para una captura del automotor quieto, `__train('main', 11261)` lo deja sobre el tablero de 1 Sur, al norte de la cubierta. Las `s` se cuentan desde el extremo norte de la línea, que se mueve con el límite de la maqueta: con la comuna (octubre de 2026) todas crecieron 5.131 m (antes 6130). El horario busca la cubierta por su lugar (`ST`, en `trainsInit`), no por su `s`.

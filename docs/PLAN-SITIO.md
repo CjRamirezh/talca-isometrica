@@ -35,7 +35,7 @@ Cada etapa se puede publicar sola y deja el mapa idéntico, píxel a píxel, sal
 
 ### 3.0 Medir en el teléfono, ya publicado
 
-Hecho en el Pixel 8a por wifi (§4): el mapa llega igual que antes y el póster antes. Falta en una red móvil de verdad (con el teléfono fuera del wifi, `tools/perf.py --android --arranque 3 --url https://talca.eduramirez.com/`), en una segunda visita después de una publicación que cambie solo el código, en un iPhone (depuración de Safari) y en un Android de gama baja (CLAUDE.md, «Rendimiento»).
+Hecho en el Pixel 8a por wifi (§4): el mapa llega igual que antes y el póster antes. Falta en una red móvil de verdad (con el teléfono fuera del wifi, `tools/perf.py --android --arranque 3 --url https://talca.eduramirez.com/`), en una segunda visita después de una publicación que cambie solo el código, en un iPhone (depuración de Safari) y en un Android de gama baja (docs/PENDIENTES.md, «Rendimiento»).
 
 ### 3.1 Las fuentes, del mismo origen
 
@@ -50,7 +50,7 @@ Las fuentes de Google son lo único que queda de otro origen: una hoja de estilo
 ### 3.3 La segunda etapa en un Worker
 
 - Lo que hoy hace `rest()` en tajadas entre cuadros (`sliced()`) pasa a un Worker. Los constructores (`GB`) ya escriben arreglos tipados (posición Float32, normal Int8, color Uint8): el Worker los transfiere sin copiar y el hilo principal solo crea las mallas (`tiledParts`, `canon()`).
-- Se descartó en octubre de 2026 (CLAUDE.md, «Rendimiento»): no adelanta el primer cuadro, la CPU total es la misma y crear y subir las mallas sigue en el hilo principal. Vuelve a tener sentido solo si el teléfono muestra tirones de la segunda etapa que las tajadas no resuelven (`tools/profile.py --android --tareas 8 --gesto`).
+- Se descartó en octubre de 2026 (docs/PENDIENTES.md, «Rendimiento»): no adelanta el primer cuadro, la CPU total es la misma y crear y subir las mallas sigue en el hilo principal. Vuelve a tener sentido solo si el teléfono muestra tirones de la segunda etapa que las tajadas no resuelven (`tools/profile.py --android --tareas 8 --gesto`).
 - Primero, revisar qué funciones de la generación tocan `T` (three.js) o el DOM. Requisito: el mapa terminado igual, píxel a píxel (trampa «El arranque en dos etapas»).
 
 ### 3.4 La primera vista generada al armar
@@ -68,13 +68,13 @@ Las fuentes de Google son lo único que queda de otro origen: una hoja de estilo
 
 ### 3.6 Relieve más fino (exploratorio)
 
-- El SRTM es de 30 m: una grilla de 20 m es lo más fino que sale de los datos actuales (`elevation.py` ya trabaja a 20 m). Más fino pide otra fuente (ALOS PALSAR a 12,5 m o un modelo nacional) y otra revisión del filtro de techos y árboles (trampa «El SRTM es de superficie»).
+- El SRTM es de 30 m: una grilla de 20 m es lo más fino que sale de los datos actuales (`elevation.py` ya trabaja a 20 m). Más fino pide otra fuente (ALOS PALSAR a 12,5 m o un modelo nacional) y otra revisión del filtro de techos y árboles (trampa «El relieve es de superficie»).
 - Lo que se busca no es más detalle del terreno, sino poder **tallar** en él: la trinchera de la Ruta 5 bajo los pasos superiores, las calles que bajan bajo la vía, explanadas vecinas sin compartir nodos. Eso se logra mejor con una grilla de 20 m más cortes a lo largo de trazados conocidos (la Ruta 5, los `railx` tipo 0) que con una grilla fina en toda la comuna.
 - Costos: con 20 m son 1,24 millones de nodos (cuatro veces más): cada recorrido de nodos (trampa «Lo que recorre todos los nodos del relieve») y cada `drape()` cortan cuatro veces más; `sampleTri()` y `terrainMesh()` tienen que seguir coincidiendo. El JSON del relieve pasaría de 0,7 a ~3 MB: ahí sí conviene un binario. Medir primero, con un `elevation.json` de 20 m, cuánto crecen la generación y los triángulos.
 
 ### Otras cosas que el artifact no dejaba
 
-- **Una postal PNG de la vista actual** (Ideas pendientes de CLAUDE.md): el artifact no dejaba que la página iniciara descargas; el sitio sí.
+- **Una postal PNG de la vista actual** (docs/PENDIENTES.md): el artifact no dejaba que la página iniciara descargas; el sitio sí.
 - **Enlaces con estado**: el artifact solo aceptaba `#id` en la dirección; el sitio puede guardar la vista (`#v=x,y,zoom,giro`) o la noche en el enlace, para compartir una vista exacta.
 
 ## 4. Mediciones

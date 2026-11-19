@@ -7,7 +7,7 @@
 #   - plaza-de-armas va primero: su explanada (MODELS['plaza-de-armas'].pad) la toman el memorial, la Catedral, el
 #     GORE, la Municipalidad, Servicios Públicos y la Torre Talca (make check falla si uno lee MODELS['<id>'] antes
 #     del hito que lo pone).
-#   - Las explanadas a menos de ~80 m comparten nodos del relieve y gana la última registrada (CLAUDE.md, trampa
+#   - Las explanadas a menos de ~80 m comparten nodos del relieve y gana la última registrada (trampa
 #     «Explanadas vecinas»). colegio-la-salle, gimnasio-regional, casino-dreams y calles-plaza dibujan sobre el
 #     terreno final (onFinalTerrain), que solo tiene las explanadas de los hitos anteriores: van después de sus
 #     vecinos.

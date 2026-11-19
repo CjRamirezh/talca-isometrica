@@ -2,7 +2,7 @@
 # lugares de la página (mapa/indice.json, «lugares»: los de pipeline/pois.py, con su punto de grilla y la altura del
 # suelo), que se filtra escribiendo; Enter o un doble clic lleva al personaje ahí (jugador.gd ir(): aparece cuando la
 # tesela del lugar tenga su colisión, mapa.gd). Esc o Tab la cierra. El punto de un lugar es su dirección: suele caer en
-# la vereda o en el borde del recinto, no al medio (CLAUDE.md, «El punto del lugar no es el centro del hito»).
+# la vereda o en el borde del recinto, no al medio (trampa «El punto del lugar no es el centro del hito»).
 extends CanvasLayer
 
 const Glb := preload("res://glb.gd")
