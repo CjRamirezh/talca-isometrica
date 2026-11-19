@@ -81,6 +81,7 @@ pipeline/
   process_geometry.py    manzanas + calles + trazados -> data/geometry.json
   elevation.py           elevación Copernicus GLO-30 -> data/elevation.json (--srtm: la de antes, para comparar)
   geotiff.py             lector de GeoTIFF de elevación (float32, DEFLATE, predictores 1–3) con la biblioteca estándar
+  gis.py                 las capas a un GeoPackage y un proyecto de QGIS en metros de grilla (sistema de referencia exacto), y de vuelta los usos editados ahí
   pois.py                catálogo de lugares y recorridos -> data/pois.json + pois.csv
   geocode.py             geocodificador de la numeración de Talca y validador
   grilla.py              el giro de la grilla de una ciudad (el rumbo dominante de sus calles alrededor de la plaza), para otra comuna
@@ -135,14 +136,19 @@ tools/ml_buildings.py    huellas de edificios de Overture (Microsoft, Google) y 
 tools/export.py          la maqueta generada a glTF (Blender, Godot; --teselas: un archivo por tesela, con --instancias, --lejos, --medio y --liviano para el juego) y a STL cerrado para impresión 3D (tools/export.js corre en la página)
 tools/blender_ver.py     abre en Blender un glb o STL exportado, con sus colores y encuadrado (-b --png: una vista sin ventana)
 tools/godot_oculto.sh    corre el juego de Godot lanzado oculto (en el Mac con open -j -g; en Linux en Xvfb), sin quitarle el teclado a quien trabaja: así lo revisan las sesiones de Claude
-tools/godot/             proyecto de Godot que carga un glb exportado (ver.gd: cámara ortográfica, colores por vértice; --png); comparar.gd: dos exportaciones de teselas en lo que Godot guarda, vértice por vértice
+tools/godot/             proyecto de Godot que carga un glb exportado (ver.gd: cámara ortográfica, colores por vértice; --png); comparar.gd: dos exportaciones de teselas en lo que Godot guarda, vértice por vértice; vitrina.gd: un modelo del juego (peatón, vehículos, autos, árboles) solo, sin el mapa, en cuatro vistas
 juego/                   un juego de Godot para pasear por la comuna en tercera persona (make juego exporta juego/mapa/, la comuna en teselas de 500 m; Godot --path juego); juego/modelos/: la plaza, la catedral, las fachadas y las calles de alrededor, de cerca
 juego/mapa.gd, arboleda.gd   las teselas alrededor de la cámara (en hilos, con los edificios solos hasta 3 km, lo de lejos y la colisión cercana; cuantizado.gd: el formato liviano) y los árboles de la página como los de la plaza; viaje.gd: Tab, ir a un lugar; recorte.gd: los recortes de los modelos sobre cada tesela
 juego/autos.gd, faroles.gd   los autos de la página como los de calles.gd (modelos/entorno/auto.gd) de cerca, y los faroles de las calles de noche: postes, brillo y las luces más cercanas
 juego/letreros.gd        los letreros con el nombre de las calles en los cruces de la comuna (tools/export.py --letreros): poste, placas con la numeración de la cuadra y la flecha del sentido; el texto, en los más cercanos
-juego/vehiculo.gd        la bicicleta y el auto (E: subir o bajar, V: cambiar), con su cámara; pasos.gd: los pasos bajo la Ruta 5 en la colisión
+juego/vehiculo.gd        la bicicleta, el auto y el jetpack (E: subir o bajar, V: cambiar), con su cámara; pasos.gd: los pasos bajo la Ruta 5 en la colisión
+juego/vida.gd            la barra de vida, la muerte y la reaparición en la Plaza de Armas, y los carritos de completos de 5 y 6 Oriente, donde se recupera (--dano, --caer)
+juego/armas.gd, blancos.gd   el cuchillo, la pistola y el rifle de asalto (1, 2, 3; clic, botón derecho, R; modelos/entorno/armas.gd) y los muñecos de práctica del borde sur de la plaza (--arma, --disparar)
+juego/menu.gd            el menú de Esc: pausa, seguir, ir a un lugar, el mapa, volver a la plaza, día o noche, la red local, la ayuda en pantalla, pantalla completa, salir
 juego/red.gd             la red local (J): crear una partida o unirse a una en la misma red (ENet; --servidor, --unirse ip|lan, --nombre), con los otros jugadores a pie o en sus vehículos y en los mapas
 juego/plano.gd, ruta.gd  el mapa en miniatura y el mapa grande (M; plano_datos.gd lee datos/plano.json), y el marcador con el camino por las calles (A*), la cinta de flechas y la columna de luz
+juego/trailer.gd         --trailer toma: las tomas del avance (tools/trailer.py las graba con Movie Maker, les pone títulos y música y las junta -> shots/trailer/talca.mp4)
+tools/trailer.py         el avance del juego: graba las tomas de juego/trailer.gd, cortes al ritmo, cuadros congelados, títulos y un ritmo sintetizado
 juego/cine.gd            --cine: un plano de cine de 30 s en la plaza, de la tarde a la noche (make cine: Movie Maker de Godot y ffmpeg -> shots/cine/plaza.mp4)
 juego/vp.gd, juego/vp/   --vp: la plaza en una tele de fondo, proyectada desde la posición de un teléfono Android que filma (WebXR, ARCore; producción virtual como un set de LED)
 tools/juego_osm.py       las plantas y los nodos de la calle de OSM alrededor de la plaza para juego/modelos/ y la página (data/plaza-osm.json)

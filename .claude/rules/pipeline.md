@@ -54,6 +54,8 @@ uv run tools/sentinel.py usos   # las entradas de config/usos.json que hoy se ve
 python pipeline/wikidata.py check [--refresh]   # los lugares contra Wikidata: distancias, fechas y protección que la ficha no dice, fotos que FUENTES no cita, candidatos (caché en raw/wikidata/)
 python pipeline/traces.py tiles x0 x1 y0 y1 <nombre>                # API map de OSM por cajas (sin Overpass) -> raw/osm/map-<nombre>.json
 python pipeline/traces.py tiles-comuna                              # lo mismo sobre toda la comuna -> raw/osm/map-comuna.json (make osm)
+python pipeline/gis.py exportar [carpeta] [--wgs84]   # data/ y config/ -> gis/talca.gpkg (GeoPackage, biblioteca estándar) y gis/talca.qgs (QGIS 3.34 o más: estilos, la imagen de Esri de fondo), en metros de grilla con el sistema de referencia exacto de common.loc (WKT2: `gis.py crs`); sin raw/, ~1,5 s
+python pipeline/gis.py importar [gis/talca.gpkg] [--escribir]   # la capa usos editada en QGIS -> config/usos*.json (cambios, nuevas al final de usos.json; las borradas solo se avisan); luego usos.py check y make build
 ```
 
 ## Trampas
