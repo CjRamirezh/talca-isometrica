@@ -1161,8 +1161,9 @@ func mostrar_jetpack(dt: float) -> void:
 # la pose en el aire, con el jetpack puesto: las piernas colgando, un poco dobladas y meciéndose (la derecha adelante),
 # las puntas de los pies abajo y las manos en los mandos de la cintura. Mueve las articulaciones de peaton.gd como
 # sentar(), y se mezcla en ~0,15 s
-func pose_vuelo(dt: float) -> void:
-	var pe := jugador.peaton as Peaton
+func pose_vuelo(dt: float, pe: Peaton = null) -> void:
+	if pe == null:  # el propio; red.gd pasa el de otro jugador
+		pe = jugador.peaton as Peaton
 	pe.t += dt
 	var k := 1.0 - exp(-8.0 * dt)
 	var vaiven := 0.06 * sin(pe.t * 2.1)
@@ -1188,10 +1189,12 @@ func pose_vuelo(dt: float) -> void:
 
 
 # la mochila en el torso del peatón (puesta: se mueve con él) o parada en el suelo, en modelo (sacada, sin correas)
-func mochila_puesta(si: bool) -> void:
+func mochila_puesta(si: bool, pe: Peaton = null) -> void:
 	if mochila == null:
 		return
-	var padre: Node3D = (jugador.peaton as Peaton).torso if si else modelo
+	if pe == null and jugador:  # el propio; red.gd pasa el de otro jugador
+		pe = jugador.peaton as Peaton
+	var padre: Node3D = pe.torso if si and pe else modelo
 	if mochila.get_parent() != padre:
 		mochila.reparent(padre, false)
 	mochila.transform = Transform3D.IDENTITY if si else Transform3D(Basis(), J_EN_EL_SUELO)
