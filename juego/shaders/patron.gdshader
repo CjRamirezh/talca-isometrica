@@ -5,6 +5,7 @@
 // era un texto dentro de modelos/entorno/materiales.gd.
 shader_type spatial;
 render_mode blend_mix, cull_back, diffuse_burley, specular_schlick_ggx;
+global uniform float noche;  // 0 de día, 1 de noche (ambiente.gd): las ventanas encendidas de «ventana»
 uniform int patron = 0;
 uniform float rugosidad = 0.9;
 uniform float metalico = 0.0;
@@ -104,9 +105,16 @@ void fragment() {
 	} else if (patron == 10) {
 		c *= 0.92 + 0.08 * step(0.5, fract(q.x / 0.5));
 	}
+	vec3 em = c * emision;
+	if (patron == 13) {
+		// el vidrio de una ventana (fachadas_ciudad.gd): oscuro y liso de día; de noche, las de alfa 1 se encienden
+		// con una luz cálida, más clara arriba (la lámpara del techo)
+		r = 0.12;
+		em = vec3(1.0, 0.74, 0.42) * (0.8 + 0.4 * fract(q.y / 2.8)) * noche * step(0.8, COLOR.a) * 1.3;
+	}
 	ALBEDO = c;
 	ROUGHNESS = r;
 	METALLIC = metalico;
 	SPECULAR = especular;
-	EMISSION = c * emision;
+	EMISSION = em;
 }

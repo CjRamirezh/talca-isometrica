@@ -207,6 +207,10 @@ function edificio(B,Z,e){const r=rng(e.seed),R=e.R[0],holes=e.R.slice(1),t=e.t;
       let cx=0,cy=0;for(const p of I){cx+=p[0];cy+=p[1];}cx/=I.length;cy/=I.length;const w=1.6+r()*.6,dd=2+r()*.8,q=[[cx-w,cy-dd],[cx+w,cy-dd],[cx+w,cy+dd],[cx-w,cy+dd]];
       if(q.every(p=>pip(p,I))){Z.prism(q,h,h+2.8,shade(wall,.92),pick(r,PAL.flat));
         const tq=ngon(cx+w+1.6,cy,1.1,8);if(r()<.6&&tq.every(p=>pip(p,I))){Z.prism(tq,h,h+1.8,CP.tank[0],CP.tank[1]);}}}}
+  // the game's record (50-city.js FACH): its outline, eaves and type; the shops' edges below
+  const fr=KEEP?{t:t==='casa'?(H?{antiguo:'adobe',pob:'poblacion',pareada:'pareada',fila:'fila'}[H.t]||'condominio':lv>=3?'edificio':cap?'adobe':'continua'):
+      t==='comercio'?(lv>=3?'edificio':'local'):t==='departamentos'?(lv>=5?'torre':'block'):t==='galpon'?'galpon':lv>=5?'torre':lv>=3?'edificio':'institucional',
+    q:R,b:B.dy,h,p:lv,w:wall,r:roof,k:cap?'h':'f',rh:cap?d*(t==='galpon'?.3:.5):0,ph:cap?0:t==='galpon'?.3:.6,l:[],f:fachFront(R,-1),s:e.seed,osm:e.f,id:e.f==='osm'?e.id:null}:null;if(fr)fachRec(fr);
   // a plinth of its own colour, 6 cm out of the wall (0.8 m: lower, it is less than two art pixels)
   if(fa&&fa.zocalo){const zh=fa.zocalo_alto>0?Math.max(.8,fa.zocalo_alto):.8,zc=hex('#'+fa.zocalo);
     for(let i=0;i<R.length;i++){const a=R[i],b=R[(i+1)%R.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<0.5)continue;const nx=(b[1]-a[1])/L*.06,ny=-(b[0]-a[0])/L*.06;
@@ -219,7 +223,7 @@ function edificio(B,Z,e){const r=rng(e.seed),R=e.R[0],holes=e.R.slice(1),t=e.t;
     const tx=(b[0]-a[0])/L,ty=(b[1]-a[1])/L,nx=ty,ny=-tx,mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;
     if(!nearStreet(mx+nx*4.5,my+ny*4.5,0)||r()>ps)continue;
     const P=(u,v)=>[a[0]+tx*u-nx*v,a[1]+ty*u-ny*v],F={f:[nx,0,-ny],b:[-nx,0,ny],l:[-tx,0,ty],r:[tx,0,-ty]};
-    shopFront(Z,P,F,.3,L-.3,0,4,lv===1?1:2,h,wall,CP.signCore,r,0);EDS.shops++;}}
+    shopFront(Z,P,F,.3,L-.3,0,4,lv===1?1:2,h,wall,CP.signCore,r,0);EDS.shops++;if(fr)fr.l.push(i);}}
 // the ground of an OSM block on a 1 m raster (see the header): the cells inside it and off the streets' sidewalks,
 // each the front strip, an OSM surface, or the patio of its nearest building (up to 40 m away; ED_YARD in a mixed
 // block), merged into rectangles. A whole block lays them as slabs; a mixed one drapes them on the ground at 0.135

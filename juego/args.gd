@@ -68,6 +68,7 @@ const SIN := {
 	"plaza": "modelos/plaza.gd (el modelo entero: el hito del glb queda)", "arboles": "modelos/plaza.gd",
 	"pasto": "modelos/plaza.gd",
 	"autos": "autos.gd (los autos del mapa, de cerca y de lejos)", "luces": "faroles.gd (las luces de verdad: quedan lámparas y brillos)",
+	"fachadas": "mapa.gd (las fachadas de cerca de toda la comuna, fachadas_ciudad.gd: queda la caja del glb)",
 	"letreros": "letreros.gd (los de las calles de la comuna; los de calles.gd quedan)",
 	"plano": "main.gd (el mapa en miniatura y el mapa grande de plano.gd; el marcador de --marcar queda)",
 }

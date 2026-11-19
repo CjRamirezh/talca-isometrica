@@ -67,7 +67,7 @@ hooks:                        ## instala .githooks/ (pre-commit = make check; pr
 
 juego: build                  ## juego/mapa/: la comuna en teselas de 500 m, sus árboles, autos, faroles y letreros de las calles (con data/sentidos.json) como datos, sus edificios solos (de 1,8 a 3 km) y lo de lejos (tools/export.py --teselas; ~3 min, ~540 MB), el plano de los mapas (pipeline/plano.py) y la importación en Godot; luego: Godot --path juego
 	rm -f juego/plaza.glb juego/plaza.glb.import juego/plaza.json   # el glb de 400 m de antes de noviembre de 2026
-	$(PW) tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos,autos,autos-ruta5 --faroles --letreros --lejos --medio --liviano
+	$(PW) tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos,autos,autos-ruta5 --faroles --letreros --fachadas --lejos --medio --liviano
 	touch juego/mapa/.gdignore    # Godot no importa los glb: mapa.gd los lee al jugar
 	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json data/ruta5.json juego/datos/   # lo que el juego comparte con la página
 	cd pipeline && $(PY) plano.py   # juego/datos/plano.json: las calles, el agua y la red de calles de los mapas del juego (plano.gd, ruta.gd)
