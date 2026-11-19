@@ -156,6 +156,35 @@
     return out;
   };
 
+  // __exFach([x0,y0,x1,y1]): los edificios cuyo centro cae en la caja, para las fachadas de cerca del juego
+  // (juego/fachadas_ciudad.gd). Cada uno como lo dibujó la página (FACH de 50-city.js, de cityGen() y de edificio() en
+  // 52-edificios.js): t, el tipo (adobe, continua, local, edificio, torre, poblacion, pareada, fila, condominio, block,
+  // galpon, institucional); q, la planta [[x, y]…] en metros de grilla; b, la altura de su base (el suelo más bajo de
+  // la planta) y h, la del alero o del techo plano sobre b (rh: lo que sube el techo inclinado; ph: el pretil); p, los pisos; w (y w2, la otra mitad de una pareada, que se
+  // parte en m), el color del muro y r el del techo; k, el techo (f plano, g dos aguas con la cumbrera paralela al
+  // primer lado, x con el hastial al primer lado, h cuatro aguas, s galpón); f, los lados que dan a la calle (índices de
+  // q); l, los que tienen local (o true: el primero); c, la reja del antejardín [[x, y], [x, y]]; s, una semilla; osm, la fuente de la planta (osm, ms, google) e id, su id de OSM (w…: config/fachadas.json
+  // la corrige, como en la plaza).
+  const hx = c => c ? c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('') : '';
+  window.__exFach = box => {
+    const [x0, y0, x1, y1] = box, out = [], r2 = v => Math.round(v * 100) / 100, pt = p => [r2(p[0]), r2(p[1])];
+    for (const e of X.FACH) {
+      let cx = 0, cy = 0; for (const p of e.q) { cx += p[0]; cy += p[1]; } cx /= e.q.length; cy /= e.q.length;
+      if (cx < x0 || cx >= x1 || cy < y0 || cy >= y1 || e.h == null) continue;
+      const o = { t: e.t, q: e.q.map(pt), b: r2(e.b), h: r2(e.h), p: e.p | 0, w: hx(e.w), r: hx(e.r), k: e.k, f: e.f, s: e.s | 0 };
+      if (e.rh) o.rh = r2(e.rh);
+      if (e.ph) o.ph = e.ph;
+      if (e.l === true || (Array.isArray(e.l) && e.l.length)) o.l = e.l === true ? [0] : e.l;
+      if (e.c) o.c = e.c.map(pt);
+      if (e.w2) { o.w2 = hx(e.w2); o.m = pt(e.m); }
+      if (e.osm) o.osm = e.osm;
+      if (e.id) o.id = e.id;
+      out.push(o);
+    }
+    return out;
+  };
+  window.__exFachN = () => X.FACH.length;
+
   // __exLiviano(): los arreglos de window.__exBuf (de __exGeom) en el formato liviano de las teselas del
   // juego (tools/export.py --liviano): normales en BYTE normalizado (KHR_mesh_quantization) y colores en UNSIGNED_BYTE
   // normalizado, los dos de a cuatro bytes por vértice (glTF pide cada elemento alineado a 4), e índices de 16 bits si

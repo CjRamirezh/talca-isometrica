@@ -43,9 +43,10 @@ const PIEDRA := 13
 # calles, y se ven en la foto de 1 Norte de 2022 en Commons), baldosa (40 × 40 cm con 16 botones, la «baldosa
 # microvibrada» de las veredas de Talca, foto de 1 Norte), teja (hileras de teja de arcilla), granito (soleras y
 # peldaños), pizarra (escamas del chapitel), asfalto (1 Oriente: OSM dice surface=asphalt al sur de la plaza, y las
-# fotos de 2022 de la esquina de 1 Norte lo muestran también al norte), metal y vidrio (sin dibujo)
+# fotos de 2022 de la esquina de 1 Norte lo muestran también al norte), metal y vidrio (sin dibujo), ventana (el vidrio de
+# fachadas_ciudad.gd: de noche se encienden las de alfa 1)
 const PATRON := {"liso": 0, "ladrillo": 1, "hormigon": 2, "baldosa": 3, "teja": 4, "granito": 5, "pizarra": 6,
-	"metal": 7, "vidrio": 8, "pintura": 9, "tela": 10, "emisivo": 11, "asfalto": 12}
+	"metal": 7, "vidrio": 8, "pintura": 9, "tela": 10, "emisivo": 11, "asfalto": 12, "ventana": 13}
 const RUGOSIDAD := {"metal": 0.38, "pintura": 0.55, "granito": 0.7, "emisivo": 0.5, "pizarra": 0.6}
 
 const ALZAR_AGUA := 0.06  # m: el agua sobre el ripio de las orillas, que está a su misma altura (CLAUDE.md, «Los ríos están sobre las manzanas, a 0,11»)
