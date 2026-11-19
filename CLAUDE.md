@@ -17,6 +17,7 @@ Este archivo se carga en cada sesión y es corto a propósito: lo que vale para 
 | [`pipeline.md`](.claude/rules/pipeline.md) | El pipeline de datos (pipeline/, config/, data/) | `pipeline/**`, `config/**`, `Makefile`, `tests/**` |
 | [`pagina.md`](.claude/rules/pagina.md) | La página y el sitio publicado | `src/page.html`, `src/style.css`, `src/site/**`, `src/js/05-categories.js` y 8 más |
 | [`juego.md`](.claude/rules/juego.md) | El juego en Godot (juego/) y la exportación | `juego/**`, `tools/export.py`, `tools/export.js`, `tools/godot/**` y 5 más |
+| [`juego-jugador.md`](.claude/rules/juego-jugador.md) | El personaje del juego (vida, armas, jetpack, menú) | `juego/jugador.gd`, `juego/vehiculo.gd`, `juego/vida.gd`, `juego/armas.gd` y 5 más |
 | [`herramientas.md`](.claude/rules/herramientas.md) | Las herramientas de tools/ (Playwright, rendimiento) | `tools/**` |
 
 Además:
@@ -139,4 +140,5 @@ Las demás están en su regla, que se carga al tocar los archivos de su tema. Su
 - **`pipeline.md`**: «Medianas de calles» · «Grilla irregular» · «La Alameda (4 Norte)» · «La imagen satelital puede ser vieja» · «Overpass puede no responder» · «El relieve es de superficie»
 - **`pagina.md`**: «El póster del arranque»
 - **`juego.md`**: «Exportar lo generado (`tools/export.py`)» · «El juego carga la comuna por teselas» · «Los vehículos del juego y los pasos bajo la Ruta 5» · «La red de calles del juego no sale de los vértices compartidos» · «Los letreros de las calles del juego» · «Los autos y los faroles del juego son datos, como los árboles»
+- **`juego-jugador.md`**: «Bajarse del vehículo y el servidor de física» · «El jetpack del juego» · «Las armas del juego»
 - **`herramientas.md`**: «Navegadores sin GPU» · «Rotar en `--js`» · «`__look` no limita el zoom»
