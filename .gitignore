@@ -2,6 +2,7 @@
 /node_modules
 shots/
 diagnostics/
+/gis/
 __pycache__/
 *.pyc
 .DS_Store
