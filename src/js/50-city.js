@@ -178,6 +178,15 @@ function blockTrees(bi,TR){const b=blocks[bi];if(isPark(bi)&&ALAM.has(bi))return
     TR.push([x,y,0.8+r()*0.6,r()]);n--;}}
 // cityGen(B, Y, Z, sts, bis): the lots of the streets sts (indices, a stretch of CITY_ORDER, in its order), then the
 // trees of the blocks bis; boot calls it for the streets near the first view and again, in pieces, for the rest
+// the game's facades (juego/fachadas_ciudad.gd): with window.__KEEP (tools/export.py) each building cityGen and
+// edificio() draw leaves a record of what it is (its footprint, base, eaves, storeys, type, colours, roof, which sides
+// face a street, its front fence): tools/export.js __exFach writes them per tile. Nothing here changes what is drawn
+// (no rng draws), and without __KEEP nothing is kept
+const FACH=[];
+// which edges of a ring face a street: from the middle of each, 4.5 m out (either way: rings come in both senses)
+function fachFront(R,force){const m=[],s=ringArea(R)>0?1:-1;for(let i=0;i<R.length;i++){const a=R[i],b=R[(i+1)%R.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<2)continue;
+  const nx=(b[1]-a[1])/L*s,ny=-(b[0]-a[0])/L*s,mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;if(i===force||nearStreet(mx+nx*4.5,my+ny*4.5,0))m.push(i);}return m;}
+function fachRec(o){if(KEEP)FACH.push(o);}
 function cityGen(B,Y,Z,sts,bis){
   const TR=[],PO=[]; // tree instances [x,y,s], poplars
   const cnt=k=>{CITY[k]=(CITY[k]||0)+1;};
@@ -234,32 +243,32 @@ function cityGen(B,Y,Z,sts,bis){
             const q=Q(u,u+w,o0,o0+dd);
             if(!fits(u,u+w,o0,o0+dd))continue;
             // the lot: the deepest yard that fits, with the front garden if it fits too
-            let lot=null,yv=0;
+            let lot=null,yv=0,lf=0;
             const yt=yd?Math.max(0,Math.min(yd,back()-o0-dd)):0;
             if(yt||front)for(const y of [yt,yt*.75,yt*.5,yt*.25,0]){
-              for(const f of front?[hw+0.9,o0]:[o0]){if(!y&&f===o0&&wl<=w)continue;if(fits(u,u+wl,f,o0+dd+y)){lot=Q(u,u+wl,f,o0+dd+y);yv=y;break;}}
+              for(const f of front?[hw+0.9,o0]:[o0]){if(!y&&f===o0&&wl<=w)continue;if(fits(u,u+wl,f,o0+dd+y)){lot=Q(u,u+wl,f,o0+dd+y);yv=y;lf=f;break;}}
               if(lot)break;}
             lotAdd(lot||q);ok=true;nb++;B.dy=Z.dy=groundMin(q);const qc=[(q[0][0]+q[2][0])/2,(q[0][1]+q[2][1])/2];
             // emit
             const wall=st.startsWith('core')?pick(r,PAL.wallsCore):st==='house'?pick(r,shop?CP.wallsPob:H.wl):st==='apt'?pick(r,R.a.wl):pick(r,PAL.walls);
-            let roof=null;cnt(shop?'shop':kind);if(kind!=='row')flush();
+            let roof=null,fx=null;cnt(shop?'shop':kind);if(kind!=='row')flush();
             if(kind==='gable'||kind==='gableX'){const h=fl*3.0+0.3;roof=tone(st==='core'?fam(r,MIX.core):fam(r,H.mix||MIX.pob),r()<.5?0:1);
               if(kind==='gable')B.gable(q,0.3,h,Math.min(w,dd)*0.22,wall,roof);else B.gable([q[1],q[2],q[3],q[0]],0.3,h,Math.min(w,dd)*0.24,wall,roof);}
             else if(kind==='pair'){ // two mirrored houses under one roof; each half its own colour, now and then its own roof
-              const h=fl*2.9+.3,hu=w/2,wb=r()<.25?pick(r,CP.wallsPob):pick(r,H.wl);
+              const h=fl*2.9+.3,hu=w/2,wb=r()<.25?pick(r,CP.wallsPob):pick(r,H.wl);fx={w2:wb,m:P(u+hu,o0)};
               roof=tone(H.rf,run);const rb=r()<.15?tone(fam(r,MIX.pob),0):roof;
               lotWalls(B,P,F,o0,o0+dd,h,[[u,u+hu,wall],[u+hu,u+w,wb]],true,true);
               if(H.rk==='hip')B.hipRoof(q,h,Math.min(w,dd)*.3,roof);
               else lotGable(B,P,F,o0,o0+dd,h,dd*.24,rb===roof?[[u,u+w,roof]]:[[u,u+hu,roof],[u+hu,u+w,rb]],wall,wb);run++;}
             else if(kind==='row'){ // a row of two-storey houses: the walls between them are not drawn, its open end waits for the next
-              const h=fl*2.8+.3,rh=dd*.22,wc=r()<.15?pick(r,CP.wallsPob):H.wl[run%H.wl.length],join=!!pend&&Math.abs(pend.u1-u)<.01&&Math.abs(pend.dy-B.dy)<.05&&pend.dd===dd;
+              const h=fl*2.8+.3,rh=dd*.22,wc=fx=r()<.15?pick(r,CP.wallsPob):H.wl[run%H.wl.length],join=!!pend&&Math.abs(pend.u1-u)<.01&&Math.abs(pend.dy-B.dy)<.05&&pend.dd===dd;
               if(join)pend=null;else flush();
               roof=tone(H.rf,run);lotWalls(B,P,F,o0,o0+dd,h,[[u,u+w,wc]],!join,false);lotGable(B,P,F,o0,o0+dd,h,rh,[[u,u+w,roof]],join?null:wc,null);
               const u1=u+w,dy0=B.dy,v1=o0+dd,vm=o0+dd/2;
               pend=()=>{const k=B.dy;B.dy=dy0;uq(B,P,F.r,u1,o0,v1,-3.7,h,wc);const pa=P(u1,o0),pb=P(u1,v1),pm=P(u1,vm);B.face([[pa[0],h,-pa[1]],[pb[0],h,-pb[1]],[pm[0],h+rh,-pm[1]]],F.r,wc);B.dy=k;};
               pend.u1=u1;pend.dy=dy0;pend.dd=dd;run++;}
             else if(kind==='hip'){const h=fl*2.8+.3;roof=tone(H.rf,run);B.prism(q,.3,h,wall,null,false);B.hipRoof(q,h,Math.min(w,dd)*.3,roof);run++;}
-            else if(kind==='shed'){const h=6+r()*4,sw=pick(r,CP.wallsShed),sr=pick(r,CP.shedRoof),k=r();
+            else if(kind==='shed'){const h=6+r()*4,sw=pick(r,CP.wallsShed),sr=pick(r,CP.shedRoof),k=r();fx={h,w:sw,r:sr};
               if(k<.4){const lg=dd>w;Z.gable(lg?[q[1],q[2],q[3],q[0]]:q,.3,h,(lg?w:dd)*.12,sw,sr);}
               else{Z.prism(q,.3,h,sw,sr,k>=.8);if(k<.6)sawRoof(Z,P,F,u,u+w,o0,o0+dd,h,sw,sr);else if(k<.8)barrelRoof(Z,P,F,u,u+w,o0,o0+dd,h,sw,sr);}}
             else if(kind==='slab'){ // a social-housing block, three or four storeys, with its stair towers
@@ -270,6 +279,15 @@ function cityGen(B,Y,Z,sts,bis){
                 for(const t of w>24?[.27,.73]:[.5]){const uc=u+w*t;B.prism(Q(uc-1.6,uc+1.6,o0-2.2,o0),.3,h+(A.gab?.4:1.2),tw,fc);}}}
             else{const h=fl*3.1+0.6;B.prism(q,0.3,h,wall,r()<.3?tone('light',r()<.5?0:1):pick(r,PAL.flat));if(fl>=5&&r()<.6)B.prism([q[0],q[1],q[2],q[3]].map(p=>[p[0]+(qc[0]-p[0])*.4,p[1]+(qc[1]-p[1])*.4]),h,h+2.4,shade(wall,.9),pick(r,PAL.flat));
               if(shop)shopFront(Z,P,F,u,u+w,o0,dd,fl,h,wall,st==='core'?CP.signCore:CP.sign,r,(i===0&&u<12)?-1:(i===last&&u+w>L-9)?1:0);}
+            if(KEEP){ // the game's record (see FACH)
+              const TY=shop?'local':st==='core'?(kind==='gable'?'adobe':fl>=3?'edificio':'continua'):st==='core2'?'continua':st==='ind'?'galpon':st==='apt'?'block':
+                H.t==='antiguo'?'adobe':H.t==='pob'?'poblacion':H.t==='pareada'?'pareada':H.t==='fila'?'fila':'condominio';
+              const hh=kind==='gable'||kind==='gableX'?fl*3.0+0.3:kind==='pair'?fl*2.9+.3:kind==='row'||kind==='hip'?fl*2.8+.3:kind==='slab'?fl*2.8+.5:kind==='shed'?null:fl*3.1+0.6;
+              const W0=Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1]),D0=Math.hypot(q[2][0]-q[1][0],q[2][1]-q[1][1]); // the roof's rise, as drawn below
+              const rh=kind==='gable'?Math.min(W0,D0)*.22:kind==='gableX'?Math.min(W0,D0)*.24:kind==='pair'?(H.rk==='hip'?Math.min(W0,D0)*.3:D0*.24):kind==='row'?D0*.22:kind==='hip'?Math.min(W0,D0)*.3:kind==='slab'&&R.a.gab?(R.a.perp?W0:D0)*.16:0;
+              const rk=kind==='gable'||kind==='row'?'g':kind==='gableX'?'x':kind==='pair'?(H.rk==='hip'?'h':'g'):kind==='hip'?'h':kind==='slab'?(R.a.gab?(R.a.perp?'x':'g'):'f'):kind==='shed'?'s':'f';
+              fachRec({t:TY,q,b:B.dy,h:hh,rh,p:fl,w:wall,r:roof,k:rk,l:shop,f:fachFront(q,0),c:lf&&lf<o0?[P(u,lf),P(u+wl,lf)]:null,s:si*7919+i*131+Math.round(u*10)+(side>0?0:1),
+                ...(kind==='row'?{w:fx}:fx),...(kind==='slab'?{perp:!!R.a.perp}:null)});}
             if(lot){const col=st==='core'?pick(r,PAL.patio):st==='core2'?pick(r,PAL.backlot):st==='ind'?pick(r,CP.paved):st==='apt'?pick(r,CP.lawn):pick(r,H.yc);
               Y.dy=groundMin(lot);const top=groundMax(lot)-Y.dy+0.2;Y.prism(lot,0,top,shade(col,.82),col);
               const v0=o0+dd,v1=o0+dd+yv;let tu0=u+1,tu1=u+wl-1;

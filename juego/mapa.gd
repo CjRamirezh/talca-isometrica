@@ -31,6 +31,8 @@ const Autos := preload("res://autos.gd")
 const Faroles := preload("res://faroles.gd")
 const Letreros := preload("res://letreros.gd")
 const Pasos := preload("res://pasos.gd")
+const Fachadas := preload("res://fachadas_ciudad.gd")
+const Args := preload("res://args.gd")
 const DIR := "res://mapa/"
 const CARGA := 1800.0  # m de la cámara al borde de la tesela
 const SOLTAR := 2300.0
@@ -57,6 +59,7 @@ var arboleda: Node3D
 var autos: Node3D  # autos.gd
 var faroles: Node3D  # faroles.gd
 var letreros: Node3D  # letreros.gd
+var fachadas: Node3D  # fachadas_ciudad.gd (null con --sin fachadas)
 var foco := Vector2(INF, INF)
 var t_revisar := 0.0
 var stats := {"leidas": 0, "ms": 0, "medios": 0, "ms_medios": 0}
@@ -80,6 +83,10 @@ func _ready() -> void:
 	add_child(faroles)
 	letreros = Letreros.new()
 	add_child(letreros)
+	if not "fachadas" in Args.sin_() and info.has("fachadas"):
+		fachadas = Fachadas.new()
+		fachadas.mapa = self
+		add_child(fachadas)
 	cargar_lejos()
 	muro_del_limite()
 
@@ -454,7 +461,7 @@ func listo() -> bool:
 	for k in cerca_de(p, MEDIO):
 		if tiene_medio(k) and not cargadas.has(k) and not medios.has(k):
 			return false
-	return true
+	return fachadas == null or fachadas.listo(p)
 
 
 func esperar() -> void:
@@ -465,6 +472,8 @@ func esperar() -> void:
 		await get_tree().process_frame
 	print("mapa.gd: %d teselas cargadas en %d ms (%d MB), %d medias (%.1f MB)" % [cargadas.size(), Time.get_ticks_msec() - t0,
 		roundi(_mb(cargadas.keys())), medios.size(), _mb_medios()])
+	if fachadas:
+		print("fachadas_ciudad.gd: %s" % fachadas.stats)
 
 
 func _mb_medios() -> float:

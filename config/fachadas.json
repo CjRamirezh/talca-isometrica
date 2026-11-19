@@ -1,5 +1,5 @@
 {
- "_comentario": "Lo medido en fotos de cada edificio de OSM alrededor de la Plaza de Armas, por id de OSM (w<id>). Lo leen el juego (juego/modelos/fachadas.gd, que dibuja la fachada de cerca con todo) y la página (build.py lo inyecta como DATA.ed.f; src/js/52-edificios.js toma alto, pisos, color, zocalo, techo y pb). Fuentes, por edificio: el encabezado de juego/modelos/fachadas.gd y docs/FUENTES.md. estilo: colonial, clasico, comercial, deco, torre, vidrio, municipal, intendencia (el juego); alto en m sobre la vereda; color, zocalo, marco, toldo: hex sin #; pb: ventanas (la planta baja sin locales) o vitrinas; techo: teja (cuatro aguas) o plano; letreros: [texto, fondo, letra]. Los que son hitos de la página (el GORE, la Municipalidad) la página los dibuja con su hito y no lee esto.",
+ "_comentario": "Lo medido en fotos de cada edificio de OSM, por id de OSM (w<id>): los de alrededor de la Plaza de Armas y, desde noviembre de 2026, los de cualquier calle. Lo leen el juego (juego/modelos/fachadas.gd, que dibuja la fachada de cerca con todo en la plaza; juego/fachadas_ciudad.gd en el resto de la comuna: estilo, pisos, color, marco y zocalo) y la página (build.py lo inyecta como DATA.ed.f; src/js/52-edificios.js toma alto, pisos, color, zocalo, techo y pb). Fuentes, por edificio: el encabezado de juego/modelos/fachadas.gd y docs/FUENTES.md. estilo: colonial, clasico, comercial, deco, torre, vidrio, municipal, intendencia (el juego); alto en m sobre la vereda; color, zocalo, marco, toldo: hex sin #; pb: ventanas (la planta baja sin locales) o vitrinas; techo: teja (cuatro aguas) o plano; letreros: [texto, fondo, letra]. Los que son hitos de la página (el GORE, la Municipalidad) la página los dibuja con su hito y no lee esto.",
  "w939131659": {"estilo": "colonial", "alto": 7.6, "pisos": 2, "color": "ebe7dd", "zocalo": "6e4538", "techo": "teja"},
  "w813755289": {"estilo": "clasico", "alto": 12.5, "pisos": 3, "color": "dccfb3", "pb": "ventanas"},
  "w843566423": {"estilo": "comercial", "alto": 7.4, "color": "e3d4b6", "toldo": "2f5e3e"},
@@ -24,5 +24,12 @@
  "w842637397": {"estilo": "comercial", "letreros": [["CHILEXPRESS", "f3c623", "1b2a6b"]]},
  "w842637398": {"estilo": "comercial", "alto": 9.0, "letreros": [["AFP HABITAT", "ffffff", "b0282a"]]},
  "w818950429": {"estilo": "comercial", "letreros": [["BANCO SANTANDER", "d8241c", "ffffff"]]},
- "w842604130": {"estilo": "comercial", "alto": 9.0, "letreros": [["CINE PLAZA", "1d1d1d", "f2c94c"]]}
+ "w842604130": {"estilo": "comercial", "alto": 9.0, "letreros": [["CINE PLAZA", "1d1d1d", "f2c94c"]]},
+ "w326268272": {"estilo": "deco", "alto": 11.0, "pisos": 2, "color": "e8e6e0", "marco": "dda55d", "pb": "vitrinas", "friso": "Cuartel General de Bomberos"},
+ "w392091758": {"estilo": "moderno", "pisos": 7, "color": "b9a98e", "pb": "vidrio", "letreros": [["ECO HOTEL", "eeede8", "2f6a3f"]]},
+ "w799509091": {"estilo": "colonial", "alto": 8.0, "pisos": 1, "color": "eeece8", "marco": "dab6a9"},
+ "w799509092": {"estilo": "colonial", "pisos": 1, "color": "eeece8", "marco": "dab6a9"},
+ "w813330081": {"estilo": "clasico", "pisos": 1, "color": "dbcfbf", "pb": "ventanas"},
+ "w939148488": {"estilo": "clasico", "alto": 9.0, "pisos": 2, "pb": "vitrinas"},
+ "w952814828": {"estilo": "comercial", "pisos": 1, "color": "c42c04"}
 }

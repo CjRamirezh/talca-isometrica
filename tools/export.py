@@ -11,7 +11,8 @@
   uv run tools/export.py --stl shots/comuna.stl --comuna --paso 25 --escala 100000
   uv run tools/export.py --glb shots/c.glb --stl shots/c.stl --vista shots/c.png
   uv run tools/export.py --teselas shots/teselas --comuna        # un glb por km² e indice.json (Godot)
-  uv run tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos --faroles --letreros --lejos --medio --liviano   # make juego
+  uv run tools/export.py --teselas juego/mapa --comuna --tam 500 --instancias arboles,alamos --faroles --letreros --fachadas --lejos --medio --liviano   # make juego
+  uv run tools/export.py --teselas juego/mapa --solo-fachadas    # solo los f_<i>_<j>.json (las fachadas de cerca del juego), sin rehacer los glb
 
 Carga dist/ en Chromium (Map de tools/page.py, ~1 min; --gl gpu, la GPU del equipo) con window.__KEEP, para que las
 mallas conserven sus arreglos después de subir a la GPU, espera la generación completa e inyecta tools/export.js, que
@@ -296,6 +297,32 @@ async def datos_tesela(pg, caja, inst, faroles, sin_poste, letreros=False):
     return o, n
 
 
+async def fachadas_tesela(pg, d, i, j, caja):
+    """los edificios de una tesela para las fachadas de cerca del juego (__exFach, juego/fachadas_ciudad.gd):
+    f_<i>_<j>.json, una lista; devuelve cuántos son"""
+    r = await pg.evaluate('b => __exFach(b)', caja)
+    f = d / f'f_{i}_{j}.json'
+    if r: f.write_text(json.dumps(r, separators=(',', ':')))
+    elif f.exists(): f.unlink()
+    return len(r)
+
+
+async def solo_fachadas(pg, d, t):
+    """--solo-fachadas: rehace los f_<i>_<j>.json de las teselas de d/indice.json sin volver a exportar los glb, y anota
+    cuántos edificios tiene cada una en el índice"""
+    ind = json.loads((d / 'indice.json').read_text())
+    n = 0
+    for e in ind['teselas']:
+        e['fachadas'] = await fachadas_tesela(pg, d, e['i'], e['j'], e['caja_m']); n += e['fachadas']
+    ind['fachadas'] = fach_info(n)
+    (d / 'indice.json').write_text(json.dumps(ind, ensure_ascii=False, indent=1))
+    print('fachadas:', n, 'edificios en', sum(1 for e in ind['teselas'] if e['fachadas']), 'teselas ->', d)
+
+
+def fach_info(n):
+    return {'datos': 'f_<i>_<j>.json: los edificios de cada tesela (tools/export.js __exFach), para juego/fachadas_ciudad.gd', 'n': n}
+
+
 async def main(a):
     if a.comuna and (a.caja or a.centro): raise SystemExit('--comuna va sin --caja ni --centro')
     t0 = time.time()
@@ -320,7 +347,9 @@ async def main(a):
         if a.glb:
             info['glb'] = await export_glb(pg, box, skip_g, a.glb)
             print('->', a.glb, json.dumps(info['glb'], ensure_ascii=False))
-        if a.teselas:  # una tesela por archivo, en la grilla de --tam metros desde la plaza, y un índice
+        if a.teselas and a.solo_fachadas:
+            await solo_fachadas(pg, Path(a.teselas), a.tam)
+        elif a.teselas:  # una tesela por archivo, en la grilla de --tam metros desde la plaza, y un índice
             d, t = Path(a.teselas), a.tam; d.mkdir(parents=True, exist_ok=True); lista = []
             inst = [s for s in (a.instancias or '').split(',') if s]
             capas = await pg.evaluate('__exLayers')
@@ -330,7 +359,7 @@ async def main(a):
                 skip_l, lejos = [k for k in capas if k not in solo] + ['otros'], []
             medio = [s for s in (a.medio or '').split(',') if s]
             if set(medio) - set(capas): raise SystemExit(f"export: --medio con capas que no existen: {', '.join(set(medio) - set(capas))}")
-            for f in [*d.glob('t_*.glb'), *d.glob('t_*.json'), *d.glob('m_*.glb')]: f.unlink()  # las de una exportación anterior (otra caja)
+            for f in [*d.glob('t_*.glb'), *d.glob('t_*.json'), *d.glob('m_*.glb'), *d.glob('f_*.json')]: f.unlink()  # las de una exportación anterior (otra caja)
             sin_poste = {}  # los faroles sin poste (__exLamps: sin.cruce), para el resumen
             for j in range(math.floor(y0 / t), math.ceil(y1 / t)):
                 for i in range(math.floor(x0 / t), math.ceil(x1 / t)):
@@ -344,6 +373,8 @@ async def main(a):
                         if o:  # los árboles, autos, faroles y letreros como datos: t_<i>_<j>.json
                             f.with_suffix('.json').write_text(json.dumps(o, separators=(',', ':')))
                             e['instancias'] = cuenta
+                        if a.fachadas:
+                            e['fachadas'] = await fachadas_tesela(pg, d, i, j, caja)
                         lista.append(e)
                         if a.lejos is not None:
                             rl = await geom(pg, caja, skip_l, a.liviano)
@@ -355,6 +386,7 @@ async def main(a):
             ind = {**meta({'box': box}, None), 'capas': capas, 'tesela_m': t, 'teselas': lista, 'lugares': pois, 'luces': luces,
                    'limite': limite, 'instancias': inst, 'liviano': a.liviano}
             if medio: ind['medio'] = {'capas': medio, 'MB': round(sum(x['medio']['MB'] for x in lista if 'medio' in x), 1)}
+            if a.fachadas: ind['fachadas'] = fach_info(sum(x.get('fachadas', 0) for x in lista))
             if a.lejos is not None:  # lo de lejos: un nodo por tesela (t_<i>_<j>), con las capas de --lejos
                 write_glb(str(d / 'lejos.glb'), {'box': box}, lejos)
                 ind['lejos'] = {'archivo': 'lejos.glb', 'capas': solo, 'MB': round((d / 'lejos.glb').stat().st_size / 1e6, 1)}
@@ -411,6 +443,8 @@ if __name__ == '__main__':
     ap.add_argument('--tam', type=float, default=1000, help='lado de las teselas (m)')
     ap.add_argument('--instancias', help='--teselas: capas de objetos instanciados (arboles,alamos) que van como datos en t_<i>_<j>.json y no en el glb')
     ap.add_argument('--faroles', action='store_true', help='--teselas: los faroles de las calles como datos en t_<i>_<j>.json (el poste en la vereda; la página solo dibuja su brillo): juego/faroles.gd')
+    ap.add_argument('--fachadas', action='store_true', help='--teselas: los edificios de cada tesela (planta, alturas, tipo, colores, lados a la calle) en f_<i>_<j>.json: juego/fachadas_ciudad.gd')
+    ap.add_argument('--solo-fachadas', action='store_true', help='--teselas dir: solo rehace los f_<i>_<j>.json de las teselas de dir/indice.json (sin exportar los glb; ~1 min)')
     ap.add_argument('--letreros', action='store_true', help='--teselas: los letreros con el nombre de las calles en los cruces como datos en t_<i>_<j>.json (la página no los dibuja): juego/letreros.gd')
     ap.add_argument('--lejos', nargs='?', const='terreno,agua,borde', help='--teselas: además, lejos.glb con un nodo por tesela y solo estas capas (por omisión terreno,agua,borde): lo que el juego muestra donde no cargó la tesela')
     ap.add_argument('--medio', nargs='?', const='edificios,hitos,ciudad', help='--teselas: además, m_<i>_<j>.glb con solo estas capas de cada tesela (por omisión edificios,hitos,ciudad): lo que el juego carga entre las teselas completas y lejos.glb, para la silueta de la ciudad')
