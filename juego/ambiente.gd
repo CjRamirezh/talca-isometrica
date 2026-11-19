@@ -2,7 +2,8 @@
 #
 # El sol está donde está en Talca (35,43° S, 71,67° O; UTC−3, la hora de verano) el día y la hora de FECHA y HORA: por
 # omisión, el 15 de enero a las 17:00 (el sol a ~45°, al poniente nor-poniente). La tecla T avanza una hora (Mayús+T
-# retrocede), con atardecer, crepúsculo y noche: de noche la luz es la de la luna, las ventanas se encienden y los
+# retrocede) y L pasa del día a la noche o de la noche al día (el reloj corre hacia adelante, en ~3 s, hasta la noche
+# cerrada o hasta la hora de día del comienzo), con atardecer, crepúsculo y noche: de noche la luz es la de la luna, las ventanas se encienden y los
 # faroles de la plaza alumbran. El cielo es shaders/cielo.gdshader (nubes, la cordillera, estrellas) y también da la luz
 # ambiente y los reflejos. Las capas del glb toman su material de materiales.gd (shaders/capa.gdshader): la textura,
 # las ventanas y el brillo de cada superficie, sobre el color por vértice de la maqueta. Hasta noviembre de 2026, más
@@ -26,6 +27,8 @@ const GIRO := 5.0  # grados: la grilla está girada; el norte verdadero queda 5�
 var dia := 15
 var hora := 17.0
 var objetivo := 17.0
+var hora_dia := 17.0  # adonde va L de noche: la hora del comienzo si es de día, si no las 17:00
+var rapidez := 1.5  # horas por segundo hacia objetivo
 var env: Environment
 var sky: Sky
 var cielo: ShaderMaterial
@@ -40,6 +43,8 @@ func _ready() -> void:
 	hora = Args.num("--hora", hora, 0.0, 24.0)
 	dia = int(Args.num("--dia", dia, 1, 366))
 	objetivo = hora
+	if sol_en(dia, fposmod(hora, 24.0)).y > 0.1:
+		hora_dia = hora
 	# noche, sol_dir y luna_dir son parámetros globales de los sombreadores ([shader_globals] de project.godot)
 	calidad()
 	entorno()
@@ -279,18 +284,39 @@ func poner_hora(h: float) -> void:
 	if fz:
 		fz.noche(noche)
 	if reloj:
-		reloj.text = "%02d:%02d  ·  T: avanzar la hora (Mayús+T: retroceder)" % [int(h24), int(fmod(h24, 1.0) * 60.0)]
+		reloj.text = "%02d:%02d  ·  T: avanzar la hora (Mayús+T: retroceder)  ·  L: día o noche" % [int(h24), int(fmod(h24, 1.0) * 60.0)]
 
 
 func _unhandled_input(e: InputEvent) -> void:
-	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_T:
+	if not (e is InputEventKey and e.pressed and not e.echo):
+		return
+	if e.physical_keycode == KEY_T:
 		objetivo += -1.0 if e.shift_pressed else 1.0
-		reloj_t = 4.0
+	elif e.physical_keycode == KEY_L:
+		objetivo = dia_o_noche(objetivo)
+	else:
+		return
+	rapidez = max(1.5, abs(objetivo - hora) / 3.0)  # una hora a 1,5 por segundo; un salto largo, en ~3 s
+	reloj_t = 4.0
+
+
+# La hora a la que lleva L desde h (siempre hacia adelante, para pasar por el atardecer o el amanecer): si en h el sol
+# está bajo el horizonte, la próxima hora_dia; si no, la noche cerrada (noche = 1 en poner_hora) y un cuarto de hora más.
+func dia_o_noche(h: float) -> float:
+	if sol_en(dia, fposmod(h, 24.0)).y < 0.0:
+		var d := fposmod(hora_dia - h, 24.0)
+		return h + (d if d > 0.0 else 24.0)
+	var t := h
+	for i in 96:  # 24 h en pasos de 15 minutos
+		t += 0.25
+		if sol_en(dia, fposmod(t, 24.0)).y < -0.16:
+			return t + 0.25
+	return h + 12.0
 
 
 func _process(dt: float) -> void:
 	if hora != objetivo:
-		hora = move_toward(hora, objetivo, dt * 1.5)  # 1,5 horas por segundo
+		hora = move_toward(hora, objetivo, dt * rapidez)
 		poner_hora(hora)
 	if reloj:
 		reloj_t = max(reloj_t - dt, 0.0)
@@ -303,7 +329,7 @@ func hud() -> void:
 	reloj = Label.new()
 	reloj.anchor_left = 1.0
 	reloj.anchor_right = 1.0
-	reloj.offset_left = -520
+	reloj.offset_left = -680
 	reloj.offset_right = -16
 	reloj.offset_top = 12
 	reloj.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT

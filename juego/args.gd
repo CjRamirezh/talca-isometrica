@@ -40,7 +40,7 @@ const BANDERAS := {
 	"--render": ["escala", "fps.gd: dibuja la escena a escala² veces los píxeles (con --fps)"],
 	"--sin": ["a,b,…", "ambiente.gd y modelos/plaza.gd: apaga partes (ver SIN)"],
 	"--calidad": ["baja", "ambiente.gd: baja = --sin ssil,ssao,blandas"],
-	"--hora": ["h", "ambiente.gd: la hora del día (T la avanza)"],
+	"--hora": ["h", "ambiente.gd: la hora del día (T la avanza; L, día o noche)"],
 	"--dia": ["día del año", "ambiente.gd: el sol de ese día"],
 	"--pose": ["m/s", "jugador.gd: el peatón animado como a esa velocidad"],
 	"--cenital": ["x,y,lado", "modelos/calles.gd: cámara ortográfica desde arriba"],
