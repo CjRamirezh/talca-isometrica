@@ -23,6 +23,8 @@ const BANDERAS := {
 	"--conducir": ["s", "vehiculo.gd: acelera s segundos e imprime dónde terminó y contra qué chocó (con --vehiculo)"],
 	"--volante": ["v", "vehiculo.gd: con --conducir, gira (-1 izquierda … 1 derecha)"],
 	"--fuerte": ["", "vehiculo.gd: con --conducir, con Q apretada (la bicicleta pedalea de pie)"],
+	"--saltos": ["n", "main.gd: camina 1 s y salta n veces seguidas (el triple salto) e imprime la altura de cada uno (jugador.gd prueba_saltos())"],
+	"--pausa": ["s", "jugador.gd: con --saltos, congela el juego s segundos después del último salto (para --png)"],
 	"--bajar": ["", "vehiculo.gd: con --conducir, se baja al final y dice dónde quedó el personaje"],
 	"--marcar": ["x,y", "main.gd: pone el marcador en ese punto de grilla y traza el camino hasta él (ruta.gd)"],
 	"--plano": ["", "main.gd: abre el mapa grande (plano.gd), después de --marcar"],
