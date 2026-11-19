@@ -275,6 +275,7 @@ class Armador:
 	var r := RandomNumberGenerator.new()
 	var esp := {}
 	var zoc := ""  # el color del zócalo medido en fotos (frente())
+	var pb := ""  # la planta baja medida en fotos: vitrinas o vidrio (frente())
 	# el estilo de config/fachadas.json (el de modelos/fachadas.gd) -> el tipo de aquí
 	const ESTILO := {"colonial": "adobe", "clasico": "continua", "comercial": "continua", "deco": "edificio",
 		"torre": "torre", "vidrio": "torre", "municipal": "institucional", "intendencia": "institucional", "moderno": "edificio"}
@@ -417,6 +418,7 @@ class Armador:
 			if fa.has("marco"):
 				marco = hx(String(fa["marco"]))
 			zocalo = String(fa.get("zocalo", ""))
+		pb = String(fa.get("pb", "")) if not fa.is_empty() else ""
 		var con_reja: bool = r.randf() < {"adobe": 0.9, "poblacion": 0.85, "pareada": 0.7, "fila": 0.55, "condominio": 0.15,
 			"continua": 0.6, "local": 0.3}.get(t, 0.0)
 		for i in q.size():
@@ -430,6 +432,11 @@ class Armador:
 			var w := Muro.new(a, c, o)
 			var calle := i in front or i == puerta_en
 			var tienda := i in shops
+			if tienda and calle and (pb == "vitrinas" or pb == "vidrio"):
+				# la planta baja medida en fotos reemplaza la vitrina genérica de la página (6 cm fuera del muro):
+				# una piel más afuera la tapa
+				tienda = false
+				rect(w, 0, w.L, b - 0.6, b + 3.6, P + 0.025, col)
 			# la piel: de bajo el suelo al alero (o al pretil); en una pareada, cada mitad de su color
 			var h0 := b - 0.6
 			if tienda:
@@ -461,6 +468,29 @@ class Armador:
 	# un lado a la calle
 	func frente(t: String, w: Muro, b: float, h: float, p: int, col: Color, marco: Color, reja: Variant, tienda: bool, cols: Array) -> void:
 		var L := w.L
+		if (pb == "vitrinas" or pb == "vidrio") and not tienda and L > 4.0:
+			# la planta baja de las fotos: vanos vidriados entre pilares del color del marco (un cuartel de bomberos,
+			# un hotel); arriba, ventanas por piso
+			var hg := minf(3.6, h / p if p > 1 else h - 0.6)
+			var n := maxi(1, roundi(L / (6.0 if pb == "vitrinas" else 4.0)))
+			for i in n + 1:
+				var x := clampf(L * i / n, 0.4, L - 0.4)
+				saliente(w, x - 0.4, x + 0.4, b - 0.6, b + hg + 0.3, P, P + 0.12, marco)
+			for i in n:
+				var v := VIDRIO
+				v.a = 1.0
+				rect(w, L * i / n + 0.45, L * (i + 1) / n - 0.45, b, b + hg, P + 0.04, v, "ventana")
+				for k in range(1, 4):
+					rect(w, L * i / n + 0.45, L * (i + 1) / n - 0.45, b + hg * k / 4 - 0.03, b + hg * k / 4 + 0.03, P + 0.06, Color("2b2b2b"), "metal")
+			saliente(w, 0, L, b + hg + 0.3, b + hg + 0.5, P, P + 0.15, col.lightened(0.15))
+			if p > 1:
+				var hu := (h - hg - 0.5) / (p - 1)
+				var nv := maxi(1, roundi(L / 3.0))
+				for f in range(p - 1):
+					for i in nv:
+						ventana(w, L * (i + 0.5) / nv, minf(1.6, L / nv - 0.5), b + hg + 0.5 + f * hu + 0.7, minf(1.4, hu - 1.0), marco, null, 2)
+			saliente(w, 0, L, b + h - 0.12, b + h + 0.06, P, P + 0.12, col.lightened(0.2))
+			return
 		match t:
 			"adobe":
 				# zócalo, vanos altos cada ~3,4 m, el portón del zaguán, la cornisa

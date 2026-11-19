@@ -24,5 +24,12 @@
  "w842637397": {"estilo": "comercial", "letreros": [["CHILEXPRESS", "f3c623", "1b2a6b"]]},
  "w842637398": {"estilo": "comercial", "alto": 9.0, "letreros": [["AFP HABITAT", "ffffff", "b0282a"]]},
  "w818950429": {"estilo": "comercial", "letreros": [["BANCO SANTANDER", "d8241c", "ffffff"]]},
- "w842604130": {"estilo": "comercial", "alto": 9.0, "letreros": [["CINE PLAZA", "1d1d1d", "f2c94c"]]}
+ "w842604130": {"estilo": "comercial", "alto": 9.0, "letreros": [["CINE PLAZA", "1d1d1d", "f2c94c"]]},
+ "w326268272": {"estilo": "deco", "alto": 11.0, "pisos": 2, "color": "e8e6e0", "marco": "dda55d", "pb": "vitrinas", "friso": "Cuartel General de Bomberos"},
+ "w392091758": {"estilo": "moderno", "pisos": 7, "color": "b9a98e", "pb": "vidrio", "letreros": [["ECO HOTEL", "eeede8", "2f6a3f"]]},
+ "w799509091": {"estilo": "colonial", "alto": 8.0, "pisos": 1, "color": "eeece8", "marco": "dab6a9"},
+ "w799509092": {"estilo": "colonial", "pisos": 1, "color": "eeece8", "marco": "dab6a9"},
+ "w813330081": {"estilo": "clasico", "pisos": 1, "color": "dbcfbf", "pb": "ventanas"},
+ "w939148488": {"estilo": "clasico", "alto": 9.0, "pisos": 2, "pb": "vitrinas"},
+ "w952814828": {"estilo": "comercial", "pisos": 1, "color": "c42c04"}
 }
