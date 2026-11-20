@@ -56,6 +56,7 @@ var barra := Barra.new()
 var aviso := Label.new()  # sobre la barra: el completo, la reaparición
 var muerte := Label.new()  # al medio: «Moriste»
 var causa := Label.new()  # debajo: de qué, y que Tab lleva a otro lugar
+var causa_txt := ""  # la primera línea de causa (de qué murió), para la cuenta de la reaparición en la bandera
 var negro := ColorRect.new()  # el fundido antes de reaparecer
 var rojo := TextureRect.new()  # los bordes de la pantalla al recibir daño
 var mostrada := 100.0  # la vida que muestra la barra en claro (lo perdido, que se vacía después)
@@ -177,7 +178,9 @@ func _al_dano(cantidad: float, _causa: String) -> void:
 func _al_morir() -> void:
 	var c: String = jugador.causa_muerte
 	muerte.text = "Moriste"
-	causa.text = (c.left(1).to_upper() + c.substr(1) + "\n" if c != "" else "") + "Tab: reaparecer en otro lugar"
+	causa_txt = c.left(1).to_upper() + c.substr(1) + "\n" if c != "" else ""
+	# en captura la bandera (bandera.gd) reaparece en la suya, con la cuenta en _process(); si no, Tab lo lleva a otra parte
+	causa.text = causa_txt + ("" if jugador.reaparece_en != Vector3.INF else "Tab: reaparecer en otro lugar")
 	for l in [muerte, causa]:
 		l.visible = true
 		l.modulate.a = 0.0
@@ -265,8 +268,10 @@ func _process(dt: float) -> void:
 	if v <= 0.0:
 		muerte.modulate.a = smoothstep(0.15, 0.6, muerto_t)
 		causa.modulate.a = smoothstep(0.4, 0.9, muerto_t)
-		var espera: float = jugador.ESPERA_MUERTO
+		var espera: float = jugador.espera_muerto
 		a = smoothstep(espera - 0.8, espera - 0.1, muerto_t)
+		if jugador.reaparece_en != Vector3.INF:
+			causa.text = causa_txt + "Reapareces en tu bandera en %d s" % maxi(ceili(espera - muerto_t), 1)
 	elif volviendo:
 		if jugador.llegar == Vector3.INF:
 			volviendo = false

@@ -36,6 +36,7 @@ var vehiculo: CharacterBody3D
 var ruta: Node3D  # ruta.gd
 var viaje: CanvasLayer  # viaje.gd: con su lista abierta, M y N no hacen nada (se están escribiendo)
 var red: Node3D  # red.gd: los otros jugadores (flechas de su color) y, con su panel abierto, M y N no hacen nada
+var bandera: Node3D  # bandera.gd: las banderas de captura la bandera (banderin())
 var datos: RefCounted
 var norte := false  # la miniatura con el norte arriba
 var antes := Input.MOUSE_MODE_CAPTURED
@@ -309,7 +310,13 @@ func dibujar_mini(n: Node2D) -> void:
 		var m: Vector2 = t * ruta.marcador
 		if m.distance_to(c) <= RADIO - 9.0:
 			pin(n, m, 1.0)
-	# los otros jugadores (red.gd): dentro del círculo, o en su borde si están más lejos
+	# las banderas (bandera.gd) y los otros jugadores (red.gd): dentro del círculo, o en su borde si están más lejos
+	if bandera:
+		for b in bandera.en_mapa():
+			var q: Vector2 = t * b[0]
+			if q.distance_to(c) > RADIO - 10.0:
+				q = c + (q - c).normalized() * (RADIO - 10.0)
+			banderin(n, q, b[1], 0.8)
 	if red:
 		for o in red.en_mapa():
 			var q: Vector2 = t * o[0]
@@ -383,6 +390,17 @@ func flecha(n: CanvasItem, c: Vector2, ang: float, k: float, col := C_JUGADOR) -
 	borde.append(q[0])
 	n.draw_colored_polygon(q, col)
 	n.draw_polyline(borde, Color(0, 0, 0, 0.8), 2.0, true)
+
+
+# una bandera de captura la bandera: el asta con el pie en p y el paño de su color a la derecha
+func banderin(n: CanvasItem, p: Vector2, col: Color, k: float) -> void:
+	var tope := p + Vector2(0, -20.0 * k)
+	var pano := PackedVector2Array([tope, tope + Vector2(13.0 * k, 4.5 * k), tope + Vector2(0, 9.0 * k)])
+	n.draw_line(p, tope, Color(0, 0, 0, 0.8), 4.0 * k)
+	n.draw_colored_polygon(pano, col)
+	n.draw_polyline(PackedVector2Array([pano[0], pano[1], pano[2], pano[0]]), Color(0, 0, 0, 0.8), 1.5, true)
+	n.draw_line(p, tope, Color(0.9, 0.9, 0.9), 2.0 * k)
+	n.draw_circle(p, 2.5 * k, Color(0, 0, 0, 0.8))
 
 
 # el marcador: una gota con un punto
@@ -464,6 +482,17 @@ func dibujar_grande_encima(n: Control) -> void:
 			n.draw_circle(q, 3.8, Color(1, 0.93, 0.7))
 	if ruta and ruta.activo():
 		pin(n, t * ruta.marcador, 1.4)
+	if bandera:  # cada una donde está, con su dueño; fuera de su lugar, un anillo en su base
+		for b in bandera.en_mapa():
+			var q: Vector2 = t * b[0]
+			var base: Vector2 = t * b[2]
+			if base.distance_to(q) > 6.0:
+				n.draw_arc(base, 7.0, 0.0, TAU, 20, Color(0, 0, 0, 0.7), 4.0, true)
+				n.draw_arc(base, 7.0, 0.0, TAU, 20, b[1], 2.0, true)
+			banderin(n, q, b[1], 1.2)
+			var txt := "bandera de %s" % b[3]
+			n.draw_string_outline(f, q + Vector2(10, -22), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.8))
+			n.draw_string(f, q + Vector2(10, -22), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, b[1].lightened(0.45))
 	if red:
 		for o in red.en_mapa():
 			var q: Vector2 = t * o[0]
@@ -648,6 +677,9 @@ func doble_clic(en: Vector2) -> void:
 func ir_a(p: Vector2, h := NAN, pegar := true, nombre := "") -> void:
 	if jugador == null:
 		return
+	if jugador.sin_viajes != "":  # captura la bandera (bandera.gd): el mapa sigue abierto, con el aviso
+		avisar(jugador.sin_viajes)
+		return
 	var q: Vector2 = ruta.adentro(p) if ruta else p
 	if pegar:
 		var c: Array = datos.cercano(q, -1, PEGAR)
@@ -658,7 +690,7 @@ func ir_a(p: Vector2, h := NAN, pegar := true, nombre := "") -> void:
 	if is_nan(h):
 		h = 0.0
 	abrir(false)
-	jugador.ir(q.x, q.y, h)
+	jugador.viajar(q.x, q.y, h)
 	print("plano.gd: a (%.0f, %.0f)%s" % [q.x, q.y, " «%s»" % nombre if nombre != "" else ""])
 	if nombre != "":
 		avisar(nombre)

@@ -192,6 +192,9 @@ func usar() -> void:
 	if montado:
 		bajar()
 		return
+	if jugador.con_bandera and tipo != "bici":  # captura la bandera (bandera.gd): en auto se ocultaría, en jetpack volaría
+		avisar("con una bandera, solo a pie o en bicicleta (V: cambiar)")
+		return
 	if not activo or tipo == "jetpack" or global_position.distance_to(jugador.global_position) > CERCA:
 		traer()
 	subir()
@@ -204,6 +207,9 @@ func cambiar() -> void:
 		avisar("en el aire no se puede cambiar: primero aterrice")
 		return
 	var ts := TIPOS.keys()
+	if montado and jugador.con_bandera and tipo == "bici":
+		avisar("con una bandera, solo a pie o en bicicleta")
+		return
 	armar(ts[(ts.find(tipo) + 1) % ts.size()])
 	if montado:
 		peaton_al_vehiculo()

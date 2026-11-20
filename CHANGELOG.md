@@ -2,6 +2,15 @@
 
 ## Sin publicar
 
+- **Captura la bandera, en la red local** (`juego/bandera.gd`). Para dos o más jugadores, cada uno con su bandera.
+  - El anfitrión lo prepara en el panel de la red (J). Cada uno pone su bandera con B donde quiera defenderla (la puede mover mientras se prepara; al que no la puso, al empezar le queda donde esté) y el anfitrión empieza, a 3 puntos (0: sin límite).
+  - Una bandera ajena se toma pasando junto a ella (a pie o en bicicleta) y se anota llevándola a la propia: +1 al que anota, y solo si la propia está en su lugar, para que haya que defenderla. Con una bandera se anda a pie o en bicicleta: en auto se ocultaría y en jetpack volaría sobre todo.
+  - Si el que la lleva muere, queda en el suelo: su dueño la devuelve tocándola, otro la puede tomar, y si nadie la toca vuelve sola a los 30 s. El que muere reaparece en su bandera a los 5 s (el anfitrión lo elige), con la cuenta en pantalla.
+  - Mientras se juega nadie viaja (Tab, el mapa grande, «volver a la plaza» e «ir donde está»: `jugador.gd viajar()`).
+  - Decide el anfitrión: cada uno le pide tomar, anotar, soltar o devolver, él resuelve en orden de llegada y manda a todos el juego entero, con un evento que cada uno cuenta a su modo («Bea tomó tu bandera», «¡Anotaste!»).
+  - En el mundo, cada bandera es un asta con el paño ondeando (`shaders/bandera.gdshader`) del color de su dueño, un anillo en su base y una columna de luz para encontrarla desde lejos (no a menos de 35 m de la cámara). Llevada, va en la espalda. En los mapas, un banderín de su color (en el borde del mapa chico si está lejos). Arriba a la derecha, el marcador y el estado de la propia, y al tomar una el camino a la propia queda marcado.
+  - Probado sin teclado con `--ctf n`, `--bandera`, `--ctf-prueba` y `--ctf-robar s`, con dos y tres jugadores: tomar, anotar, morir con la bandera, devolverla, reaparecer en la propia, y que sin la propia en su lugar no se anota; con dos capturas.
+
 - **Las armas en la red local.** Jugando en red, los otros no veían a uno disparar ni recibían daño: el estado que viaja no decía nada de las armas, y los otros jugadores no tenían nada que un tiro pudiera tocar.
   - Con cada estado va el porte de cada jugador (`red.gd porte()`): el arma en la mano, cuánto va en alto, hacia dónde apunta, la recarga y la vida. Los demás lo ven con el arma en su pose (`peaton.gd sostener()`, como el propio), tendido si murió y parpadeando recién reaparecido.
   - Cada tiro, tajo y corte va aparte, en cuanto pasa (`tiro()`, desde la señal `accion` de `armas.gd`): el fogonazo en la boca de su arma (`Fogonazo`, ahora una clase de `armas.gd`, uno por tirador), la trazadora, el polvo y la marca, y el sonido donde está (`AudioStreamPlayer3D`).

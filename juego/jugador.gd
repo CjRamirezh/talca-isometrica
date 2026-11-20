@@ -6,6 +6,7 @@ extends CharacterBody3D
 signal murio  # la vida llegó a 0 (danar())
 signal danado(cantidad: float, causa: String)  # vida.gd: el destello de la barra
 signal reaparecio(donde: String)  # vida.gd: el aviso («» si fue con Tab o el mapa grande)
+signal no_viaja(por_que: String)  # viajar() no lo llevó (main.gd lo muestra en el mapa chico)
 
 const CAMINAR := 8.0  # m/s (de verdad, ~1,4: se siente lento en una caja de 400 m)
 const CORRER := 18.0
@@ -77,6 +78,13 @@ var t_invulnerable := 0.0  # s que le quedan sin recibir daño
 var causa_muerte := ""  # la de la última muerte (vida.gd la muestra)
 var caida := 0.0  # m/s hacia abajo en el último aterrizaje (vida.gd prueba())
 var iba_montado := false  # en el cuadro de física anterior (bajado())
+# captura la bandera (bandera.gd), en una partida: cuánto espera muerto, dónde reaparece (x, y de grilla y altura del
+# suelo; INF: en la plaza), por qué no viaja con Tab, el mapa, el menú ni la red ("": viaja) y si lleva una bandera
+# (vehiculo.gd: entonces solo a pie o en bicicleta)
+var espera_muerto := ESPERA_MUERTO
+var reaparece_en := Vector3.INF
+var sin_viajes := ""
+var con_bandera := false
 var sin_forma := 0  # cuadros de física que le quedan con la cápsula apagada al bajarse (bajado())
 
 
@@ -123,6 +131,16 @@ func _unhandled_input(e: InputEvent) -> void:
 		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			largo = min(20.0, largo + 1.0)
 	# Esc abre el menú (menu.gd), que suelta el mouse
+
+
+# un viaje que pide el jugador (Tab, el mapa grande, el menú, la red): ir(), salvo en una partida de captura la
+# bandera (sin_viajes), donde avisa por qué no (no_viaja) y devuelve falso
+func viajar(x: float, y: float, h: float) -> bool:
+	if sin_viajes != "":
+		no_viaja.emit(sin_viajes)
+		return false
+	ir(x, y, h)
+	return true
 
 
 # aparece en el punto (x, y) de grilla, cuya altura del suelo es h (el «h» de los lugares de mapa/indice.json),
@@ -334,7 +352,7 @@ func recibir_dano(cantidad: float, punto: Vector3, desde: Vector3, causa := "") 
 func vida_cuadro(dt: float) -> void:
 	if vida <= 0.0:
 		t_muerto += dt
-		if t_muerto >= ESPERA_MUERTO:
+		if t_muerto >= espera_muerto:
 			reaparecer()
 		return
 	t_dano += dt
@@ -378,12 +396,18 @@ func yacer(dt: float) -> void:
 	move_and_slide()
 
 
-# a la Plaza de Armas, mirando al norte, por ir(): aparece cuando la colisión de la plaza esté
+# a la Plaza de Armas (o, en captura la bandera, a la suya: reaparece_en), mirando al norte, por ir(): aparece cuando
+# la colisión de allá esté
 func reaparecer() -> void:
 	yaw = 0.0
 	pitch = -0.3
 	cuerpo.rotation.y = 0.0
 	revivir()
+	if reaparece_en != Vector3.INF:
+		ir(reaparece_en.x, reaparece_en.y, reaparece_en.z)
+		print("jugador.gd: reaparece en su bandera (x %.1f, y %.1f)" % [reaparece_en.x, reaparece_en.y])
+		reaparecio.emit("en tu bandera")
+		return
 	ir(plaza.x, plaza.y, plaza.z)
 	print("jugador.gd: reaparece en la Plaza de Armas")
 	reaparecio.emit("en la Plaza de Armas")
