@@ -93,8 +93,7 @@ func elegir(k: int) -> void:
 		return
 	var l: Dictionary = lugares[vistos[k]]
 	var j := jugador()
-	if j:
-		j.ir(l["x"], l["y"], l["h"])
+	if j and j.viajar(l["x"], l["y"], l["h"]):
 		print("viaje.gd: a %s (%.0f, %.0f)" % [l["nombre"], l["x"], l["y"]])
 	abrir(false)
 

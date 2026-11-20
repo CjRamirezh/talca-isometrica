@@ -161,8 +161,8 @@ func volver_a_la_plaza() -> void:
 	abrir(false)
 	var j: Node = main.jugador
 	var p: Vector3 = j.plaza  # x, y de grilla y altura del suelo (main.gd: INICIO)
-	j.yaw = 0.0  # mirando al norte, como al comenzar
-	j.ir(p.x, p.y, p.z)
+	if j.viajar(p.x, p.y, p.z):
+		j.yaw = 0.0  # mirando al norte, como al comenzar
 
 
 func alternar_ayuda() -> void:

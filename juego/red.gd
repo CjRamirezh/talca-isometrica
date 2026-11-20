@@ -74,6 +74,7 @@ var unirse_btn := Button.new()
 var estado_lbl := Label.new()
 var lista_jugadores := ItemList.new()
 var ids_lista := []  # los ids de ENet en el orden de lista_jugadores
+var caja_panel := VBoxContainer.new()  # lo de adentro del panel (bandera.gd agrega ahí captura la bandera)
 var antes := Input.MOUSE_MODE_CAPTURED
 var t_panel := 0.0
 
@@ -397,7 +398,7 @@ func armar_panel() -> void:
 	panel.anchor_top = 0.12
 	panel.offset_left = -270
 	panel.offset_right = 270
-	var caja := VBoxContainer.new()
+	var caja := caja_panel
 	caja.add_theme_constant_override("separation", 8)
 	var titulo := Label.new()
 	titulo.text = "Red local · J o Esc: cerrar"
@@ -559,8 +560,8 @@ func ir_a(i: int) -> void:
 	if i < 0 or i >= ids_lista.size() or not otros.has(ids_lista[i]) or jugador == null:
 		return
 	var p: Vector3 = otros[ids_lista[i]].cuerpo.global_position
-	jugador.ir(p.x + 2.0, -p.z, p.y)
-	abrir(false)
+	if jugador.viajar(p.x + 2.0, -p.z, p.y):
+		abrir(false)
 
 
 func avisar(t: String) -> void:

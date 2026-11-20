@@ -56,6 +56,7 @@
 #   menu.gd          el menú de Esc (pausa)
 #   red.gd           la red local (J, --servidor, --unirse ip): los otros jugadores, como peatones o en sus vehículos, con sus armas
 #   armas.gd         el cuchillo, la pistola y el rifle (1, 2, 3), con sus modelos en modelos/entorno/armas.gd
+#   bandera.gd       captura la bandera en la red local (el anfitrión la prepara con J; B pone la bandera propia)
 #   blancos.gd       los muñecos de práctica, cerca de donde parte el personaje
 #   modelos/*.gd     modelos propios del juego, más detallados que los de la página. Cada uno es un Node3D que construye
 #                    lo suyo (geometría y colisión) en _ready() y puede declarar
@@ -84,6 +85,7 @@ var plano: CanvasLayer  # plano.gd: el mapa en miniatura y el mapa grande (M)
 var red: Node3D  # red.gd: los otros jugadores de la red local (J)
 var vida: CanvasLayer  # vida.gd: la barra de vida y los carritos de completos
 var armas: Node3D  # armas.gd
+var bandera: Node3D  # bandera.gd: captura la bandera, en la red local
 var ambiente: Node3D  # ambiente.gd: el cielo y la hora (el menú pasa del día a la noche)
 var ayuda_texto: Label  # la ayuda de arriba a la izquierda (ayuda(); el menú la muestra u oculta)
 var menu: CanvasLayer  # menu.gd: Esc
@@ -177,6 +179,15 @@ func _ready() -> void:
 	add_child(armas)
 	red.armas = armas  # los tiros propios a los demás, y los de ellos aquí
 	armas.accion.connect(red.enviar_accion)
+	bandera = preload("res://bandera.gd").new()  # captura la bandera, en la red
+	bandera.red = red
+	bandera.jugador = jugador
+	bandera.plano = plano
+	bandera.ruta = ruta
+	add_child(bandera)
+	if plano:
+		plano.bandera = bandera
+		jugador.no_viaja.connect(plano.avisar)  # Tab, el mapa, el menú o la red en captura la bandera
 	var blancos := preload("res://blancos.gd").new()
 	blancos.mapa = mapa
 	add_child(blancos)
@@ -307,6 +318,9 @@ func png() -> void:
 	if red and (Args.has("--red-prueba") or Args.has("--red-tiros") or Args.has("--red-foto")):  # la captura después del informe de la red (con los otros ya a la vista)
 		while not red.prueba_lista:
 			await get_tree().process_frame
+	if bandera and (Args.has("--ctf-prueba") or Args.has("--ctf-robar")):  # después de la prueba de captura la bandera
+		while not bandera.prueba_lista:
+			await get_tree().process_frame
 	for i in 10:
 		await RenderingServer.frame_post_draw
 	var out := abs_path(f)
@@ -340,7 +354,8 @@ func acciones() -> void:
 	var teclas := {"adelante": [KEY_W, KEY_UP], "atras": [KEY_S, KEY_DOWN], "izquierda": [KEY_A, KEY_LEFT],
 		"derecha": [KEY_D, KEY_RIGHT], "saltar": [KEY_SPACE], "correr": [KEY_SHIFT], "vehiculo": [KEY_E], "cambiar": [KEY_V],
 		"impulso": [KEY_Q],  # Q y no Mayús: en el Mac de Edu el Bloq Mayús está como Esc
-		"cuchillo": [KEY_1], "pistola": [KEY_2], "rifle": [KEY_3], "guardar": [KEY_0], "recargar": [KEY_R]}  # armas.gd
+		"cuchillo": [KEY_1], "pistola": [KEY_2], "rifle": [KEY_3], "guardar": [KEY_0], "recargar": [KEY_R],  # armas.gd
+		"bandera": [KEY_B]}  # bandera.gd
 	var botones := {"disparar": MOUSE_BUTTON_LEFT, "apuntar": MOUSE_BUTTON_RIGHT}  # armas.gd
 	for a in teclas:
 		if InputMap.has_action(a):
@@ -369,7 +384,7 @@ func ayuda() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 	var l := Label.new()
-	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: menú\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta, auto o jetpack · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nJetpack: Espacio sube · C baja rápido · WASD lo mueve · Mayús: más rápido · se recarga en el suelo\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba · J: red local (jugar con otros)\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente\n1: cuchillo · 2: pistola · 3: rifle (otra vez o 0: guardar) · clic: disparar · botón derecho: apuntar · R: recargar"
+	l.text = "WASD: caminar · Mayús: correr · Espacio: saltar (tres seguidos: triple salto) · mouse: mirar · rueda: cámara · Tab: ir a un lugar · Esc: menú\nE: subir o bajar del vehículo (lejos, lo trae) · V: bicicleta, auto o jetpack · montado, W/S: acelerar y frenar · A/D: girar · Espacio: frenar · Q: pedalear de pie\nJetpack: Espacio sube · C baja rápido · WASD lo mueve · Mayús: más rápido · se recarga en el suelo\nM: mapa (un clic pone el marcador y el camino hasta él; doble clic: ir ahí) · N: el mapa chico con el norte arriba · J: red local (jugar con otros; captura la bandera: B pone la tuya)\nVida (abajo): las caídas de más de ~7 m duelen y de ~27 m matan; se recupera sola, y rápido comiendo un completo en los carritos de 5 y 6 Oriente\n1: cuchillo · 2: pistola · 3: rifle (otra vez o 0: guardar) · clic: disparar · botón derecho: apuntar · R: recargar"
 	l.position = Vector2(16, 12)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))

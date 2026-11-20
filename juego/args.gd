@@ -69,6 +69,10 @@ const BANDERAS := {
 	"--nombre": ["texto", "red.gd: el nombre que ven los demás jugadores"],
 	"--puerto": ["n", "red.gd: el puerto de la partida (8790)"],
 	"--red-prueba": ["s", "red.gd: a los s segundos imprime dónde están los otros jugadores y sale (con --png, después de ella)"],
+	"--ctf": ["n", "bandera.gd: el anfitrión prepara captura la bandera al comenzar y la empieza cuando haya n banderas puestas"],
+	"--bandera": ["", "bandera.gd: pone la bandera propia donde está el personaje en cuanto se prepare captura la bandera"],
+	"--ctf-prueba": ["", "bandera.gd: toma la bandera ajena más cercana, anota con ella, la toma otra vez, muere con ella y espera la reaparición en la propia; imprime cada paso y sale (con --png, después)"],
+	"--ctf-robar": ["s", "bandera.gd: toma la bandera ajena más cercana y se queda con ella s segundos, y sale (con --png, después)"],
 	"--red-foto": ["n", "red.gd: con --png, la captura al llegar el tiro n de otro jugador, con el juego congelado (el fogonazo y la trazadora)"],
 	"--red-tiros": ["n", "red.gd: espera a otro jugador de la partida, le apunta y le dispara n veces (el arma de --arma; --apuntar), imprime cada impacto y la vida que le quedó, y sale (con --png, después)"],
 }
