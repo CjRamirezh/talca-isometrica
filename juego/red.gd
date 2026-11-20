@@ -18,10 +18,24 @@
 # jugadores. El anfitrión anuncia la partida por broadcast UDP cada segundo (FIRMA|puerto|nombre|jugadores) a
 # PUERTO_AVISO, que el panel escucha mientras está abierto sin partida. Lo que no viaja: la hora (T), el marcador y lo
 # que carga cada uno; el mapa es el mismo porque sale de los mismos archivos (make juego).
+#
+# Las armas (armas.gd): con cada estado va su porte (porte()): el arma en la mano, cuánto va en alto, hacia dónde
+# apunta, la recarga y la vida; cada tiro, tajo o corte va aparte (tiro(), en cuanto pasa): los otros ven el fogonazo
+# en la boca de su arma, la trazadora y el polvo, y lo oyen según la distancia. Aquí cada otro jugador lleva un Blanco: un Area3D en
+# Armas.CAPA_RED, que solo ven los rayos de las armas (no choca con nada). El que pega decide, como en todo lo demás: le
+# manda el daño al herido (tocado(), confiable; el doble en la cabeza, como en los muñecos) y el juego del herido se lo
+# quita (jugador.gd recibir_dano(), con quién fue en la causa); su vida vuelve en su porte, y al caer los demás lo ven
+# tendido. Una copia del juego de antes (sin porte(): ANTIGUA) sigue viendo a los demás, pero sin armas, y no recibe
+# los tiros: se avisa una vez.
+#
+#   --red-tiros n [--arma rifle --apuntar]: espera a otro jugador, le apunta y le dispara n veces (armas.gd prueba()),
+#   e imprime cada impacto y la vida que le quedó según su juego; el herido imprime cada daño (tocado())
+#   --red-foto n --png x.png: la captura al llegar el tiro n de otro jugador, con el juego congelado (el fogonazo)
 extends Node3D
 
 const Args := preload("res://args.gd")
 const Vehiculo := preload("res://vehiculo.gd")
+const Armas := preload("res://armas.gd")
 
 const PUERTO := 8790  # ENet (UDP)
 const PUERTO_AVISO := 8791  # el anuncio de las partidas (broadcast UDP)
@@ -29,9 +43,14 @@ const MAX_JUGADORES := 16
 const HZ := 20.0
 const FIRMA := "talca-juego-1"
 const POLERAS := ["b8442f", "3f8a4a", "c99a2e", "7a4fa0", "2f8f8f", "d0679a", "e07b39", "5c5c66"]  # la propia es la azul de peaton.gd
+const ANTIGUA := 40  # estados seguidos sin un porte(): una copia del juego de antes de las armas en la red (~2 s)
+const CABEZA := 1.52  # m sobre los pies: de aquí arriba el golpe vale el doble (como en los muñecos, blancos.gd)
+const GOLPE_RED := 0.5  # s: lo que puede tardar en volver el porte de un herido con el golpe ya descontado
+const CON := {"cuchillo": "con el cuchillo", "pistola": "con la pistola", "rifle": "con el rifle"}
 
 var jugador: CharacterBody3D  # jugador.gd
 var vehiculo: CharacterBody3D  # vehiculo.gd
+var armas: Node3D  # armas.gd (main.gd conecta su señal accion a enviar_accion())
 var viaje: CanvasLayer
 var plano: CanvasLayer
 var nombre := "Jugador"
@@ -58,7 +77,9 @@ var ids_lista := []  # los ids de ENet en el orden de lista_jugadores
 var antes := Input.MOUSE_MODE_CAPTURED
 var t_panel := 0.0
 
-var prueba_lista := false  # --red-prueba: ya imprimió (main.gd png() la espera)
+var prueba_lista := false  # --red-prueba o --red-tiros: ya imprimió (main.gd png() la espera)
+var apuntar_a: Otro = null  # --red-tiros: la cámara apunta a su pecho, cada cuadro de física
+var tiros_llegados := 0  # --red-foto: los tiros de otros que llegaron
 
 
 func _init() -> void:
@@ -84,6 +105,8 @@ func _ready() -> void:
 			unirse(ip, puerto)
 	if Args.has("--red-prueba"):
 		prueba()
+	if Args.has("--red-tiros"):
+		prueba_tiros()
 
 
 # ---------- crear, unirse, salir ----------
@@ -150,6 +173,7 @@ func salir(avisar_ := true) -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	anuncio.close()
 	conectando = ""
+	apuntar_a = null
 	for id in otros.keys():
 		otros[id].queue_free()
 	otros.clear()
@@ -188,6 +212,8 @@ func _sin_anfitrion() -> void:
 func otro(id: int) -> Otro:
 	if not otros.has(id):
 		var o := Otro.new()
+		o.red = self
+		o.id = id
 		o.color = Color(POLERAS[posmod(id, POLERAS.size())])
 		otros[id] = o
 		add_child(o)
@@ -195,6 +221,11 @@ func otro(id: int) -> Otro:
 
 
 # ---------- lo que viaja ----------
+# Las rpc se numeran por el orden alfabético de su nombre (SceneRPCInterface): una nueva cuyo nombre va antes que el de
+# otra corre el número de esa, y una copia anterior del juego tomaría la una por la otra (un estado por un nombre). Por
+# eso las de las armas se llaman porte, tiro y tocado, después de estado y hola; una nueva, también después de las que
+# hay. Y lo que ya viaja no cambia de forma: una copia anterior descarta un estado que no tiene sus 11 valores (y dejaría
+# de ver a ese jugador), así que el arma y la vida van aparte, en porte().
 
 # el nombre, una vez por jugador que llega
 @rpc("any_peer", "call_remote", "reliable")
@@ -202,6 +233,7 @@ func hola(n: String) -> void:
 	var o := otro(multiplayer.get_remote_sender_id())
 	o.nombre = n.strip_edges().left(24)
 	o.etiqueta.text = o.nombre
+	o.blanco.name = o.nombre  # lo que imprime armas.gd al darle
 	avisar("%s entró" % o.nombre)
 
 
@@ -210,7 +242,12 @@ func hola(n: String) -> void:
 func estado(e: Array) -> void:
 	if e.size() != 11:
 		return
-	otro(multiplayer.get_remote_sender_id()).recibir(e)
+	var o := otro(multiplayer.get_remote_sender_id())
+	o.recibir(e)
+	o.sin_porte += 1
+	if o.sin_porte > ANTIGUA and not o.antigua:
+		o.antigua = true
+		avisar("%s tiene una copia anterior del juego: no ve los tiros ni le llegan" % (o.nombre if o.nombre != "" else "Otro jugador"))
 
 
 func estado_propio() -> Array:
@@ -224,13 +261,79 @@ func estado_propio() -> Array:
 		v.volante if v else 0.0, v.inclinar if v else Vector3.ZERO]
 
 
+# el arma y la vida de un jugador (porte_propio()), con cada estado; quien no lo manda es una copia de antes (ANTIGUA)
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func porte(e: Array) -> void:
+	if e.size() != 7:
+		return
+	var o := otro(multiplayer.get_remote_sender_id())
+	o.sin_porte = 0
+	o.antigua = false
+	o.recibir_porte(e)
+
+
+# el arma que lleva en la mano (no montado ni muerto), lo alta que va, hacia dónde mira y apunta, la recarga (0 … 1;
+# -1 si no), la vida y si es invulnerable (recién reaparecido)
+func porte_propio() -> Array:
+	var a := armas
+	var en_mano: bool = a != null and a.lleva()
+	var rec := -1.0
+	if en_mano and a.t_recarga > 0.0:
+		rec = 1.0 - a.t_recarga / float(Armas.ARMAS[a.tipo]["recarga"])
+	return [a.tipo if en_mano else "", a.alza if en_mano else 0.0, jugador.pitch, a.objetivo if en_mano else Vector3.INF,
+		rec, jugador.vida, jugador.t_invulnerable > 0.0]
+
+
+# un tiro, tajo o corte de un jugador (armas.gd accion, enviar_accion()): lo que se ve y se oye de él aquí
+@rpc("any_peer", "call_remote", "unreliable")
+func tiro(que: String, a: Vector3, b: Vector3, n: Vector3, col: Color, marcas: int) -> void:
+	var o: Otro = otros.get(multiplayer.get_remote_sender_id())
+	if o and o.recibido and armas:
+		o.accion(que, a, b, n, col, marcas)
+		tiros_llegados += 1
+		if Args.has("--red-foto") and Args.has("--png") and tiros_llegados == roundi(Args.num("--red-foto", 1.0, 1.0, 1000.0)):
+			Engine.time_scale = 0.0  # el fogonazo y la trazadora quedan (main.gd png() espera prueba_lista)
+			print("red.gd: llegó el tiro %d de %s: captura" % [tiros_llegados, o.nombre])
+			prueba_lista = true
+
+
+# un jugador le pegó a este (Otro.herido() en su juego): el daño, ya con la cabeza, en el punto `punto` desde `desde`
+@rpc("any_peer", "call_remote", "reliable")
+func tocado(cantidad: float, punto: Vector3, desde: Vector3, arma: String, cabeza: bool) -> void:
+	if jugador == null:
+		return
+	var o: Otro = otros.get(multiplayer.get_remote_sender_id())
+	var quien: String = o.nombre if o and o.nombre != "" else "Otro jugador"
+	var causa := "%s te dio%s %s" % [quien, " en la cabeza" if cabeza else "", CON.get(arma, "")]
+	causa = causa.strip_edges()
+	var antes: float = jugador.vida
+	jugador.recibir_dano(clampf(cantidad, 0.0, 2.0 * jugador.VIDA_MAX), punto, desde, causa)
+	if antes > 0.0:
+		print("red.gd: %s: %.0f de daño (vida %.0f → %.0f)" % [causa, cantidad, antes, jugador.vida])
+
+
+# armas.gd accion: un tiro, tajo o corte propio, a los demás (no a las copias de antes, que no tienen tiro())
+func enviar_accion(que: String, a: Vector3, b: Vector3, n: Vector3, col: Color, marcas: int) -> void:
+	if not en_partida():
+		return
+	for id in otros:
+		if not otros[id].antigua:
+			tiro.rpc_id(id, que, a, b, n, col, marcas)
+
+
 func _physics_process(dt: float) -> void:
+	if apuntar_a and is_instance_valid(apuntar_a) and jugador:
+		apuntar(apuntar_a)
 	if not en_partida():
 		return
 	t_envio += dt
 	if t_envio >= 1.0 / HZ and jugador and not multiplayer.get_peers().is_empty():
 		t_envio = 0.0
 		estado.rpc(estado_propio())
+		var pp := porte_propio()
+		for id in otros:  # a cada uno: una copia de antes no tiene porte() (ANTIGUA)
+			if not otros[id].antigua:
+				porte.rpc_id(id, pp)
 	if anfitrion():
 		t_anuncio -= dt
 		if t_anuncio <= 0.0:
@@ -481,22 +584,86 @@ func en_mapa() -> Array:
 func prueba() -> void:
 	await get_tree().create_timer(Args.num("--red-prueba", 10.0, 0.0, 3600.0)).timeout
 	var yo := jugador.global_position if jugador else Vector3.ZERO
-	print("red.gd: %s, %d otros (yo: %s en x %.1f, y %.1f)" % ["anfitrión" if anfitrion() else ("cliente" if en_partida() else "sin partida"), otros.size(), nombre, yo.x, -yo.z])
+	print("red.gd: %s, %d otros (yo: %s en x %.1f, y %.1f, vida %.0f)" % ["anfitrión" if anfitrion() else ("cliente" if en_partida() else "sin partida"), otros.size(), nombre, yo.x, -yo.z, jugador.vida if jugador else 0.0])
 	for id in otros:
 		var o: Otro = otros[id]
 		var p := o.cuerpo.global_position
-		print("red.gd:   %s (id %d) en x %.1f, y %.1f, altura %.2f, %s, a %.1f m" % [o.nombre, id, p.x, -p.z, p.y, o.en_que(), yo.distance_to(p)])
+		print("red.gd:   %s (id %d) en x %.1f, y %.1f, altura %.2f, %s, vida %.0f, a %.1f m" % [o.nombre, id, p.x, -p.z, p.y, o.en_que(), o.vida_red, yo.distance_to(p)])
 	prueba_lista = true
 	if not Args.has("--png"):
 		get_tree().quit()
 
 
+# --red-tiros n: espera a que aparezca otro jugador (hasta 60 s, y 2 s más por si llegan otros), le apunta al más
+# cercano (apuntar(), cada cuadro de física) y le dispara n veces con armas.gd prueba() (el arma de --arma, o la
+# pistola), que imprime cada impacto; luego espera su estado e imprime la vida que le quedó según su juego, y sale (con
+# --png, la captura sale después)
+func prueba_tiros() -> void:
+	var arbol := get_tree()
+	await arbol.process_frame  # main.gd termina de armar la escena (jugador.mapa, armas)
+	if jugador.mapa:
+		await jugador.mapa.esperar()
+	var hasta := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < hasta and not otros.values().any(func(o): return o.recibido):
+		await arbol.create_timer(0.25).timeout
+	await arbol.create_timer(2.0).timeout
+	for id in otros:
+		var o: Otro = otros[id]
+		if o.recibido and (apuntar_a == null or o.cuerpo.global_position.distance_to(jugador.global_position)
+				< apuntar_a.cuerpo.global_position.distance_to(jugador.global_position)):
+			apuntar_a = o
+	if apuntar_a == null:
+		print("red.gd: --red-tiros: no apareció ningún otro jugador en 60 s")
+	else:
+		print("red.gd: le apunta a %s (vida %.0f)" % [apuntar_a.nombre, apuntar_a.vida_red])
+		await arbol.create_timer(1.0).timeout  # la cámara llega
+		armas.prueba_on = true
+		await armas.prueba(roundi(Args.num("--red-tiros", 3.0, 1.0, 200.0)))
+		await arbol.create_timer(1.0).timeout  # su estado, con lo que le quitaron
+		if is_instance_valid(apuntar_a):
+			print("red.gd: %s: vida %.0f según su juego, %s" % [apuntar_a.nombre, apuntar_a.vida_red, "tendido" if apuntar_a.vida_red <= 0.0 else "de pie"])
+		else:
+			print("red.gd: el otro jugador salió de la partida")
+	prueba_lista = true
+	if not Args.has("--png"):
+		arbol.quit()
+
+
+# la cámara de jugador.gd hacia el pecho de o: corrige yaw y pitch con lo que le falta a la cámara (una parte por
+# cuadro de física: la cámara se mueve recién en el cuadro siguiente)
+func apuntar(o: Otro) -> void:
+	var cam: Camera3D = jugador.cam
+	var d := (o.blanco.global_position + Vector3.UP * 0.35 - cam.global_position).normalized()
+	var f := -cam.global_basis.z
+	jugador.yaw += 0.35 * wrapf(atan2(-d.x, -d.z) - atan2(-f.x, -f.z), -PI, PI)
+	jugador.pitch += 0.35 * (asin(clampf(d.y, -1.0, 1.0)) - asin(clampf(f.y, -1.0, 1.0)))
+
+
 # ---------- otro jugador, como se ve aquí ----------
+
+# lo que le pega a otro jugador: un Area3D en Armas.CAPA_RED, que solo ven los rayos de armas.gd (rayo(), cortar()), con
+# la entrada de las armas: recibir_dano() se lo pasa a su Otro (herido()), vida marca la X roja de la mira al botarlo y
+# polvo es lo que salta
+class Blanco extends Area3D:
+	var otro: Node3D  # Otro
+	var polvo := Color(0.55, 0.07, 0.07)  # lo que salta al darle
+	var vida: float:
+		get:
+			return otro.vida
+
+	func recibir_dano(cantidad: float, punto: Vector3, desde: Vector3) -> void:
+		otro.herido(cantidad, punto, desde)
+
 
 class Otro extends Node3D:
 	const Peaton := preload("res://peaton.gd")
 	const Veh := preload("res://vehiculo.gd")
+	const Armas := preload("res://armas.gd")
+	const Modelos := preload("res://modelos/entorno/armas.gd")
+	const Jugador := preload("res://jugador.gd")
 
+	var red: Node  # red.gd
+	var id := 0  # el de ENet
 	var nombre := ""
 	var color := Color.WHITE
 	var cuerpo := Node3D.new()  # en la posición del jugador, girado como su cuerpo
@@ -518,6 +685,28 @@ class Otro extends Node3D:
 	var vvol := 0.0
 	var vinc := Vector3.ZERO
 	var fase_biela := 0.0
+	# las armas (su porte)
+	var arma := ""
+	var alza := 0.0
+	var alza_red := 0.0
+	var mira := 0.0
+	var objetivo := Vector3.INF
+	var recarga := -1.0
+	var vida_red := 100.0  # la que dice su juego
+	var vida := 100.0  # esa, menos lo que se le acaba de quitar aquí (la X roja de la mira, armas.gd, antes de su porte)
+	var t_golpe := 100.0  # s desde el último golpe de aquí: hasta GOLPE_RED, un porte no le devuelve la vida
+	var invulnerable := false
+	var antigua := false  # una copia del juego de antes de las armas en la red: no ve los tiros ni los recibe
+	var sin_porte := 0  # estados seguidos sin su porte()
+	var t_muerto := 0.0
+	var t_vivo := 0.0  # el reloj del parpadeo de la invulnerabilidad
+	var modelos := {}  # arma -> su modelo, desde que la saca
+	var fog: Armas.Fogonazo
+	var sonido := {}  # "pistola", "rifle", "tajo" -> AudioStreamPlayer3D
+	var blanco := Blanco.new()
+	var forma := CollisionShape3D.new()
+	var capsula := CapsuleShape3D.new()
+	var caja := BoxShape3D.new()
 
 	func _ready() -> void:
 		peaton.colores = {"polera": color.to_html(false)}
@@ -534,7 +723,35 @@ class Otro extends Node3D:
 		cuerpo.add_child(etiqueta)
 		veh = Veh.new()
 		add_child(veh)  # su _ready lo deja oculto y sin colisión
+		fog = Armas.fogonazo_nuevo()
+		add_child(fog)
+		for k in ["pistola", "rifle", "tajo"]:  # los sonidos de armas.gd, donde está
+			var a := AudioStreamPlayer3D.new()
+			a.stream = Armas.sonidos()[k]
+			a.max_polyphony = 2 if k == "tajo" else 6
+			a.volume_db = -6.0 if k == "tajo" else -1.0
+			a.unit_size = 12.0
+			a.max_distance = 600.0
+			add_child(a)
+			sonido[k] = a
+		capsula.radius = 0.32
+		capsula.height = 1.8
+		caja.size = Vector3(1.9, 1.5, 4.5)
+		forma.shape = capsula
+		forma.disabled = true  # hasta su primer estado
+		blanco.otro = self
+		blanco.name = "jugador"
+		blanco.collision_layer = Armas.CAPA_RED
+		blanco.collision_mask = 0
+		blanco.monitoring = false
+		blanco.add_child(forma)
+		add_child(blanco)
 		visible = false
+
+	func _exit_tree() -> void:
+		for k in modelos:
+			if is_instance_valid(modelos[k]) and modelos[k].get_parent() == null:
+				modelos[k].free()
 
 	func recibir(e: Array) -> void:
 		p = e[0]
@@ -552,13 +769,82 @@ class Otro extends Node3D:
 		if not recibido:  # la primera vez, ahí mismo
 			recibido = true
 			visible = true
+			forma.disabled = false
 			cuerpo.global_position = p
 			veh.global_position = vp
+
+	# su arma y su vida (red.gd porte())
+	func recibir_porte(e: Array) -> void:
+		arma = e[0] if e[0] is String and Armas.ARMAS.has(e[0]) else ""
+		alza_red = e[1]
+		mira = e[2]
+		objetivo = e[3]
+		recarga = e[4]
+		var v_red: float = e[5]
+		if v_red <= 0.0 and vida_red > 0.0:
+			t_muerto = 0.0
+			if recibido:
+				red.avisar("%s murió" % (nombre if nombre != "" else "Otro jugador"))
+		vida_red = v_red
+		# un porte que salió antes de que le llegara el último golpe de aquí todavía no lo descuenta
+		vida = minf(vida, v_red) if t_golpe < red.GOLPE_RED else v_red
+		invulnerable = e[6]
 
 	func en_que() -> String:
 		if montado:
 			return "en " + Veh.TIPOS[vt]["nombre"] if Veh.TIPOS.has(vt) else "montado"
-		return "a pie"
+		return "a pie" + (" " + red.CON[arma] if arma != "" else "")
+
+	# un tiro o tajo de aquí le pegó (armas.gd impacto(), por su Blanco): el daño, el doble sobre CABEZA, va a su juego
+	# (tocado()), que se lo quita; aquí se descuenta de vida hasta que llegue su porte
+	func herido(cantidad: float, punto: Vector3, desde: Vector3) -> void:
+		if antigua or not recibido or vida <= 0.0 or invulnerable:
+			return
+		var cabeza: bool = not montado and (peaton.global_transform.affine_inverse() * punto).y > red.CABEZA
+		var d := cantidad * (2.0 if cabeza else 1.0)
+		vida = maxf(vida - d, 0.0)
+		t_golpe = 0.0
+		red.tocado.rpc_id(id, d, punto, desde, red.armas.tipo if red.armas else "", cabeza)
+
+	# su tiro, tajo o corte (red.gd tiro()): el fogonazo en la boca de su arma como se ve aquí (o en la que mandó), la
+	# trazadora, el polvo y la marca (los de armas.gd), el retroceso o el golpe del peatón y el sonido donde está
+	func accion(que: String, a: Vector3, b: Vector3, n: Vector3, col: Color, marcas: int) -> void:
+		var ar: Node = red.armas
+		if que == "pistola" or que == "rifle":
+			var boca := a
+			var m: Node3D = modelos.get(que)
+			if m and m.is_inside_tree() and m.is_visible_in_tree():
+				var bn := m.get_node_or_null("boca") as Node3D
+				if bn:
+					boca = bn.global_position
+			var datos: Dictionary = Armas.ARMAS[que]
+			fog.encender(boca, (b - boca).normalized(), datos["fogonazo"], Armas.FOGONAZO)
+			ar.trazadora(boca, b)
+			peaton.disparo(datos["brazos"])
+			sonar(que, boca)
+		elif que == "tajo":
+			peaton.golpear()
+			sonar("tajo", a)
+		if que != "tajo" and marcas & Armas.IMPACTO:
+			ar.levantar(b, n, col, marcas & Armas.CHISPAS != 0)
+		if marcas & Armas.MARCA:
+			ar.marcar(b, n)
+
+	func sonar(k: String, donde: Vector3) -> void:
+		var s: AudioStreamPlayer3D = sonido[k]
+		s.global_position = donde
+		s.play()
+
+	func modelo(k: String) -> Node3D:
+		if not modelos.has(k):
+			match k:
+				"cuchillo":
+					modelos[k] = Modelos.cuchillo()
+				"pistola":
+					modelos[k] = Modelos.pistola()
+				_:
+					modelos[k] = Modelos.rifle()
+		return modelos[k]
 
 	func _process(dt: float) -> void:
 		if not recibido:
@@ -571,6 +857,18 @@ class Otro extends Node3D:
 			cuerpo.global_position = meta
 		cuerpo.global_position = cuerpo.global_position.lerp(meta, k)
 		cuerpo.rotation.y = lerp_angle(cuerpo.rotation.y, rumbo, k)
+		# el arma en la mano, como armas.gd la deja en el peatón propio (peaton.gd sostener(), y los brazos en animar())
+		alza = lerpf(alza, alza_red, k)
+		var m: Node3D = modelo(arma) if arma != "" and not montado and vida_red > 0.0 else null
+		peaton.sostener(arma if m else "", m)
+		peaton.alza = alza
+		peaton.mira = mira
+		peaton.objetivo = objetivo
+		peaton.recarga = recarga if m else -1.0
+		if vida_red <= 0.0:
+			t_muerto += dt
+		t_vivo += dt
+		t_golpe += dt
 		# el vehículo
 		if vt == "" or not Veh.TIPOS.has(vt):
 			veh.visible = false
@@ -626,7 +924,19 @@ class Otro extends Node3D:
 			if peaton.get_parent() != cuerpo:
 				peaton.reparent(cuerpo, false)
 				peaton.transform = Transform3D.IDENTITY
-			peaton.visible = not montado
+			# recién reaparecido parpadea, como el propio (jugador.gd)
+			peaton.visible = not montado and (not invulnerable or fmod(t_vivo, 0.24) > 0.08)
 			if not montado:
 				peaton.animar(dt, Vector2(v.x, v.z).length(), en_suelo)
+				# muerto, de bruces como jugador.gd: el peatón se vuelca desde los pies en CAIDO s
+				var f := minf(t_muerto / Jugador.CAIDO, 1.0) if vida_red <= 0.0 else 0.0
+				peaton.rotation.x = -1.45 * f * f
+				peaton.position.y = 0.1 * f * f
 		etiqueta.position.y = 2.25 if not (montado and vt == "auto") else 1.9
+		# lo que le pega: en el auto, el auto; si no, el cuerpo (sentado en la bicicleta, tendido si murió)
+		var en_auto := montado and vt == "auto"
+		var sh: Shape3D = caja if en_auto else capsula
+		if forma.shape != sh:
+			forma.shape = sh
+		var base := veh.global_transform if en_auto else peaton.global_transform
+		blanco.global_transform = base * Transform3D(Basis(), Vector3(0, 0.75 if en_auto else 0.9, 0))

@@ -147,7 +147,7 @@ juego/vehiculo.gd        la bicicleta, el auto y el jetpack (E: subir o bajar, V
 juego/vida.gd            la barra de vida, la muerte y la reaparición en la Plaza de Armas, y los carritos de completos de 5 y 6 Oriente, donde se recupera (--dano, --caer)
 juego/armas.gd, blancos.gd   el cuchillo, la pistola y el rifle de asalto (1, 2, 3; clic, botón derecho, R; modelos/entorno/armas.gd) y los muñecos de práctica del borde sur de la plaza (--arma, --disparar)
 juego/menu.gd            el menú de Esc: pausa, seguir, ir a un lugar, el mapa, volver a la plaza, día o noche, la red local, la ayuda en pantalla, pantalla completa, salir
-juego/red.gd             la red local (J): crear una partida o unirse a una en la misma red (ENet; --servidor, --unirse ip|lan, --nombre), con los otros jugadores a pie o en sus vehículos y en los mapas
+juego/red.gd             la red local (J): crear una partida o unirse a una en la misma red (ENet; --servidor, --unirse ip|lan, --nombre), con los otros jugadores a pie o en sus vehículos, con sus armas y sus tiros (y el daño que hacen), y en los mapas
 juego/plano.gd, ruta.gd  el mapa en miniatura y el mapa grande (M; plano_datos.gd lee datos/plano.json), y el marcador con el camino por las calles (A*), la cinta de flechas y la columna de luz
 juego/trailer.gd         --trailer toma: las tomas del avance (tools/trailer.py las graba con Movie Maker, les pone títulos y música y las junta -> shots/trailer/talca.mp4)
 tools/trailer.py         el avance del juego: graba las tomas de juego/trailer.gd, cortes al ritmo, cuadros congelados, títulos y un ritmo sintetizado

@@ -69,6 +69,8 @@ const BANDERAS := {
 	"--nombre": ["texto", "red.gd: el nombre que ven los demás jugadores"],
 	"--puerto": ["n", "red.gd: el puerto de la partida (8790)"],
 	"--red-prueba": ["s", "red.gd: a los s segundos imprime dónde están los otros jugadores y sale (con --png, después de ella)"],
+	"--red-foto": ["n", "red.gd: con --png, la captura al llegar el tiro n de otro jugador, con el juego congelado (el fogonazo y la trazadora)"],
+	"--red-tiros": ["n", "red.gd: espera a otro jugador de la partida, le apunta y le dispara n veces (el arma de --arma; --apuntar), imprime cada impacto y la vida que le quedó, y sale (con --png, después)"],
 }
 
 # lo que apaga --sin (y quién lo lee)
