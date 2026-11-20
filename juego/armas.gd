@@ -24,7 +24,16 @@
 #
 # En pantalla: la mira al centro (se abre con la dispersión), y abajo a la derecha, sobre el mapa en miniatura
 # (plano.gd), el arma, sus teclas, la munición y la recarga.
+#
+# En la red (red.gd): cada tiro, tajo y corte sale por la señal accion, que red.gd manda a los otros jugadores para que
+# vean el fogonazo (un Fogonazo por tirador), la trazadora y el polvo; los otros jugadores son un Area3D en CAPA_RED,
+# que solo ven los rayos de aquí (rayo(), cortar()), y su recibir_dano() le avisa al herido por la red.
 extends Node3D
+
+# un tiro, tajo o corte propio, para red.gd: que es el arma («pistola», «rifle») o «tajo» (el golpe del cuchillo) o
+# «corte» (la hoja que llega); a, la boca (o el pecho); b, donde pegó o se perdió; n, la normal ahí; col, el polvo;
+# marcas: IMPACTO (pegó en algo), CHISPAS, MARCA (dejó una marca de bala)
+signal accion(que: String, a: Vector3, b: Vector3, n: Vector3, col: Color, marcas: int)
 
 const Args := preload("res://args.gd")
 const Modelos := preload("res://modelos/entorno/armas.gd")
@@ -62,6 +71,10 @@ const MARCAS := 64  # las marcas de bala que quedan (las más viejas se reusan)
 const POLVO := Color(0.66, 0.62, 0.55)
 const CHISPA := Color(1.0, 0.78, 0.38)
 const RELLENO := Color(0.82, 0.72, 0.5)  # el polvo de lo que se hiere y no dice el suyo (`polvo` del blanco)
+const CAPA_RED := 1 << 19  # la capa 20: los otros jugadores de la red (red.gd), que solo ven los rayos de las armas
+const IMPACTO := 1  # las marcas de accion
+const CHISPAS := 2
+const MARCA := 4
 
 var jugador: CharacterBody3D
 var tipo := ""  # el arma en la mano ("": ninguna)
@@ -93,12 +106,7 @@ var prueba_on := false  # --disparar o --apuntar: sin el mouse tomado
 var dibujado := false  # la mira o el tablero tenían algo el cuadro anterior
 
 # los efectos
-var luz := OmniLight3D.new()
-var destello := MeshInstance3D.new()
-var cono := MeshInstance3D.new()
-var t_fogonazo := 0.0
-var fogonazo_visto := false  # ya se dibujó una vez: su tiempo corre desde el cuadro siguiente (a pocos cuadros por
-# segundo, FOGONAZO es menos que un cuadro; y el cuadro del tiro trae el tiempo de antes, aunque prueba() congele)
+var fog: Fogonazo  # el fogonazo propio
 var trazas := []  # [{"nodo", "a", "dir", "largo", "s" (m recorridos por la punta), "nueva"}]
 var polvos: Array[CPUParticles3D] = []
 var i_polvo := 0
@@ -107,8 +115,45 @@ var i_marca := 0
 var sonido := {}  # nombre -> AudioStreamPlayer
 var mira_ui: Control
 var tablero: Control
+var efecto := [RELLENO, 0]  # lo que dejó el último impacto(): [el color del polvo, las marcas de accion]
 
 static var _sonidos := {}
+static var _mat_fogonazo := {}  # los materiales del fogonazo, una vez para todos los tiradores
+
+
+# el fogonazo de un tirador (el propio y uno por cada otro jugador de la red): una luz, un destello de frente y la llama
+# de costado, por FOGONAZO s desde el cuadro siguiente al primero en que se dibujó (a pocos cuadros por segundo FOGONAZO
+# es menos que un cuadro, y el cuadro del tiro trae el tiempo de antes, aunque prueba() congele); fogonazo_nuevo() lo arma
+class Fogonazo extends Node3D:
+	var luz := OmniLight3D.new()
+	var destello := MeshInstance3D.new()
+	var cono := MeshInstance3D.new()
+	var t := 0.0
+	var visto := false
+
+	func encender(p: Vector3, dir: Vector3, tam: float, dura: float) -> void:
+		t = dura
+		visto = false
+		luz.global_position = p + dir * 0.15
+		luz.visible = true
+		destello.global_position = p + dir * tam * 0.3
+		destello.scale = Vector3.ONE * tam * randf_range(0.8, 1.25)
+		destello.visible = true
+		var up := Vector3.UP if absf(dir.y) < 0.95 else Vector3.RIGHT
+		var b := Basis.looking_at(dir, up).rotated(dir, randf() * PI)
+		cono.global_transform = Transform3D(b.scaled_local(Vector3(tam * 0.55, tam * 0.55, tam * randf_range(1.2, 1.8))), p)
+		cono.visible = true
+
+	func _process(dt: float) -> void:
+		if not luz.visible:
+			return
+		if visto:
+			t -= dt
+		visto = true
+		if t <= 0.0:
+			luz.visible = false
+			destello.visible = false
+			cono.visible = false
 
 
 class Mira extends Control:
@@ -363,8 +408,10 @@ func disparar() -> void:
 	jugador.peaton.disparo(a["brazos"])
 	florece += deg_to_rad(a["florece"])
 	var dice := "nada a menos de %d m" % a["alcance"]
+	efecto = [RELLENO, 0]
 	if r:
 		dice = impacto(r, a["dano"], boca)
+	accion.emit(tipo, boca, fin, r["normal"] if r else Vector3.UP, efecto[0], efecto[1])
 	if prueba_on:
 		informar("disparo %d (%s, %d en el cargador): %s" % [disparos, tipo, municion[tipo], dice])
 	if congelar == 0.0:  # en este mismo cuadro: el fogonazo y la trazadora recién puestos
@@ -383,6 +430,8 @@ func acuchillar() -> void:
 	congelar_siguiente = -1.0
 	jugador.peaton.golpear()
 	sonar("tajo")
+	var pecho := jugador.global_position + Vector3.UP * 1.25
+	accion.emit("tajo", pecho, pecho, Vector3.UP, RELLENO, 0)
 
 
 func cortar() -> void:
@@ -403,7 +452,12 @@ func cortar() -> void:
 		q.shape = s
 		q.transform = Transform3D(Basis(), pecho + adelante * (float(a["alcance"]) - 0.55))
 		q.exclude = [jugador.get_rid()]
-		for h in esp.intersect_shape(q, 8):
+		var tocados := esp.intersect_shape(q, 8)
+		q.collide_with_bodies = false  # y los otros jugadores de la red (red.gd), que solo ven las armas
+		q.collide_with_areas = true
+		q.collision_mask = CAPA_RED
+		tocados.append_array(esp.intersect_shape(q, 8))
+		for h in tocados:
 			var n := receptor(h["collider"])
 			if n:
 				var d := pecho.distance_to((n as Node3D).global_position + Vector3.UP * 1.25)
@@ -412,7 +466,9 @@ func cortar() -> void:
 				break
 	var dice := "al aire"
 	if r:
+		efecto = [RELLENO, 0]
 		dice = impacto(r, a["dano"], pecho, false)
+		accion.emit("corte", pecho, r["position"], r["normal"], efecto[0], efecto[1])
 	if prueba_on:
 		informar("tajo %d: %s" % [disparos, dice])
 
@@ -429,7 +485,8 @@ func impacto(r: Dictionary, dano: float, desde: Vector3, bala := true) -> String
 		var antes = quien.get("vida")  # si lo dice (los muñecos), para la prueba y la X roja de la mira
 		quien.recibir_dano(dano, p, desde)
 		var c = quien.get("polvo")
-		levantar(p, n, c if c is Color else RELLENO, false)
+		efecto = [c if c is Color else RELLENO, IMPACTO]
+		levantar(p, n, efecto[0], false)
 		sonar("golpe")
 		var despues = quien.get("vida")
 		if antes is float and antes <= 0.0:
@@ -441,8 +498,10 @@ func impacto(r: Dictionary, dano: float, desde: Vector3, bala := true) -> String
 	var nombre := nombre_de(col)
 	var metal := col is CharacterBody3D or nombre.begins_with("autos") or not bala
 	levantar(p, n, CHISPA if metal else POLVO, metal)
+	efecto = [CHISPA if metal else POLVO, IMPACTO | (CHISPAS if metal else 0)]
 	if bala and col is StaticBody3D and not metal and nombre != "limite":
 		marcar(p, n)
+		efecto[1] |= MARCA
 	return "«%s» a %.1f m" % [nombre, d]
 
 
@@ -466,10 +525,20 @@ static func nombre_de(col: Object) -> String:
 	return String(n.name)
 
 
+# lo primero entre a y b: los cuerpos (el mapa, los autos, los muñecos) y los otros jugadores de la red (un Area3D en
+# CAPA_RED, red.gd), en dos consultas: con collide_with_areas en la primera, cualquier otra área taparía los tiros
 func rayo(a: Vector3, b: Vector3) -> Dictionary:
+	var esp := get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(a, b)
 	q.exclude = [jugador.get_rid()]
-	return get_world_3d().direct_space_state.intersect_ray(q)
+	var r := esp.intersect_ray(q)
+	q.collide_with_bodies = false
+	q.collide_with_areas = true
+	q.collision_mask = CAPA_RED
+	var o := esp.intersect_ray(q)
+	if o and (r.is_empty() or a.distance_squared_to(o["position"]) < a.distance_squared_to(r["position"])):
+		return o
+	return r
 
 
 # el rayo de la cámara empieza a la altura del personaje: lo que queda entre la cámara y él no se puede herir
@@ -518,37 +587,8 @@ static func desviar(dir: Vector3, ang: float) -> Vector3:
 # ---------- los efectos ----------
 
 func efectos_nuevos() -> void:
-	luz.light_color = Color(1.0, 0.78, 0.45)
-	luz.omni_range = 7.0
-	luz.light_energy = 5.0
-	luz.shadow_enabled = false
-	luz.visible = false
-	add_child(luz)
-	var q := QuadMesh.new()
-	q.size = Vector2.ONE
-	destello.mesh = q
-	destello.material_override = brillo(textura_destello(), BaseMaterial3D.BILLBOARD_ENABLED)
-	destello.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	destello.visible = false
-	add_child(destello)
-	# la llama de costado: dos tarjetas cruzadas a lo largo del cañón (el destello se ve de frente; esto, de lado)
-	var mt := brillo(textura_llama(), BaseMaterial3D.BILLBOARD_DISABLED)
-	var am := ArrayMesh.new()
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for giro in [0.0, PI / 2]:
-		var b := Basis(Vector3.BACK, giro)
-		var pts := [Vector3(-0.5, 0, 0), Vector3(0.5, 0, 0), Vector3(0.5, 0, -1), Vector3(-0.5, 0, -1)]
-		var uv := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
-		for k in [0, 1, 2, 0, 2, 3]:
-			st.set_uv(uv[k])
-			st.add_vertex(b * pts[k])
-	st.commit(am)
-	cono.mesh = am
-	cono.material_override = mt
-	cono.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	cono.visible = false
-	add_child(cono)
+	fog = fogonazo_nuevo()
+	add_child(fog)
 	# las trazadoras
 	var caja := BoxMesh.new()
 	caja.size = Vector3.ONE
@@ -617,6 +657,48 @@ func efectos_nuevos() -> void:
 		marcas.append(m)
 
 
+# un fogonazo para un tirador (este o un jugador de la red: red.gd), con los materiales de todos
+static func fogonazo_nuevo() -> Fogonazo:
+	if _mat_fogonazo.is_empty():
+		_mat_fogonazo["destello"] = brillo(textura_destello(), BaseMaterial3D.BILLBOARD_ENABLED)
+		_mat_fogonazo["llama"] = brillo(textura_llama(), BaseMaterial3D.BILLBOARD_DISABLED)
+		# la llama de costado: dos tarjetas cruzadas a lo largo del cañón (el destello se ve de frente; esto, de lado)
+		var am := ArrayMesh.new()
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for giro in [0.0, PI / 2]:
+			var b := Basis(Vector3.BACK, giro)
+			var pts := [Vector3(-0.5, 0, 0), Vector3(0.5, 0, 0), Vector3(0.5, 0, -1), Vector3(-0.5, 0, -1)]
+			var uv := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
+			for k in [0, 1, 2, 0, 2, 3]:
+				st.set_uv(uv[k])
+				st.add_vertex(b * pts[k])
+		st.commit(am)
+		_mat_fogonazo["cono"] = am
+		var q := QuadMesh.new()
+		q.size = Vector2.ONE
+		_mat_fogonazo["quad"] = q
+	var f := Fogonazo.new()
+	f.name = "fogonazo"
+	f.luz.light_color = Color(1.0, 0.78, 0.45)
+	f.luz.omni_range = 7.0
+	f.luz.light_energy = 5.0
+	f.luz.shadow_enabled = false
+	f.luz.visible = false
+	f.add_child(f.luz)
+	f.destello.mesh = _mat_fogonazo["quad"]
+	f.destello.material_override = _mat_fogonazo["destello"]
+	f.destello.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	f.destello.visible = false
+	f.add_child(f.destello)
+	f.cono.mesh = _mat_fogonazo["cono"]
+	f.cono.material_override = _mat_fogonazo["llama"]
+	f.cono.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	f.cono.visible = false
+	f.add_child(f.cono)
+	return f
+
+
 static func brillo(tex: Texture2D, cartel: int) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -630,17 +712,7 @@ static func brillo(tex: Texture2D, cartel: int) -> StandardMaterial3D:
 
 
 func fogonazo(p: Vector3, dir: Vector3, tam: float) -> void:
-	t_fogonazo = FOGONAZO
-	fogonazo_visto = false
-	luz.global_position = p + dir * 0.15
-	luz.visible = true
-	destello.global_position = p + dir * tam * 0.3
-	destello.scale = Vector3.ONE * tam * randf_range(0.8, 1.25)
-	destello.visible = true
-	var up := Vector3.UP if absf(dir.y) < 0.95 else Vector3.RIGHT
-	var b := Basis.looking_at(dir, up).rotated(dir, randf() * PI)
-	cono.global_transform = Transform3D(b.scaled_local(Vector3(tam * 0.55, tam * 0.55, tam * randf_range(1.2, 1.8))), p)
-	cono.visible = true
+	fog.encender(p, dir, tam, FOGONAZO)
 
 
 func trazadora(a: Vector3, b: Vector3) -> void:
@@ -683,14 +755,6 @@ func marcar(p: Vector3, n: Vector3) -> void:
 
 
 func efectos(dt: float) -> void:
-	if luz.visible:
-		if fogonazo_visto:
-			t_fogonazo -= dt
-		fogonazo_visto = true
-		if t_fogonazo <= 0.0:
-			luz.visible = false
-			destello.visible = false
-			cono.visible = false
 	for tz in trazas:
 		var nodo: MeshInstance3D = tz["nodo"]
 		var largo: float = tz["largo"]

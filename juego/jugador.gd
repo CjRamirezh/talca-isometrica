@@ -318,14 +318,15 @@ func curar(cantidad: float) -> void:
 	vida = minf(vida + cantidad, VIDA_MAX)
 
 
-# la entrada de las armas, la misma en cualquier blanco: el golpe en el punto `punto` desde `desde`. A pie lo empuja un
-# poco hacia donde va el golpe (lo que pide caminar lo frena en ~0,2 s: unos 25 cm)
-func recibir_dano(cantidad: float, punto: Vector3, desde: Vector3) -> void:
+# la entrada de las armas, la misma en cualquier blanco: el golpe en el punto `punto` desde `desde` (causa: quién, si
+# viene de otro jugador de la red, red.gd tocado()). A pie lo empuja un poco hacia donde va el golpe (lo que pide
+# caminar lo frena en ~0,2 s: unos 25 cm)
+func recibir_dano(cantidad: float, punto: Vector3, desde: Vector3, causa := "") -> void:
 	if vida > 0.0 and t_invulnerable <= 0.0 and vehiculo == null:
 		var d := Vector3(punto.x - desde.x, 0.0, punto.z - desde.z)
 		if d.length() > 0.01:
 			velocity += d.normalized() * minf(cantidad * 0.1, 3.0)
-	danar(cantidad)
+	danar(cantidad, causa)
 
 
 # los relojes de la vida, en cada cuadro de física (también montado): la regeneración, la invulnerabilidad y, muerto,

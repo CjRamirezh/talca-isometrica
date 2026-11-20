@@ -54,7 +54,7 @@
 #   ruta.gd          el marcador del mapa grande y el camino hasta él, con la cinta de flechas y la columna de luz
 #   vehiculo.gd      la bicicleta, el auto y el jetpack (E, V), con su cámara
 #   menu.gd          el menú de Esc (pausa)
-#   red.gd           la red local (J, --servidor, --unirse ip): los otros jugadores, como peatones o en sus vehículos
+#   red.gd           la red local (J, --servidor, --unirse ip): los otros jugadores, como peatones o en sus vehículos, con sus armas
 #   armas.gd         el cuchillo, la pistola y el rifle (1, 2, 3), con sus modelos en modelos/entorno/armas.gd
 #   blancos.gd       los muñecos de práctica, cerca de donde parte el personaje
 #   modelos/*.gd     modelos propios del juego, más detallados que los de la página. Cada uno es un Node3D que construye
@@ -175,6 +175,8 @@ func _ready() -> void:
 	armas = preload("res://armas.gd").new()
 	armas.jugador = jugador
 	add_child(armas)
+	red.armas = armas  # los tiros propios a los demás, y los de ellos aquí
+	armas.accion.connect(red.enviar_accion)
 	var blancos := preload("res://blancos.gd").new()
 	blancos.mapa = mapa
 	add_child(blancos)
@@ -302,7 +304,7 @@ func png() -> void:
 	if f == "":
 		return
 	await mapa.esperar()
-	if red and Args.has("--red-prueba"):  # la captura después del informe de la red (con los otros ya a la vista)
+	if red and (Args.has("--red-prueba") or Args.has("--red-tiros") or Args.has("--red-foto")):  # la captura después del informe de la red (con los otros ya a la vista)
 		while not red.prueba_lista:
 			await get_tree().process_frame
 	for i in 10:
