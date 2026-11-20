@@ -38,6 +38,7 @@ const Args := preload("res://args.gd")
 const Auto := preload("res://modelos/entorno/auto.gd")
 const Jugador := preload("res://jugador.gd")
 const Peaton := preload("res://peaton.gd")
+const Musica := preload("res://musica.gd")
 
 const CERCA := 6.0  # m: E sube a un vehículo a esta distancia; más lejos, lo trae
 const SEGUIR := 1.2  # s sin mover el mouse para que la cámara vuelva detrás del vehículo
@@ -135,6 +136,7 @@ var mat_llamas: Array[ShaderMaterial] = []
 var luz: OmniLight3D
 var aviso := ""  # un mensaje en el HUD durante t_aviso s
 var t_aviso := 0.0
+var musica: Node  # musica.gd: despegar desde el techo de la Torre Talca pone la música
 var impactos: Array[float] = []  # --volar: la rapidez hacia abajo de cada aterrizaje
 
 # --conducir: lo medido mientras anda
@@ -178,6 +180,9 @@ func _ready() -> void:
 		var c := InputEventKey.new()
 		c.physical_keycode = KEY_C
 		InputMap.action_add_event("descender", c)
+	musica = Musica.new()
+	add_child(musica)
+	jugador.murio.connect(musica.parar)
 	cargar_r5()
 	armar(tipo)
 	visible = false
@@ -577,6 +582,8 @@ const CADERA := Vector2(-0.24, 1.02)
 
 func armar(nuevo: String) -> void:
 	if tipo == "jetpack":  # lo del jetpack que no está en modelo: la mochila puesta, la inclinación del vuelo
+		if musica and nuevo != "jetpack":
+			musica.parar()
 		if mochila and mochila.get_parent() != modelo:
 			mochila.queue_free()
 		mochila = null
@@ -1284,6 +1291,8 @@ func volar(dt: float) -> void:
 	var h := Vector3(velocity.x, 0, velocity.z)
 	var gasto := 0.0
 	var tenia := combustible
+	if montado and en_suelo and sube and combustible >= J_ENCENDER:
+		musica.despegue(global_position)  # despega: desde el techo de la Torre Talca, la música (musica.gd)
 	llama = 0.0
 	if not montado or (en_suelo and not (sube and combustible >= J_ENCENDER)):
 		# en el suelo: puesto, camina como jugador.gd; sacado, queda donde lo dejaron. Recarga (también con Espacio
@@ -1414,6 +1423,7 @@ func sacarse() -> void:
 	montado = false
 	en_aire = false
 	hud.visible = false
+	musica.parar()
 	var p0 := global_position
 	soltar_jugador(p0 + Vector3.UP * 0.02)
 	mochila_puesta(false)
