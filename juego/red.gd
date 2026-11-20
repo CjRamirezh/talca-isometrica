@@ -48,6 +48,8 @@ const CABEZA := 1.52  # m sobre los pies: de aquí arriba el golpe vale el doble
 const GOLPE_RED := 0.5  # s: lo que puede tardar en volver el porte de un herido con el golpe ya descontado
 const CON := {"cuchillo": "con el cuchillo", "pistola": "con la pistola", "rifle": "con el rifle"}
 
+signal salio  # salir(): también al crear o unirse estando en una (bandera.gd limpiar())
+
 var jugador: CharacterBody3D  # jugador.gd
 var vehiculo: CharacterBody3D  # vehiculo.gd
 var armas: Node3D  # armas.gd (main.gd conecta su señal accion a enviar_accion())
@@ -178,6 +180,7 @@ func salir(avisar_ := true) -> void:
 	for id in otros.keys():
 		otros[id].queue_free()
 	otros.clear()
+	salio.emit()
 
 
 func _llego(id: int) -> void:

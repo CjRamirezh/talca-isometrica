@@ -82,6 +82,7 @@ func _ready() -> void:
 	name = "bandera"  # las rpc buscan este nodo por su ruta: tiene que llamarse igual en todos
 	multiplayer.peer_connected.connect(_llego)
 	multiplayer.peer_disconnected.connect(_se_fue)
+	red.salio.connect(limpiar)  # crear() y unirse() salen y vuelven a conectar en la misma llamada: sondear no lo ve
 	jugador.murio.connect(_murio)
 	armar_hud()
 	armar_panel()
@@ -121,6 +122,15 @@ func pos_de(id: int) -> Vector3:
 		return jugador.global_position
 	var o = red.otros.get(id)
 	return o.cuerpo.global_position if o and o.recibido else Vector3.INF
+
+
+# en el suelo (a pie), o en auto o bicicleta: donde una bandera puede quedar puesta (con el jetpack, en_aire)
+func en_suelo(id: int) -> bool:
+	if id == yo():
+		var e: Array = red.estado_propio()
+		return e[3] or (e[4] and e[5] != "" and e[5] != "jetpack")
+	var o = red.otros.get(id)
+	return o != null and o.recibido and (o.en_suelo or (o.montado and o.vt != "" and o.vt != "jetpack"))
 
 
 func vivo(id: int) -> bool:
@@ -179,7 +189,7 @@ func saludo() -> void:
 		vigente.rpc_id(id, paquete([]))
 
 
-# un pedido al anfitrión: plantar [base], tomar [dueño], anotar, soltar [donde], devolver
+# un pedido al anfitrión: plantar [base], tomar [dueño, donde la vio], anotar, soltar [donde], devolver [donde la vio]
 @rpc("any_peer", "call_remote", "reliable")
 func tramite(que: String, a: Array) -> void:
 	if red.anfitrion():
@@ -268,6 +278,8 @@ func contar(ev: Array) -> void:
 			t = "Captura la bandera: pon la tuya con B donde quieras defenderla"
 		"empieza":
 			t = "¡A jugar! Toma una bandera ajena y llévala a la tuya (a %d puntos)" % meta if meta > 0 else "¡A jugar! Toma una bandera ajena y llévala a la tuya"
+			if not banderas.has(yo()):
+				t += ". Pon la tuya con B, en el suelo"
 		"termina":
 			t = "Terminó la captura la bandera"
 		"planto":
@@ -310,16 +322,17 @@ func atender(id: int, que: String, a: Array) -> void:
 				puntos[id] = puntos.get(id, 0)
 				ev = ["planto", id, id]
 		"tomar":
-			if fase != "jugar" or a.size() != 1 or not a[0] is int:
+			# [dueño, donde la vio]: si entretanto volvió o la movieron, el pedido llegó tarde
+			if fase != "jugar" or a.size() != 2 or not a[0] is int or not a[1] is Vector3:
 				return
 			var d: int = a[0]
 			var f = banderas.get(d)
-			if f and d != id and f["lleva"] == 0 and lleva_de(id) == 0 and vivo(id):
+			if f and d != id and f["lleva"] == 0 and f["pos"] == a[1] and lleva_de(id) == 0 and vivo(id):
 				f["lleva"] = id
 				ev = ["tomo", id, d]
 		"devolver":
 			var f = banderas.get(id)
-			if fase == "jugar" and f and f["lleva"] == 0 and f["pos"] != f["base"]:
+			if fase == "jugar" and f and f["lleva"] == 0 and f["pos"] != f["base"] and a.size() == 1 and a[0] == f["pos"]:
 				volver(id)
 				ev = ["devolvio", id, id]
 		"anotar":
@@ -395,8 +408,10 @@ func preparar() -> void:
 func empezar() -> void:
 	meta = int(meta_sb.value)
 	reaparecer = reaparecer_sb.value
-	for id in jugadores():  # el que no la puso, la tiene donde está
-		if not banderas.has(id) and pos_de(id) != Vector3.INF:
+	# el que no la puso, la tiene donde está, si está en el suelo: en el aire nadie la alcanzaría ni anotaría, y
+	# reaparecer ahí sería caer; si no, la pone con B jugando (atender() lo deja)
+	for id in jugadores():
+		if not banderas.has(id) and pos_de(id) != Vector3.INF and en_suelo(id):
 			banderas[id] = {"base": pos_de(id), "pos": pos_de(id), "lleva": 0, "t": 0.0}
 	puntos.clear()
 	for d in banderas:
@@ -420,6 +435,8 @@ func limpiar() -> void:
 	banderas.clear()
 	puntos.clear()
 	con_modo.clear()
+	t_pedido.clear()
+	muerto_desde.clear()
 	ajustar_jugador()
 
 
@@ -472,9 +489,9 @@ func _physics_process(dt: float) -> void:
 			continue
 		if d == yo():
 			if f["pos"] != f["base"]:
-				pedir_una_vez("devolver")
+				pedir_una_vez("devolver", [f["pos"]])
 		elif llevo == 0 and a_pie:
-			pedir_una_vez("tomar", [d])
+			pedir_una_vez("tomar", [d, f["pos"]])
 	var mia = banderas.get(yo())
 	if llevo != 0 and mia and p.distance_to(mia["base"]) < ANOTAR:
 		if en_su_lugar(mia):
