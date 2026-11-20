@@ -98,6 +98,8 @@ pipeline/
   rutas.py               los nombres de las rutas del mapa contra los roles de la Red Vial del MOP
   landmark.py            insumos para modelar un hito: planta OSM, marco local, fotos (Commons por nombre, ubicación o
                          categoría; Panoramax; Mapillary y Flickr con clave)
+  mapillary.py           Mapillary: la clave, las fotos de la comuna (teselas vectoriales) y qué lugares tienen fotos que los miran;
+                         la búsqueda y la elección (una por pasada, de frente) que usa landmark.py photos --mapillary
   traces.py              revisión de trazados contra OSM (cruces, puentes, manzanas en el agua), paneles satelitales, líneas de OSM;
                          la API map de OSM por cajas (tiles, tiles-comuna);
                          cruces, calzadas y ramales de la Ruta 5 -> data/ruta5.json

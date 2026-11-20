@@ -35,14 +35,15 @@ si la foto tiene coordenadas, su distancia al lugar («de frente» si la cámara
                    contra 6 por nombre).
   --cat [cat]      los archivos de una categoría de Commons: la P373 del elemento de Wikidata del lugar, o la dada.
   --panoramax [r]  fotos a nivel de calle de Panoramax (sin clave, CC BY-SA 4.0; en 2026 casi nada en Talca).
-  --mapillary [r]  Mapillary (CC BY-SA 4.0): necesita la clave en MAPILLARY_TOKEN; sin ella dice cómo pedirla.
+  --mapillary [r]  Mapillary (CC BY-SA 4.0): las que miran al lugar (±40°, o panorámicas), la más cercana de cada
+                   pasada, en 2048 px; necesita su clave (mapillary.py clave dice cómo pedirla).
   --flickr [r]     Flickr, solo licencias libres: necesita la clave en FLICKR_KEY; sin ella dice cómo pedirla.
 La consulta puede ir en cualquier lugar salvo justo después de --cat, que la tomaría como categoría.
 
 Requiere internet y Pillow para el plano (uv run --with pillow python landmark.py osm …).
 """
 import json, math, os, re, time, urllib.error, urllib.parse
-import cli, net, osm
+import cli, mapillary, net, osm
 from cli import maybe
 from common import ROOT, DATA, RAW, loc, unloc, require
 from geom import dec
@@ -186,8 +187,7 @@ def facing(lat, lon, at, az):
     """Whether a camera at (lat, lon) looking at azimuth az (degrees from true north) faces the place at `at`, ±45°."""
     if az is None: return False
     x, y = loc(lon, lat)
-    b = (math.degrees(math.atan2(at[2] - x, at[3] - y)) - 5) % 360   # the grid is turned +5°: back to true north
-    return min(abs(b - az), 360 - abs(b - az)) < 45
+    return mapillary.off(az, mapillary.bearing(x, y, at[2], at[3])) < 45
 
 def commons_rows(titles, at=None):
     """Commons files -> rows (date, source, title, description, licence, author, page, thumb, note)."""
@@ -256,26 +256,9 @@ def panoramax_rows(at, r):
     return rows
 
 def mapillary_rows(at, r):
-    tok = os.environ.get('MAPILLARY_TOKEN')
-    if not tok:
-        print('  --mapillary: falta MAPILLARY_TOKEN. Es gratis: entre a mapillary.com, Dashboard → Developers → Register\n'
-              '  application (permiso «Read») y copie el «Client Token» (MLY|…); guárdelo en el llavero y expórtelo como\n'
-              '  MAPILLARY_TOKEN. Fotos CC BY-SA 4.0: «© usuario, Mapillary, CC BY-SA 4.0».')
-        return []
-    b = ','.join(f'{v:.6f}' for v in bbox(at[0], at[1], r))
-    url = 'https://graph.mapillary.com/images?' + urllib.parse.urlencode({'bbox': b, 'limit': 200,
-          'fields': 'id,captured_at,compass_angle,computed_compass_angle,computed_geometry,geometry,is_pano,creator,thumb_1024_url'})
-    d = json.loads(net.get(url, headers={'Authorization': f'OAuth {tok}'}, timeout=60))
-    rows = []
-    for im in d.get('data', []):
-        g = (im.get('computed_geometry') or im.get('geometry') or {}).get('coordinates')
-        if not g or not im.get('thumb_1024_url'): continue
-        az = im.get('computed_compass_angle', im.get('compass_angle'))
-        note = f'a {math.dist(loc(*g[:2]), at[2:]):.0f} m' + (', panorámica' if im.get('is_pano') else ', de frente' if facing(g[1], g[0], at, az) else '')
-        rows.append((time.strftime('%Y-%m-%d', time.gmtime(im['captured_at'] / 1000)), 'Mapillary', im['id'], f'azimut {az}°',
-                     'CC BY-SA 4.0', (im.get('creator') or {}).get('username', ''), f'https://www.mapillary.com/app/?pKey={im["id"]}',
-                     im['thumb_1024_url'], note))
-    return rows
+    # the images that look at the place, one per sequence (mapillary.py: the key, the search and the choice)
+    return [(date, 'Mapillary', iid, desc, 'CC BY-SA 4.0', user, page, thumb, note)
+            for date, iid, desc, user, page, thumb, note in mapillary.near(*at, r)]
 
 FLICKR_LIC = {'4': 'CC BY 2.0', '5': 'CC BY-SA 2.0', '7': 'sin derechos conocidos', '9': 'CC0', '10': 'dominio público'}
 

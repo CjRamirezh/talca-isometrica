@@ -83,7 +83,8 @@ python pipeline/landmark.py photos <nombre> "<consulta>"          # algo que no 
 ```
 
 Quedan en `diagnostics/fotos/<id>/` con `indice.txt` (fecha, licencia, autor, enlace: para FUENTES). Más fuentes:
-`--panoramax 150`, `--mapillary`, `--flickr` (con `MAPILLARY_TOKEN` / `FLICKR_KEY`). Busque también prensa sobre
+`--panoramax 150`, `--mapillary` (su clave: `python pipeline/mapillary.py clave`; `mapillary.py lugares` dice qué lugares
+tienen fotos que los miran), `--flickr` (con `FLICKR_KEY`). Busque también prensa sobre
 remodelaciones y, si es Monumento Histórico, su decreto. **Las fotos fechadas mandan** sobre el satélite para techos,
 alturas y colores; las alturas de OSM no sirven (mida en una foto frontal con un ancho conocido de la planta). Anote
 de dónde sale cada medida. Street View sirve para mirar, nunca para copiar.

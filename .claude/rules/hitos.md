@@ -26,7 +26,7 @@ uv run --with pillow python pipeline/landmark.py osm estadio [250]   # planta OS
 python pipeline/landmark.py frame estadio 815575960 [más vías]       # vías en el marco local del modelo
 python pipeline/landmark.py photos estadio ["consulta"]              # fotos de Commons, más recientes primero
 python pipeline/landmark.py photos diagonal "Isidoro del Solar"     # con consulta, el nombre puede no ser un lugar (una calle)
-python pipeline/landmark.py photos estacion --geo 150 --cat [--panoramax 150] [--mapillary] [--flickr]   # más fuentes: Commons por ubicación y por la categoría de Wikidata (wd=); Mapillary y Flickr con MAPILLARY_TOKEN / FLICKR_KEY
+python pipeline/landmark.py photos estacion --geo 150 --cat [--panoramax 150] [--mapillary] [--flickr]   # más fuentes: Commons por ubicación y por la categoría de Wikidata (wd=); Mapillary (las que miran al lugar, una por pasada; su clave: mapillary.py clave) y Flickr con FLICKR_KEY
 uv run --with pillow python pipeline/landmark.py osm 4178,3725 [120]  # planta OSM alrededor de un punto de la grilla (un puente, un cruce), no de un lugar
 ```
 

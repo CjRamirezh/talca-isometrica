@@ -8,7 +8,9 @@
     ring; common.loc/unloc are inverse;
   - cli.py: arguments, flags and the errors that end with the usage;
   - gis.py: GeoPackage geometries written and read back, the grid's PROJ operation is common.loc, and a vertex taken
-    to EPSG:4326 and back rounds to the same integer metre.
+    to EPSG:4326 and back rounds to the same integer metre;
+  - mapillary.py: a vector tile written here is read back (properties of every type, points and lines), a point of a
+    tile lands in that tile, and the bearing from the grid to true north (the grid's +y points 5° east of north).
 Standard library only; ~0.2 s. The tests that need raw/ (the commune's limit) or node are skipped without them.
 """
 import contextlib, io, json, math, random, shutil, subprocess, sys, unittest
@@ -16,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'pipeline'))
-import cli, geom, common, edificios, gis
+import cli, geom, common, edificios, gis, mapillary
 
 LIMIT = common.RAW / 'osm' / 'comuna-talca.json'
 
@@ -175,3 +177,68 @@ class Cli(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def _pb(field, wire, v):
+    """One protobuf field (a test writer for mapillary.mvt): varint (0) or length-delimited (2) or fixed64 (1)."""
+    def var(n):
+        out = bytearray()
+        while True:
+            b = n & 0x7f; n >>= 7
+            if n: out.append(b | 0x80)
+            else: out.append(b); return bytes(out)
+    key = var(field << 3 | wire)
+    if wire == 0: return key + var(v)
+    if wire == 1: return key + v
+    return key + var(len(v)) + v
+
+def _packed(vals):
+    return b''.join(_pb(0, 0, v)[1:] for v in vals)     # the key byte of field 0 is a single 0: drop it
+
+class Mapillary(unittest.TestCase):
+    def tile(self):
+        import struct
+        zz = lambda n: (n << 1) ^ (n >> 63)
+        keys = ['id', 'captured_at', 'compass_angle', 'is_pano', 'sequence_id']
+        vals = [_pb(5, 0, 4321987654321), _pb(4, 0, 1700000000000), _pb(3, 1, struct.pack('<d', 271.5)), _pb(7, 0, 1),
+                _pb(1, 2, b'seqA'), _pb(6, 0, zz(-3))]
+        pt = _pb(1, 0, 7) + _pb(2, 2, _packed([0, 0, 1, 1, 2, 2, 3, 3, 4, 4])) + _pb(3, 0, 1) + \
+             _pb(4, 2, _packed([1 << 3 | 1, zz(100), zz(4000)]))
+        ln = _pb(2, 2, _packed([4, 5])) + _pb(3, 0, 2) + \
+             _pb(4, 2, _packed([1 << 3 | 1, zz(10), zz(20), 2 << 3 | 2, zz(5), zz(-5), zz(-15), zz(0)]))
+        layer = _pb(15, 0, 2) + _pb(1, 2, b'image') + _pb(2, 2, pt) + _pb(2, 2, ln) + \
+                b''.join(_pb(3, 2, k.encode()) for k in keys) + b''.join(_pb(4, 2, v) for v in vals) + _pb(5, 0, 4096)
+        return _pb(3, 2, layer)
+
+    def test_mvt(self):
+        import gzip
+        for b in (self.tile(), gzip.compress(self.tile())):
+            ext, feats = mapillary.mvt(b)['image']
+            self.assertEqual(ext, 4096)
+            (p, typ, parts), (q, typ2, parts2) = feats
+            self.assertEqual((typ, parts), (1, [[(100, 4000)]]))
+            self.assertEqual(p, {'id': 4321987654321, 'captured_at': 1700000000000, 'compass_angle': 271.5,
+                                 'is_pano': True, 'sequence_id': 'seqA'})
+            self.assertEqual((typ2, parts2), (2, [[(10, 20), (15, 15), (0, 15)]]))
+            self.assertEqual(q, {'sequence_id': -3})                  # no id field: none is made up
+
+    def test_tiles(self):
+        tiles = mapillary.tiles_of(14, -500, 500, -400, 400)
+        self.assertTrue(1 <= len(tiles) <= 4)               # a z14 tile is ~2 km wide here
+        lat, lon = common.unloc(0, 0)
+        t = mapillary.tiles_of(14, 0, 0, 0, 0)[0]
+        self.assertEqual(t, geom.tile_of(lat, lon, 14))
+        lo, la = mapillary.tile_lonlat(14, *t, 2048, 2048, 4096)
+        self.assertLess(math.dist(common.loc(lo, la), (0, 0)), 1500)
+
+    def test_bearing(self):
+        lat, lon = common.unloc(0, 0)
+        x, y = common.loc(lon, lat + 0.01)               # a point true north of the plaza
+        self.assertAlmostEqual(mapillary.bearing(0, 0, x, y), 0, places=6)
+        self.assertAlmostEqual(mapillary.bearing(0, 0, 0, 100), 5, places=6)
+        self.assertAlmostEqual(mapillary.off(355, 10), 15)
+        cam = ['i', 0, -50, 0, 5.0, 0, 's', 'u']           # 50 m south of the point on the grid, looking along +y
+        self.assertEqual(mapillary.facing(cam, 0, 0, 80), (50, 0))
+        self.assertIsNone(mapillary.facing(cam[:4] + [185.0] + cam[5:], 0, 0, 80))   # looking away
+        self.assertIsNotNone(mapillary.facing(cam[:4] + [185.0, 1] + cam[6:], 0, 0, 80))   # a panorama sees it
+        self.assertIsNone(mapillary.facing(cam, 0, 0, 40))  # too far
