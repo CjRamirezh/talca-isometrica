@@ -13,7 +13,7 @@ PORT ?= 8765
 DRY_RUN ?= 0
 CINE ?= 1920x1080             # la resolución de make cine (1280x720 para una prueba rápida)
 CINE_CRF ?= 20                # la calidad del H.264 de make cine (18: ~100 MB los 30 s; 23: ~45 MB)
-.PHONY: all fetch osm data elevation ruta5 sentidos edificios edificios-ml golf pois build check golden lint smoke hooks validate diagnostics shots site-assets juego cine deploy serve clean
+.PHONY: all fetch osm data elevation ruta5 sentidos edificios edificios-ml golf pois build check golden lint smoke hooks validate diagnostics shots site-assets juego lanzador cine deploy serve clean
 
 all: data elevation edificios golf pois build         ## pipeline completo (requiere raw/: make fetch)
 
@@ -74,6 +74,9 @@ juego: build                  ## juego/mapa/: la comuna en teselas de 500 m, sus
 	mkdir -p juego/datos && cp config/fachadas.json data/plaza-osm.json data/ruta5.json juego/datos/   # lo que el juego comparte con la página
 	cd pipeline && $(PY) plano.py   # juego/datos/plano.json: las calles, el agua y la red de calles de los mapas del juego (plano.gd, ruta.gd)
 	$(GODOT) --headless --path juego --import
+
+lanzador:                     ## Linux: el lanzador del juego en el menú de aplicaciones y en el escritorio, con su ícono (tools/icono_juego.py; juego/icono.png es el de la ventana)
+	uv run tools/icono_juego.py --instalar
 
 cine:                         ## la película de juego/cine.gd (requiere juego/mapa/: make juego): shots/cine/plaza.mp4 (H.264, 30 cuadros por segundo; ~1 min con la GPU del Mac)
 	mkdir -p shots/cine

@@ -4,6 +4,7 @@ config_version=5
 [application]
 config/name="Talca: paseo por la Plaza de Armas"
 run/main_scene="res://main.tscn"
+config/icon="res://icono.png"
 config/features=PackedStringArray("4.7")
 
 [display]
