@@ -175,10 +175,6 @@ class Cli(unittest.TestCase):
         with self.assertRaises(SystemExit) as e, contextlib.redirect_stdout(io.StringIO()): cli.run({'a': print}, 'uso', ['--help'])
         self.assertEqual(e.exception.code, 0)
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 def _pb(field, wire, v):
     """One protobuf field (a test writer for mapillary.mvt): varint (0) or length-delimited (2) or fixed64 (1)."""
     def var(n):
@@ -228,8 +224,27 @@ class Mapillary(unittest.TestCase):
         lat, lon = common.unloc(0, 0)
         t = mapillary.tiles_of(14, 0, 0, 0, 0)[0]
         self.assertEqual(t, geom.tile_of(lat, lon, 14))
-        lo, la = mapillary.tile_lonlat(14, *t, 2048, 2048, 4096)
-        self.assertLess(math.dist(common.loc(lo, la), (0, 0)), 1500)
+        lo0, la0 = mapillary.tile_lonlat(14, *t, 0, 0, 4096)          # the north-west corner (y runs south)
+        lo1, la1 = mapillary.tile_lonlat(14, *t, 4096, 4096, 4096)    # the south-east one
+        self.assertTrue(lo0 < lon < lo1 and la1 < lat < la0)
+        self.assertAlmostEqual(lo1 - lo0, 360 / 2 ** 14)
+
+    def test_cache(self):
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / 'teselas' / '14' / '1-2.pbf'
+            f.parent.mkdir(parents=True); f.write_bytes(self.tile()[:-9])   # a download cut short
+            with mock.patch.object(mapillary, 'OUT', Path(d)), \
+                 mock.patch.object(mapillary.net, 'get', return_value=self.tile()) as get:
+                ims = mapillary.tile_images(14, 1, 2, 'k')
+                self.assertEqual((get.call_count, len(ims), ims[0][0]), (1, 1, '4321987654321'))
+                self.assertEqual(f.read_bytes(), self.tile())             # downloaded again and kept whole
+                mapillary.tile_images(14, 1, 2, 'k')
+                self.assertEqual(get.call_count, 1)                       # then read from the cache
+                get.return_value = b'<html>error</html>'
+                with self.assertRaises(SystemExit): mapillary.tile_images(14, 1, 2, 'k', refresh=True)
+                self.assertEqual(f.read_bytes(), self.tile())             # a page that is not a tile is not kept
 
     def test_bearing(self):
         lat, lon = common.unloc(0, 0)
@@ -242,3 +257,7 @@ class Mapillary(unittest.TestCase):
         self.assertIsNone(mapillary.facing(cam[:4] + [185.0] + cam[5:], 0, 0, 80))   # looking away
         self.assertIsNotNone(mapillary.facing(cam[:4] + [185.0, 1] + cam[6:], 0, 0, 80))   # a panorama sees it
         self.assertIsNone(mapillary.facing(cam, 0, 0, 40))  # too far
+
+
+if __name__ == '__main__':
+    unittest.main()

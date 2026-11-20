@@ -182,15 +182,24 @@ def tile_images(z, tx, ty, tok, refresh=False):
     metres (the heading is Mapillary's computed one: the camera's own is often off by 100° or more). The tile is kept
     in raw/mapillary/teselas/<z>/ and downloaded again with `refresh` or when it is over 30 days old."""
     f = OUT / 'teselas' / str(z) / f'{tx}-{ty}.pbf'
-    if refresh or not f.exists() or time.time() - f.stat().st_mtime > 30 * 86400:
+    tiles = None
+    if not refresh and f.exists() and time.time() - f.stat().st_mtime <= 30 * 86400:
+        try: tiles = mvt(f.read_bytes()) if f.stat().st_size else {}
+        except Exception: tiles = None                    # truncated or not a tile: download it again
+    if tiles is None:
         f.parent.mkdir(parents=True, exist_ok=True)
         url = TILES.format(z=z, x=tx, y=ty) + '?' + urllib.parse.urlencode({'access_token': tok})
-        try: f.write_bytes(net.get(url, timeout=60, quiet=True))   # quiet: the retries would print the token
+        # never print or re-raise with the URL (e.url, e.filename): it carries the token
+        try: b = net.get(url, timeout=60, quiet=True)   # quiet: the retries would print the token
         except urllib.error.HTTPError as e:
             if e.code in (401, 403): raise SystemExit(f'Mapillary respondió {e.code} a una tesela: ¿la clave está bien?')
-            if e.code != 404: raise
-            f.write_bytes(b'')                           # a tile without coverage
-    layer = mvt(f.read_bytes()).get('image') if f.stat().st_size else None
+            if e.code != 404: raise SystemExit(f'Mapillary respondió {e.code} a la tesela {z}/{tx}/{ty}')
+            b = b''                                      # a tile without coverage
+        try: tiles = mvt(b) if b else {}
+        except Exception: raise SystemExit(f'la tesela {z}/{tx}/{ty} de Mapillary no se pudo leer ({len(b)} bytes)')
+        # read before it is kept, and written whole: a cut download or an error page never stays cached for 30 days
+        tmp = f.with_suffix('.tmp'); tmp.write_bytes(b); os.replace(tmp, f)
+    layer = tiles.get('image')
     if not layer: return []
     ext, feats = layer; out = []
     for p, typ, parts in feats:
