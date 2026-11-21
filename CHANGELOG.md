@@ -2,6 +2,13 @@
 
 ## Sin publicar
 
+- **Los tiros a la cabeza se notan.** La cabeza ya valía el doble (en los muñecos y entre jugadores), pero el que disparaba no lo veía: la X de la mira y el sonido eran los del cuerpo, y entre jugadores no salía ninguna cifra.
+  - `recibir_dano()` devuelve el daño que tomó (`blancos.gd`, `red.gd Blanco`): más que el del arma es la cabeza, y 0 es que no tomó nada (un jugador recién reaparecido, que ya no marca la X).
+  - En la cabeza, la X de la mira sale más grande y dorada, con borde (roja si lo botó), y suena un tic metálico (`sonidos()`, hecho en código como los demás).
+  - La cifra del daño ahora la pone `armas.gd cifra()` para todo lo que se hiere, también los otros jugadores: a la derecha del impacto (encima van el nombre o la barra de vida), de tamaño fijo en pantalla (a 50 m se lee como a 5) y dorada en la cabeza. Los golpes seguidos al mismo blanco se suman en una sola: una ráfaga de rifle es un número que crece, no una pila.
+  - Al que bota a otro jugador le sale «Mataste a Ana de un tiro en la cabeza» (o «… con el rifle») cuando el porte del herido lo confirma; los demás siguen viendo «Ana murió», porque quién mató a quién no viaja y la red no cambia.
+  - Probado con `--disparar` contra los muñecos y en la red con `--red-cabeza` (nuevo: `--red-tiros` le apunta a la cabeza), pistola y rifle, cabeza y cuerpo, y en capturas con `--pausa` y `--png` (que `--red-tiros` ahora también respeta).
+
 - **Mapillary.** `landmark.py photos --mapillary` estaba escrito pero nunca se había probado (faltaba la clave), y pedía 200 fotos cualesquiera de la caja, sin mirar hacia dónde apuntaban. Ahora `pipeline/mapillary.py` reúne lo de Mapillary:
   - `clave`: la clave de cliente (gratis, en mapillary.com/dashboard/developers; la aplicación «talca-isometrica», solo lectura) se lee de `MAPILLARY_TOKEN` o de `~/.config/mapillary.key`, va en el encabezado de la API y nunca en una URL que se imprima; sin ella, cada comando dice cómo pedirla.
   - `cobertura`: las fotos de toda la comuna, de las 168 teselas vectoriales `mly1_computed_public` a z14 (decodificadas con la biblioteca estándar; caché de 30 días en `raw/mapillary/`), con un resumen por año y autor y un panel por año (`diagnostics/mapillary-cobertura.png`; `--caja`, una caja de grilla a 1 m por píxel). En noviembre de 2026: 181.794 fotos en la comuna, de 531 pasadas y 20 autores; 134 mil son de un solo recorrido de febrero de 2018 que cubre casi toda la ciudad, y 46 mil de 2021 a 2026, sobre todo en los ejes (Ruta 5, 2 Sur al oriente, la Alameda) y algunas villas. `lugares`: qué lugares de `pois.py` tienen fotos que los miran, de cuántas pasadas y de cuándo (66 a menos de 80 m, 20 de ellos hitos).
